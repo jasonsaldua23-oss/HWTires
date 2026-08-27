@@ -1,0 +1,107 @@
+# ==============================================================================
+# Highway Tires Management System - .gitignore
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Sensitive Credentials & Secrets
+# ------------------------------------------------------------------------------
+CREDENTIALS.md
+credentials.json
+auth.json
+secrets/
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+
+# Environment variables & local secrets
+.env
+.env.*
+.env.local
+.env.production
+.env.staging
+!.env.example
+
+# Local config overrides
+config.local.php
+includes/config.local.php
+*.local.php
+
+# ------------------------------------------------------------------------------
+# 2. Logs & Debug Telemetry
+# ------------------------------------------------------------------------------
+*.log
+logs/
+debug_*.log
+login_debug.log
+session_debug.log
+debug_login.log
+debug_request.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ------------------------------------------------------------------------------
+# 3. Scratch, Temporary & Debug PHP Test Scripts
+# ------------------------------------------------------------------------------
+scratch/
+temp/
+tmp/
+check-data.php
+debug-form.php
+debug-login.php
+minimal-test.php
+test-post.php
+
+# ------------------------------------------------------------------------------
+# 4. File Backups, Dumps & Archive Files
+# ------------------------------------------------------------------------------
+*.backup
+*.bak
+*.old
+*~
+*.swp
+*.swo
+*.tmp
+*.dump
+*.sql.bak
+*.sql.gz
+*.tar.gz
+*.zip
+*.7z
+*.rar
+db_backups/
+backups/
+
+# ------------------------------------------------------------------------------
+# 5. OS Generated Files
+# ------------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ------------------------------------------------------------------------------
+# 6. IDEs, Text Editors & AI Workspace Tools
+# ------------------------------------------------------------------------------
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+.claude/
+.gemini/
+.system_generated/
+*.code-workspace
+
+# ------------------------------------------------------------------------------
+# 7. Dependencies & Build Artifacts
+# ------------------------------------------------------------------------------
+node_modules/
+vendor/
+composer.phar

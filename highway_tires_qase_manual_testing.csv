@@ -1,0 +1,479 @@
+id,title,description,preconditions,postconditions,tags,priority,severity,type,behavior,automation,status,is_flaky,layer,steps_type,steps_actions,steps_result,steps_data,milestone_id,milestone,suite_id,suite_parent_id,suite,suite_without_cases,parameters,is_muted
+,,,,,,,,,,,,,,,,,,,,1,,User Authentication and Session Management,1,,
+,,,,,,,,,,,,,,,,,,,,2,,Customer and Vehicle Records Management,1,,
+,,,,,,,,,,,,,,,,,,,,3,,"Service Operation Encoding, Inspection, and Quotations",1,,
+,,,,,,,,,,,,,,,,,,,,4,,"Job Order Processing, Task Assignment, and Status Board",1,,
+,,,,,,,,,,,,,,,,,,,,5,,Inventory Stock Monitoring and Inter-Branch Transfers,1,,
+,,,,,,,,,,,,,,,,,,,,6,,Predictive Demand Forecasting and Decision Support,1,,
+,,,,,,,,,,,,,,,,,,,,7,,"Operational Reports, Notifications, and Administration",1,,
+1,[TC-001] Administrator logs in with valid credentials,Functional black-box manual test case for Use Case 1: Manage User Session. Administrator logs in with valid credentials,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System validates credentials, creates an active administrator session, and displays the Admin Dashboard","hwtires,user_authentication_and_s,tc-001",critical,critical,smoke,positive,is-not-automated,actual,no,e2e,classic,"1. Navigate to http://localhost/hwtires/index.php
+2. Input Administrator login ID (admin@hwtires.local)
+3. Input password (password123)
+4. Click 'Sign In' button
+5. Observe dashboard redirection","1. Login interface renders with company branding and input fields
+2. Login ID is accepted
+3. Password input is masked securely
+4. System validates credentials and initializes session
+5. Redirects to /hwtires/admin/ with full Admin navigation","1. URL: /hwtires/index.php
+2. Login ID: admin@hwtires.local
+3. Password: password123
+4. Button: Sign In
+5. Expected Route: /admin/",1,Highway Tires V1.0 Alpha Testing,1,,User Authentication and Session Management,,,no
+2,[TC-002] Front desk staff logs in with assigned branch credentials,Functional black-box manual test case for Use Case 1: Manage User Session. Front desk staff logs in with assigned branch credentials,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System validates credentials, assigns branch context, and opens the Front Desk Dashboard","hwtires,user_authentication_and_s,tc-002",critical,critical,smoke,positive,is-not-automated,actual,no,e2e,classic,"1. Navigate to http://localhost/hwtires/index.php
+2. Input Front Desk Staff login ID (frontdesk1@hwtires.local)
+3. Input password (password123)
+4. Click 'Sign In' button
+5. Verify branch context in header","1. Login page loads successfully
+2. Login ID field accepts input
+3. Password is masked
+4. Credentials validated
+5. Redirects to /hwtires/front-desk/ with assigned branch context","1. URL: /hwtires/index.php
+2. Login ID: frontdesk1@hwtires.local
+3. Password: password123
+4. Expected Route: /front-desk/",1,Highway Tires V1.0 Alpha Testing,1,,User Authentication and Session Management,,,no
+3,[TC-003] User enters an invalid password during login,Functional black-box manual test case for Use Case 1: Manage User Session. User enters an invalid password during login,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System blocks access and displays an error message indicating invalid login credentials,"hwtires,user_authentication_and_s,tc-003",high,normal,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Open login page (/hwtires/index.php)
+2. Enter valid Login ID
+3. Enter incorrect password
+4. Click 'Sign In' button","1. Login form displays
+2. Login ID entered
+3. Password entered
+4. System blocks access and displays alert: 'Invalid login credentials'","1. Login ID: admin@hwtires.local
+2. Password: WrongPassword999!
+3. Action: Click Sign In",1,Highway Tires V1.0 Alpha Testing,1,,User Authentication and Session Management,,,no
+4,[TC-004] User attempts login with an unassigned or inactive account,Functional black-box manual test case for Use Case 1: Manage User Session. User attempts login with an unassigned or inactive account,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System denies access and displays a notice stating the account is inactive or disabled,"hwtires,user_authentication_and_s,tc-004",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open login page
+2. Enter credentials of an inactive/disabled user account
+3. Click 'Sign In' button","1. Login form displays
+2. Credentials entered
+3. System denies access and displays alert: 'Account is inactive or disabled'","1. Login ID: disabled_user@hwtires.local
+2. Password: password123",1,Highway Tires V1.0 Alpha Testing,1,,User Authentication and Session Management,,,no
+5,[TC-005] Logged-in user navigates to their own profile page,Functional black-box manual test case for Use Case 1: Manage User Session. Logged-in user navigates to their own profile page,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System displays the user profile information including full name, email, role, and branch assignment","hwtires,user_authentication_and_s,tc-005",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Sign in with authorized account
+2. Click user profile avatar in navigation header
+3. Select 'Profile Settings'","1. User authenticated
+2. User dropdown menu opens
+3. Profile page displays full name, email, assigned role, and branch location",1. URL: /hwtires/profile.php,1,Highway Tires V1.0 Alpha Testing,1,,User Authentication and Session Management,,,no
+6,[TC-006] User updates their personal profile information,Functional black-box manual test case for Use Case 1: Manage User Session. User updates their personal profile information,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System validates entered information, saves changes, and displays a success notification","hwtires,user_authentication_and_s,tc-006",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. In Profile page, edit Full Name and Contact Phone fields
+2. Click 'Save Profile' button
+3. Verify updated details on page","1. Profile edit form active
+2. New values entered
+3. System updates profile and displays success confirmation toast","1. Name: Juan Dela Cruz Updated
+2. Phone: 09171234567",1,Highway Tires V1.0 Alpha Testing,1,,User Authentication and Session Management,,,no
+7,[TC-007] User updates their account password,Functional black-box manual test case for Use Case 1: Manage User Session. User updates their account password,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System confirms current password, verifies new password, and saves the updated password","hwtires,user_authentication_and_s,tc-007",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. In Profile > Security tab, enter Current Password
+2. Enter New Password and Confirm New Password
+3. Click 'Update Password' button","1. Security form active
+2. Current password validated
+3. New password saved; system displays password updated confirmation","1. Current: password123
+2. New: NewSecure2026!
+3. Confirm: NewSecure2026!",1,Highway Tires V1.0 Alpha Testing,1,,User Authentication and Session Management,,,no
+8,[TC-008] User clicks the logout button,Functional black-box manual test case for Use Case 1: Manage User Session. User clicks the logout button,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System ends the active session, clears authentication data, and redirects to login screen","hwtires,user_authentication_and_s,tc-008",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Click user profile dropdown in header
+2. Click 'Logout' link
+3. Attempt to navigate back using browser Back button","1. Dropdown displays
+2. Session is destroyed and user is redirected to index.php
+3. Browser Back button does not reveal authenticated pages",1. Action: GET /hwtires/logout.php,1,Highway Tires V1.0 Alpha Testing,1,,User Authentication and Session Management,,,no
+9,[TC-009] Logged-out user attempts to access a protected page via direct URL,Functional black-box manual test case for Use Case 1: Manage User Session. Logged-out user attempts to access a protected page via direct URL,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System blocks access attempt and automatically redirects user to login screen,"hwtires,user_authentication_and_s,tc-009",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Ensure user is logged out
+2. Enter protected URL (http://localhost/hwtires/admin/index.php) in browser URL bar
+3. Press Enter","1. Logged out state confirmed
+2. Request sent
+3. System intercepts unauthorized request and redirects immediately to login page (/hwtires/index.php)",1. Protected URL: /hwtires/admin/index.php,1,Highway Tires V1.0 Alpha Testing,1,,User Authentication and Session Management,,,no
+10,[TC-010] Front desk staff attempts to open an administrator-only management page,Functional black-box manual test case for Use Case 1: Manage User Session. Front desk staff attempts to open an administrator-only management page,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System intercepts request and redirects staff member back to front desk dashboard,"hwtires,user_authentication_and_s,tc-010",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as Front Desk Staff
+2. Manually enter admin route URL (http://localhost/hwtires/admin/users/index.php) in browser
+3. Press Enter","1. Front desk user logged in
+2. Request sent to admin page
+3. System intercepts request, enforces role guard, and redirects back to front desk dashboard","1. Role: front_desk
+2. Target: /admin/users/index.php",1,Highway Tires V1.0 Alpha Testing,1,,User Authentication and Session Management,,,no
+11,[TC-011] Already authenticated user navigates back to login page,Functional black-box manual test case for Use Case 1: Manage User Session. Already authenticated user navigates back to login page,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System recognizes active session and automatically redirects to appropriate dashboard,"hwtires,user_authentication_and_s,tc-011",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. While logged in, navigate to http://localhost/hwtires/index.php
+2. Observe redirection","1. Request sent to index.php
+2. System detects active session
+3. Automatically redirects to user's matching role dashboard without showing login form",1. Active user session present,1,Highway Tires V1.0 Alpha Testing,1,,User Authentication and Session Management,,,no
+12,[TC-012] Inactive session exceeds allowed idle timeout period,Functional black-box manual test case for Use Case 1: Manage User Session. Inactive session exceeds allowed idle timeout period,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System automatically expires session and requires user to log in again upon next interaction,"hwtires,user_authentication_and_s,tc-012",high,normal,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in to the system
+2. Leave browser idle without interaction exceeding session timeout (3600s)
+3. Click any link on the page","1. Active session created
+2. Idle period elapses
+3. System detects expired session and redirects user to login screen with expiration notice",1. Timeout limit: SESSION_TIMEOUT (3600 seconds),1,Highway Tires V1.0 Alpha Testing,1,,User Authentication and Session Management,,,no
+13,[TC-0013] Staff creates a new customer profile,Functional black-box manual test case for Use Case 2: Manage Customer and Vehicle Records. Staff creates a new customer profile,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System validates customer details (name, contact number, address) and saves new customer record","hwtires,customer_and_vehicle_reco,tc-0013",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Navigate to Customer Management (/front-desk/customers/)
+2. Click 'Add New Customer' button
+3. Enter Full Name, Contact Number, and Address
+4. Click 'Save Customer' button","1. Customer module loads
+2. Modal form displays
+3. Input fields validate
+4. New customer record is created and appears in the customer directory","1. Name: Carlos Mendoza
+2. Phone: 09181234567
+3. Address: Bacolod City",1,Highway Tires V1.0 Alpha Testing,2,,Customer and Vehicle Records Management,,,no
+14,[TC-0014] Staff searches for an existing customer using name or contact number,Functional black-box manual test case for Use Case 2: Manage Customer and Vehicle Records. Staff searches for an existing customer using name or contact number,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System performs search and displays matching customer records with their details,"hwtires,customer_and_vehicle_reco,tc-0014",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open Customer Management page
+2. Type customer name or phone number into search bar
+3. Press Enter or observe live table filter","1. Search box focused
+2. Query dispatched
+3. Customer table dynamically filters to display matching customer records with complete details",1. Query: 'Carlos' or '09181234567',1,Highway Tires V1.0 Alpha Testing,2,,Customer and Vehicle Records Management,,,no
+15,[TC-0015] Staff registers a customer profile with an already existing phone number,Functional black-box manual test case for Use Case 2: Manage Customer and Vehicle Records. Staff registers a customer profile with an already existing phone number,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System detects existing customer record and alerts staff to prevent duplicate entries,"hwtires,customer_and_vehicle_reco,tc-0015",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open 'Add Customer' modal
+2. Enter name and an already registered phone number
+3. Click 'Save Customer'","1. Add form displays
+2. Duplicate phone entered
+3. System alerts staff of existing customer record and prevents duplicate entry creation",1. Existing Phone: 09181234567,1,Highway Tires V1.0 Alpha Testing,2,,Customer and Vehicle Records Management,,,no
+16,[TC-0016] Staff leaves required customer contact fields empty,Functional black-box manual test case for Use Case 2: Manage Customer and Vehicle Records. Staff leaves required customer contact fields empty,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System highlights missing fields and prevents saving until complete information is provided,"hwtires,customer_and_vehicle_reco,tc-0016",high,normal,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Open 'Add Customer' modal
+2. Leave Name or Phone field empty
+3. Click 'Save Customer'","1. Form displays
+2. Blank values submitted
+3. System highlights missing fields in red and prevents form submission","1. Name: '' (blank)
+2. Phone: ''",1,Highway Tires V1.0 Alpha Testing,2,,Customer and Vehicle Records Management,,,no
+17,[TC-0017] Staff registers a new vehicle profile under a customer,Functional black-box manual test case for Use Case 2: Manage Customer and Vehicle Records. Staff registers a new vehicle profile under a customer,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System records vehicle details (plate number, make, model, year) and links it to customer","hwtires,customer_and_vehicle_reco,tc-0017",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open customer profile view
+2. Click 'Register Vehicle' button
+3. Enter Plate Number, Make, Model, Year, and Chassis Number
+4. Click 'Save Vehicle'","1. Customer profile loads
+2. Vehicle modal displays
+3. Inputs validated
+4. Vehicle record is saved and linked to the customer's profile","1. Plate: ABC-1234
+2. Make: Toyota
+3. Model: Hilux
+4. Year: 2022",1,Highway Tires V1.0 Alpha Testing,2,,Customer and Vehicle Records Management,,,no
+18,[TC-0018] Staff registers a vehicle with an existing plate number,Functional black-box manual test case for Use Case 2: Manage Customer and Vehicle Records. Staff registers a vehicle with an existing plate number,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System identifies existing vehicle record and alerts staff of duplicate registration,"hwtires,customer_and_vehicle_reco,tc-0018",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open Vehicle Registration modal
+2. Enter plate number that is already registered in the system
+3. Click 'Save Vehicle'","1. Modal displays
+2. Duplicate plate submitted
+3. System identifies existing vehicle and displays warning alert to prevent duplicate registration",1. Plate: ABC-1234 (already registered),1,Highway Tires V1.0 Alpha Testing,2,,Customer and Vehicle Records Management,,,no
+19,[TC-0019] Staff views complete service history of a vehicle,Functional black-box manual test case for Use Case 2: Manage Customer and Vehicle Records. Staff views complete service history of a vehicle,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System displays past service records, dates, inspection findings, parts used, and servicing branches","hwtires,customer_and_vehicle_reco,tc-0019",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Search for a vehicle by plate number
+2. Open vehicle profile
+3. Click 'Service History' tab","1. Vehicle located
+2. Profile loads
+3. Displays consolidated timeline of past service records, dates, findings, parts used, and servicing branches",1. Plate: ABC-1234,1,Highway Tires V1.0 Alpha Testing,2,,Customer and Vehicle Records Management,,,no
+20,[TC-0020] Staff updates existing customer contact details,Functional black-box manual test case for Use Case 2: Manage Customer and Vehicle Records. Staff updates existing customer contact details,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System saves modified customer information and reflects updates immediately,"hwtires,customer_and_vehicle_reco,tc-0020",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open customer profile
+2. Click 'Edit Customer Details'
+3. Update contact phone number or address
+4. Click 'Save Changes'","1. Profile open
+2. Edit form active
+3. New contact details entered
+4. Updated information is saved and reflected across the system immediately",1. New Phone: 09199887766,1,Highway Tires V1.0 Alpha Testing,2,,Customer and Vehicle Records Management,,,no
+21,[TC-0021] Staff updates vehicle specifications and mileage,Functional black-box manual test case for Use Case 2: Manage Customer and Vehicle Records. Staff updates vehicle specifications and mileage,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System saves revised vehicle specifications and updates active profile,"hwtires,customer_and_vehicle_reco,tc-0021",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open vehicle profile
+2. Click 'Edit Vehicle'
+3. Update odometer reading / mileage and engine notes
+4. Click 'Save Changes'","1. Vehicle profile open
+2. Edit form active
+3. Mileage updated
+4. Revised vehicle specifications are saved successfully","1. Mileage: 45,200 km",1,Highway Tires V1.0 Alpha Testing,2,,Customer and Vehicle Records Management,,,no
+22,[TC-0022] Staff views cross-branch service records for a visiting vehicle,Functional black-box manual test case for Use Case 2: Manage Customer and Vehicle Records. Staff views cross-branch service records for a visiting vehicle,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System retrieves and displays service transactions conducted at other branch locations,"hwtires,customer_and_vehicle_reco,tc-0022",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in at Branch B
+2. Search for a visiting vehicle previously serviced at Branch A
+3. Open vehicle profile history","1. Branch B session active
+2. Vehicle located
+3. System retrieves and displays service records conducted at Branch A with branch badge indicators","1. Current Branch: Branch B
+2. Origin Branch: Branch A",1,Highway Tires V1.0 Alpha Testing,2,,Customer and Vehicle Records Management,,,no
+23,[TC-0023] Staff archives an inactive vehicle record,Functional black-box manual test case for Use Case 2: Manage Customer and Vehicle Records. Staff archives an inactive vehicle record,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System marks vehicle record as archived and hides it from active vehicle list,"hwtires,customer_and_vehicle_reco,tc-0023",high,normal,functional,destructive,is-not-automated,actual,no,e2e,classic,"1. Open vehicle profile
+2. Click 'Archive Vehicle' button
+3. Confirm archive prompt in confirmation dialog","1. Vehicle profile loaded
+2. Confirmation prompt appears
+3. Vehicle status changes to 'Archived' and is hidden from active vehicle search",1. Target Vehicle: ABC-1234,1,Highway Tires V1.0 Alpha Testing,2,,Customer and Vehicle Records Management,,,no
+24,[TC-0024] Staff restores a previously archived vehicle record,Functional black-box manual test case for Use Case 2: Manage Customer and Vehicle Records. Staff restores a previously archived vehicle record,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System restores vehicle record to active status and makes it available for service transactions,"hwtires,customer_and_vehicle_reco,tc-0024",high,normal,functional,destructive,is-not-automated,actual,no,e2e,classic,"1. Open Customer/Vehicle directory and switch filter to 'Archived'
+2. Locate archived vehicle
+3. Click 'Restore Vehicle' button and confirm","1. Archived list displays
+2. Vehicle found
+3. Vehicle is restored to active status and becomes available for new service transactions",1. Action: Restore vehicle,1,Highway Tires V1.0 Alpha Testing,2,,Customer and Vehicle Records Management,,,no
+25,[TC-0025] Staff archives a customer branch record,Functional black-box manual test case for Use Case 2: Manage Customer and Vehicle Records. Staff archives a customer branch record,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System archives branch customer profile while preserving central historical records,"hwtires,customer_and_vehicle_reco,tc-0025",high,normal,functional,destructive,is-not-automated,actual,no,e2e,classic,"1. Open customer profile
+2. Click 'Archive Branch Record'
+3. Confirm action in modal","1. Profile loads
+2. Confirmation prompt appears
+3. Branch customer record is archived while central historical transactions remain intact",1. Customer ID: 102,1,Highway Tires V1.0 Alpha Testing,2,,Customer and Vehicle Records Management,,,no
+26,[TC-0026] Staff uses live search suggestions when entering customer details,Functional black-box manual test case for Use Case 2: Manage Customer and Vehicle Records. Staff uses live search suggestions when entering customer details,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System provides instant dropdown suggestions based on entered characters,"hwtires,customer_and_vehicle_reco,tc-0026",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Focus search bar in top navigation
+2. Type partial search query (e.g. 'Toy' or 'Carlos')
+3. Observe instant dropdown suggestions","1. Search box focused
+2. Keystrokes query search-suggestions API
+3. Dropdown instantly shows matching customer and vehicle suggestion items",1. Query string: 'Toy' -> returns matching Toyota vehicles,1,Highway Tires V1.0 Alpha Testing,2,,Customer and Vehicle Records Management,,,no
+27,[TC-0027] Staff initiates a new service operation for a customer vehicle,Functional black-box manual test case for Use Case 3: Create Service Operation. Staff initiates a new service operation for a customer vehicle,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System opens service operation form with loaded customer and vehicle information,"hwtires,service_operation_encodin,tc-0027",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open Quotations module (/front-desk/quotations/)
+2. Click 'New Service Operation' button
+3. Select Customer and Vehicle from search/dropdown","1. Quotation module loads
+2. Service form opens
+3. Customer and vehicle profile data automatically populate form fields","1. Customer: Carlos Mendoza
+2. Vehicle: Toyota Hilux (ABC-1234)",1,Highway Tires V1.0 Alpha Testing,3,,"Service Operation Encoding, Inspection, and Quotations",,,no
+28,[TC-0028] Staff records multi-point vehicle inspection findings,Functional black-box manual test case for Use Case 3: Create Service Operation. Staff records multi-point vehicle inspection findings,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System documents inspection checklist results, tire wear observations, and recommended services","hwtires,service_operation_encodin,tc-0028",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. In Service Operation form, navigate to Inspection section
+2. Record tire tread depth, brake pad thickness, and suspension condition
+3. Enter technician diagnostic observations","1. Inspection section active
+2. Measurements entered
+3. System documents checklist findings and highlights recommended services","1. Tire Tread: 3mm (Worn)
+2. Brake Pad: 40%
+3. Notes: Replacement advised",1,Highway Tires V1.0 Alpha Testing,3,,"Service Operation Encoding, Inspection, and Quotations",,,no
+29,[TC-0029] Staff adds tire replacement items from catalog,Functional black-box manual test case for Use Case 3: Create Service Operation. Staff adds tire replacement items from catalog,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System loads tire specifications, unit prices, and calculates item subtotal based on quantity","hwtires,service_operation_encodin,tc-0029",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. In Quotation line items, click 'Add Item'
+2. Choose item category 'Tire'
+3. Select tire model and size from catalog
+4. Enter quantity","1. Item selector opens
+2. Tire item selected
+3. Unit price loads automatically from catalog
+4. Subtotal computes dynamically (Qty * Price)","1. Item: Michelin Primacy 4 205/55R16
+2. Qty: 2
+3. Unit Price: 4,800.00",1,Highway Tires V1.0 Alpha Testing,3,,"Service Operation Encoding, Inspection, and Quotations",,,no
+30,[TC-0030] Staff adds mechanical maintenance and labor services,Functional black-box manual test case for Use Case 3: Create Service Operation. Staff adds mechanical maintenance and labor services,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System adds selected service labor packages and computes applicable labor charges,"hwtires,service_operation_encodin,tc-0030",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Click 'Add Service / Labor'
+2. Choose maintenance service package (e.g. Wheel Alignment, Tire Balancing)
+3. Enter labor quantity","1. Service selector active
+2. Labor package selected
+3. Standard labor rate auto-fills
+4. Labor charge is computed and added to total","1. Service: Four Wheel Alignment
+2. Labor Fee: 800.00",1,Highway Tires V1.0 Alpha Testing,3,,"Service Operation Encoding, Inspection, and Quotations",,,no
+31,[TC-0031] Staff adds spare parts and consumable materials to service list,Functional black-box manual test case for Use Case 3: Create Service Operation. Staff adds spare parts and consumable materials to service list,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System adds requested parts, checks branch stock availability, and computes parts subtotal","hwtires,service_operation_encodin,tc-0031",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Click 'Add Part / Material'
+2. Select part (e.g. Tubeless Valve Stems, Wheel Weights)
+3. Enter quantity","1. Part selector active
+2. System checks branch inventory availability
+3. Parts line subtotal computes and is appended to item list","1. Part: Tubeless Valve Stem
+2. Qty: 2
+3. Unit Price: 150.00",1,Highway Tires V1.0 Alpha Testing,3,,"Service Operation Encoding, Inspection, and Quotations",,,no
+32,[TC-0032] System computes overall estimated total amount,Functional black-box manual test case for Use Case 3: Create Service Operation. System computes overall estimated total amount,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System automatically sums parts, tires, labor, discounts, and applicable taxes in real time","hwtires,service_operation_encodin,tc-0032",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Review line items table in quotation form
+2. Observe live calculation summary box at bottom of form","1. Line items listed
+2. System automatically recalculates Parts Subtotal, Labor Subtotal, Discounts, Taxes, and Grand Total in real time","1. Parts: 9,900.00
+2. Labor: 800.00
+3. Grand Total: 10,700.00",1,Highway Tires V1.0 Alpha Testing,3,,"Service Operation Encoding, Inspection, and Quotations",,,no
+33,[TC-0033] Staff generates a formal customer quotation,Functional black-box manual test case for Use Case 3: Create Service Operation. Staff generates a formal customer quotation,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System compiles inspection findings, selected items, labor, and total into formal quotation record","hwtires,service_operation_encodin,tc-0033",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Click 'Generate Quotation' button
+2. Confirm quotation submission","1. Validation passes
+2. Formal quotation record is created with unique reference code (e.g. QT-2026-0045) in 'Pending' status",1. Reference Code: QT-2026-0045,1,Highway Tires V1.0 Alpha Testing,3,,"Service Operation Encoding, Inspection, and Quotations",,,no
+34,[TC-0034] Staff applies a promotional discount to quotation,Functional black-box manual test case for Use Case 3: Create Service Operation. Staff applies a promotional discount to quotation,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System recalculates discounted total and displays both original and discounted amounts,"hwtires,service_operation_encodin,tc-0034",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. In Quotation form, enter promotional discount amount (e.g. 500.00) or percentage
+2. Observe recalculated total","1. Discount input accepted
+2. System recalculates discounted total and displays original amount, discount, and adjusted net amount","1. Discount: 500.00
+2. Adjusted Total: 10,200.00",1,Highway Tires V1.0 Alpha Testing,3,,"Service Operation Encoding, Inspection, and Quotations",,,no
+35,[TC-0035] Customer approves the service quotation,Functional black-box manual test case for Use Case 3: Create Service Operation. Customer approves the service quotation,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System updates quotation status to Approved and enables job order creation,"hwtires,service_operation_encodin,tc-0035",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open quotation details view
+2. Click 'Customer Approved' button
+3. Confirm approval in modal dialog","1. Quotation details open
+2. Approval confirmed
+3. Quotation status updates to 'Approved' and 'Create Job Order' action becomes enabled",1. Status: Approved,1,Highway Tires V1.0 Alpha Testing,3,,"Service Operation Encoding, Inspection, and Quotations",,,no
+36,[TC-0036] Customer declines or cancels service quotation,Functional black-box manual test case for Use Case 3: Create Service Operation. Customer declines or cancels service quotation,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System records rejection reason and updates quotation status to Rejected or Canceled,"hwtires,service_operation_encodin,tc-0036",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open quotation details view
+2. Click 'Decline / Cancel Quotation'
+3. Enter customer decline reason and confirm","1. Action dialog appears
+2. Decline reason entered
+3. Quotation status updates to 'Rejected' / 'Canceled' and reason is recorded",1. Reason: Customer decided to postpone maintenance,1,Highway Tires V1.0 Alpha Testing,3,,"Service Operation Encoding, Inspection, and Quotations",,,no
+37,[TC-0037] Staff edits items in a pending quotation,Functional black-box manual test case for Use Case 3: Create Service Operation. Staff edits items in a pending quotation,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System updates selected items, quantities, and recomputes total cost","hwtires,service_operation_encodin,tc-0037",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open a Pending quotation
+2. Click 'Edit Quotation'
+3. Modify item quantity or add additional service
+4. Click 'Update Quotation'","1. Edit mode active
+2. Item modified
+3. System recalculates line items, taxes, and grand total, and updates saved quotation record",1. Quantity modified from 2 to 4 units,1,Highway Tires V1.0 Alpha Testing,3,,"Service Operation Encoding, Inspection, and Quotations",,,no
+38,[TC-0038] Staff exports or prints formal quotation document,Functional black-box manual test case for Use Case 3: Create Service Operation. Staff exports or prints formal quotation document,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System generates cleanly formatted, printable quotation document with company branding","hwtires,service_operation_encodin,tc-0038",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open quotation details view
+2. Click 'Print / PDF' button","1. Export triggered
+2. System generates cleanly formatted, printable PDF quotation with company branding, itemized table, and total",1. Format: PDF / Printable Document,1,Highway Tires V1.0 Alpha Testing,3,,"Service Operation Encoding, Inspection, and Quotations",,,no
+39,[TC-0039] Staff archives a canceled quotation record,Functional black-box manual test case for Use Case 3: Create Service Operation. Staff archives a canceled quotation record,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System moves canceled quotation to archived status while keeping audit history,"hwtires,service_operation_encodin,tc-0039",high,normal,functional,destructive,is-not-automated,actual,no,e2e,classic,"1. Select a Canceled or Rejected quotation
+2. Click 'Archive Quotation' button and confirm","1. Action confirmed
+2. Quotation is archived and removed from active list while preserving complete audit history",1. Quotation: QT-2026-0045,1,Highway Tires V1.0 Alpha Testing,3,,"Service Operation Encoding, Inspection, and Quotations",,,no
+40,[TC-0040] Staff attempts to create job order from unapproved quotation,Functional black-box manual test case for Use Case 3: Create Service Operation. Staff attempts to create job order from unapproved quotation,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System prevents job order creation and prompts that customer approval is required,"hwtires,service_operation_encodin,tc-0040",high,normal,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Open a Pending or Rejected quotation
+2. Attempt to create a Job Order directly","1. Quotation is unapproved
+2. System blocks Job Order creation and displays alert: 'Quotation must be Approved before creating Job Order'",1. Quotation Status: Pending,1,Highway Tires V1.0 Alpha Testing,3,,"Service Operation Encoding, Inspection, and Quotations",,,no
+41,[TC-0041] Staff converts an approved quotation into an active job order,Functional black-box manual test case for Use Cases 6 & 7: Job Orders & Service Status Board. Staff converts an approved quotation into an active job order,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System creates new job order with customer, vehicle, and approved service details","hwtires,job_order_processing,_tas,tc-0041",critical,critical,smoke,positive,is-not-automated,actual,no,e2e,classic,"1. Open Approved quotation
+2. Click 'Convert to Job Order' button
+3. Review pre-loaded customer, vehicle, and approved items","1. Approved quotation loaded
+2. Job order creation form opens
+3. All quotation data transfers seamlessly into new Job Order record (JO-2026-0082)","1. Source: QT-2026-0045
+2. Job Order ID: JO-2026-0082",1,Highway Tires V1.0 Alpha Testing,4,,"Job Order Processing, Task Assignment, and Status Board",,,no
+42,[TC-0042] Staff assigns primary technician and assistant to job order,Functional black-box manual test case for Use Cases 6 & 7: Job Orders & Service Status Board. Staff assigns primary technician and assistant to job order,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System assigns designated technicians, sets work schedule, and records estimated duration","hwtires,job_order_processing,_tas,tc-0042",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. In Job Order form, select Primary Technician from dropdown
+2. Select Assistant Technician
+3. Enter estimated duration (e.g. 90 minutes)","1. Technician dropdown lists active branch staff
+2. Technicians assigned
+3. Target schedule and estimated duration recorded","1. Lead Tech: Mark Reyes
+2. Assistant: Alex Santos
+3. Duration: 90 mins",1,Highway Tires V1.0 Alpha Testing,4,,"Job Order Processing, Task Assignment, and Status Board",,,no
+43,[TC-0043] System generates task-level execution checklist for job order,Functional black-box manual test case for Use Cases 6 & 7: Job Orders & Service Status Board. System generates task-level execution checklist for job order,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System creates individual checklist items for each approved service and part installation,"hwtires,job_order_processing,_tas,tc-0043",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Save Job Order creation form
+2. Open the active Job Order execution view","1. Job Order saved
+2. System automatically generates task-level execution checklist for each approved service (e.g. Mount Tires, Wheel Alignment)","1. Generated Tasks: Mount Tires, Balance, Alignment",1,Highway Tires V1.0 Alpha Testing,4,,"Job Order Processing, Task Assignment, and Status Board",,,no
+44,[TC-0044] Staff checks parts readiness before commencing job tasks,Functional black-box manual test case for Use Cases 6 & 7: Job Orders & Service Status Board. Staff checks parts readiness before commencing job tasks,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System confirms required parts are in stock or available from completed transfers,"hwtires,job_order_processing,_tas,tc-0044",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open Job Order task overview
+2. Verify 'Parts Readiness' indicator next to parts-dependent tasks","1. Overview loads
+2. System checks branch inventory or completed transfer status
+3. Green 'Ready in Stock' badge displays for available items",1. Stock Check: 2 units Michelin 205/55R16 available,1,Highway Tires V1.0 Alpha Testing,4,,"Job Order Processing, Task Assignment, and Status Board",,,no
+45,[TC-0045] Technician starts work and updates job order status to Ongoing,Functional black-box manual test case for Use Cases 6 & 7: Job Orders & Service Status Board. Technician starts work and updates job order status to Ongoing,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System transitions job order status from Queued to Ongoing and records start time,"hwtires,job_order_processing,_tas,tc-0045",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. On active Job Order, click 'Start Job' button
+2. Confirm start timestamp","1. Action clicked
+2. Job Order status transitions from 'Queued' to 'Ongoing'
+3. Start timestamp is logged and progress timer begins",1. Status: Queued -> Ongoing,1,Highway Tires V1.0 Alpha Testing,4,,"Job Order Processing, Task Assignment, and Status Board",,,no
+46,[TC-0046] Technician marks an individual service task as completed,Functional black-box manual test case for Use Cases 6 & 7: Job Orders & Service Status Board. Technician marks an individual service task as completed,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System updates task progress percentage and records completion timestamp,"hwtires,job_order_processing,_tas,tc-0046",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. In active Job Order, check the checkbox next to completed task (e.g. 'Mount Tires')
+2. Confirm task completion","1. Task checked
+2. Task status updates to Completed with timestamp
+3. Job Order progress bar updates (e.g. to 33%)",1. Completed Task: Mount Tires,1,Highway Tires V1.0 Alpha Testing,4,,"Job Order Processing, Task Assignment, and Status Board",,,no
+47,[TC-0047] System automatically deducts parts inventory upon completing related task,Functional black-box manual test case for Use Cases 6 & 7: Job Orders & Service Status Board. System automatically deducts parts inventory upon completing related task,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System deducts used tire/part quantity from branch stock and records consumption,"hwtires,job_order_processing,_tas,tc-0047",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Complete a task linked to parts consumption (e.g. Tire Installation)
+2. Check branch inventory balance for that item","1. Task completed
+2. System automatically deducts required item quantity from branch inventory
+3. Stock-out transaction is logged with Job Order reference",1. Deducted: 2 units Michelin Primacy 4,1,Highway Tires V1.0 Alpha Testing,4,,"Job Order Processing, Task Assignment, and Status Board",,,no
+48,[TC-0048] Technician completes all service tasks in checklist,Functional black-box manual test case for Use Cases 6 & 7: Job Orders & Service Status Board. Technician completes all service tasks in checklist,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System transitions job order status to Completed and records finish timestamp,"hwtires,job_order_processing,_tas,tc-0048",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Mark all remaining checklist tasks as completed
+2. Observe Job Order status update","1. Final task checked
+2. System detects 100% checklist completion
+3. Job Order status automatically transitions to 'Completed' and finish timestamp is recorded","1. Progress: 100%
+2. Status: Completed",1,Highway Tires V1.0 Alpha Testing,4,,"Job Order Processing, Task Assignment, and Status Board",,,no
+49,[TC-0049] Staff views real-time Service Status Board,Functional black-box manual test case for Use Cases 6 & 7: Job Orders & Service Status Board. Staff views real-time Service Status Board,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System displays visual board categorizing all active vehicles into Queued, Ongoing, and Completed","hwtires,job_order_processing,_tas,tc-0049",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open Service Status Board (/front-desk/service-status/)
+2. Inspect Kanban board columns (Queued, Ongoing, Completed)","1. Status board renders
+2. Vehicle cards display with plate numbers, customer names, assigned technicians, and progress indicators under respective columns",1. URL: /front-desk/service-status/,1,Highway Tires V1.0 Alpha Testing,4,,"Job Order Processing, Task Assignment, and Status Board",,,no
+50,[TC-0050] Staff filters Service Status Board by branch location,Functional black-box manual test case for Use Cases 6 & 7: Job Orders & Service Status Board. Staff filters Service Status Board by branch location,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System updates display to show only job orders belonging to selected branch,"hwtires,job_order_processing,_tas,tc-0050",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. On Service Status Board, select specific branch from filter dropdown
+2. Click 'Filter'","1. Filter selected
+2. Status board refreshes dynamically to display only job orders belonging to selected branch",1. Branch: Main Branch / Branch 1,1,Highway Tires V1.0 Alpha Testing,4,,"Job Order Processing, Task Assignment, and Status Board",,,no
+51,[TC-0051] Staff triggers customer pickup SMS notification,Functional black-box manual test case for Use Cases 6 & 7: Job Orders & Service Status Board. Staff triggers customer pickup SMS notification,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System queues and sends automated SMS message informing customer vehicle is ready,"hwtires,job_order_processing,_tas,tc-0051",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. On Completed Job Order, click 'Notify Customer for Pickup'
+2. Confirm message preview in modal","1. Modal displays
+2. System queues automated pickup SMS into sms_outbox table with vehicle plate and ready notice
+3. Confirmation toast appears","1. Phone: 09181234567
+2. Message: 'Your vehicle ABC-1234 is ready for pickup at HW Tires.'",1,Highway Tires V1.0 Alpha Testing,4,,"Job Order Processing, Task Assignment, and Status Board",,,no
+52,[TC-0052] Staff processes vehicle release upon customer payment and pickup,Functional black-box manual test case for Use Cases 6 & 7: Job Orders & Service Status Board. Staff processes vehicle release upon customer payment and pickup,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System transitions job order status to Released, records release date, and closes job","hwtires,job_order_processing,_tas,tc-0052",critical,critical,smoke,positive,is-not-automated,actual,no,e2e,classic,"1. Click 'Release Vehicle' upon customer payment and pickup
+2. Confirm release details","1. Action initiated
+2. Job Order status updates to 'Released'
+3. Vehicle release timestamp is logged and transaction is closed",1. Status: Released,1,Highway Tires V1.0 Alpha Testing,4,,"Job Order Processing, Task Assignment, and Status Board",,,no
+53,[TC-0053] System generates permanent vehicle service history record upon job release,Functional black-box manual test case for Use Cases 6 & 7: Job Orders & Service Status Board. System generates permanent vehicle service history record upon job release,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System saves completed service details, parts used, and labor into vehicle service history","hwtires,job_order_processing,_tas,tc-0053",critical,critical,smoke,positive,is-not-automated,actual,no,e2e,classic,"1. After vehicle release, navigate to Customer's Vehicle Profile
+2. Open 'Service History' tab","1. Profile open
+2. System displays finalized service record with completed tasks, parts used, labor fees, technician, and release date",1. Verified Record: JO-2026-0082,1,Highway Tires V1.0 Alpha Testing,4,,"Job Order Processing, Task Assignment, and Status Board",,,no
+54,[TC-0054] Staff archives a completed or canceled job order,Functional black-box manual test case for Use Cases 6 & 7: Job Orders & Service Status Board. Staff archives a completed or canceled job order,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System archives job order record while preserving complete reporting and audit data,"hwtires,job_order_processing,_tas,tc-0054",high,normal,functional,destructive,is-not-automated,actual,no,e2e,classic,"1. Select a completed/released Job Order from archive list
+2. Click 'Archive Record' and confirm","1. Archive clicked
+2. Job order moved to archive table
+3. Preserved for reporting while cleaning active board",1. JO ID: JO-2026-0082,1,Highway Tires V1.0 Alpha Testing,4,,"Job Order Processing, Task Assignment, and Status Board",,,no
+55,[TC-0055] Staff registers a new inventory item in catalog,Functional black-box manual test case for Use Cases 4 & 5: Inventory & Inter-Branch Transfers. Staff registers a new inventory item in catalog,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System saves item details (brand, size, model, category, minimum threshold) and initializes stock records","hwtires,inventory_stock_monitorin,tc-0055",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open Inventory module (/admin/tire-inventory/)
+2. Click 'Add New Item' button
+3. Enter Brand, Model, Size, Category, Unit Price, and Minimum Threshold
+4. Click 'Save Item'","1. Inventory page loads
+2. Add item modal displays
+3. Form validates inputs
+4. New inventory item is registered in catalog across all branches","1. Brand: Bridgestone
+2. Model: Ecopia EP300
+3. Size: 195/65R15
+4. Min Threshold: 4 units",1,Highway Tires V1.0 Alpha Testing,5,,Inventory Stock Monitoring and Inter-Branch Transfers,,,no
+56,[TC-0056] Staff records initial stock quantity for an item at a specific branch,Functional black-box manual test case for Use Cases 4 & 5: Inventory & Inter-Branch Transfers. Staff records initial stock quantity for an item at a specific branch,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System records starting stock quantity and creates opening balance transaction,"hwtires,inventory_stock_monitorin,tc-0056",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. In item inventory view, select branch
+2. Enter initial opening stock quantity
+3. Click 'Record Initial Stock'","1. Branch selected
+2. Quantity entered
+3. Starting stock balance is recorded and opening balance log entry is created","1. Branch: Main Branch
+2. Initial Qty: 12 units",1,Highway Tires V1.0 Alpha Testing,5,,Inventory Stock Monitoring and Inter-Branch Transfers,,,no
+57,[TC-0057] Staff records incoming stock shipment (Stock In),Functional black-box manual test case for Use Cases 4 & 5: Inventory & Inter-Branch Transfers. Staff records incoming stock shipment (Stock In),XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System adds received quantity to current branch stock and logs supplier reference,"hwtires,inventory_stock_monitorin,tc-0057",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Select inventory item
+2. Click 'Stock In'
+3. Enter received quantity, supplier invoice number, and notes
+4. Click 'Confirm Stock In'","1. Stock In modal opens
+2. Quantity entered
+3. Branch stock quantity increases accordingly and stock-in transaction is logged","1. Received Qty: 8 units
+2. Invoice: SUP-9021",1,Highway Tires V1.0 Alpha Testing,5,,Inventory Stock Monitoring and Inter-Branch Transfers,,,no
+58,[TC-0058] Staff records manual stock adjustment with reason,Functional black-box manual test case for Use Cases 4 & 5: Inventory & Inter-Branch Transfers. Staff records manual stock adjustment with reason,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System updates current stock quantity, records reason, and logs inventory adjustment","hwtires,inventory_stock_monitorin,tc-0058",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Select inventory item
+2. Click 'Adjust Stock'
+3. Enter adjusted quantity count and mandatory reason
+4. Click 'Save Adjustment'","1. Adjustment form opens
+2. Reason provided
+3. Stock count updates and adjustment transaction is logged with reason in audit history","1. New Count: 18 units
+2. Reason: Physical inventory reconciliation",1,Highway Tires V1.0 Alpha Testing,5,,Inventory Stock Monitoring and Inter-Branch Transfers,,,no
+59,[TC-0059] Inventory stock quantity reaches or drops below minimum threshold,Functional black-box manual test case for Use Cases 4 & 5: Inventory & Inter-Branch Transfers. Inventory stock quantity reaches or drops below minimum threshold,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System triggers visual low-stock badge alert on inventory dashboard,"hwtires,inventory_stock_monitorin,tc-0059",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Perform stock deduction that brings quantity to or below minimum threshold
+2. Check inventory table display","1. Stock level drops to <= 4 units
+2. Item is automatically flagged with prominent 'Low Stock' badge
+3. Low-stock dashboard alert is triggered","1. Threshold: 4
+2. Current: 3 units",1,Highway Tires V1.0 Alpha Testing,5,,Inventory Stock Monitoring and Inter-Branch Transfers,,,no
+60,[TC-0060] Staff records direct counter sale (Stock Out) tagged to customer,Functional black-box manual test case for Use Cases 4 & 5: Inventory & Inter-Branch Transfers. Staff records direct counter sale (Stock Out) tagged to customer,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System deducts item quantity from stock and links transaction to customer record,"hwtires,inventory_stock_monitorin,tc-0060",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Select inventory item
+2. Click 'Stock Out (Direct Sale)'
+3. Enter sold quantity and link to customer profile
+4. Click 'Confirm Stock Out'","1. Stock out modal opens
+2. Customer linked
+3. Stock quantity decrements and sale transaction is tagged to customer history","1. Qty: 1 unit
+2. Customer: Carlos Mendoza",1,Highway Tires V1.0 Alpha Testing,5,,Inventory Stock Monitoring and Inter-Branch Transfers,,,no
+61,[TC-0061] Staff requests inter-branch stock transfer due to local shortage,Functional black-box manual test case for Use Cases 4 & 5: Inventory & Inter-Branch Transfers. Staff requests inter-branch stock transfer due to local shortage,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System checks other branches for available stock and creates transfer request,"hwtires,inventory_stock_monitorin,tc-0061",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. On low-stock item at Requesting Branch, click 'Request Transfer'
+2. Select Donor Branch with available stock
+3. Enter requested transfer quantity
+4. Click 'Submit Request'","1. Transfer modal displays donor branch stock levels
+2. Donor selected
+3. Transfer request is created with code (e.g. TR-20260827-0012) in 'Pending' status","1. Requesting: Branch 2
+2. Donor: Main Branch
+3. Qty: 4 units",1,Highway Tires V1.0 Alpha Testing,5,,Inventory Stock Monitoring and Inter-Branch Transfers,,,no
+62,[TC-0062] System alerts donor branch and administrator of incoming transfer request,Functional black-box manual test case for Use Cases 4 & 5: Inventory & Inter-Branch Transfers. System alerts donor branch and administrator of incoming transfer request,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System generates in-app notification to donor branch regarding requested items,"hwtires,inventory_stock_monitorin,tc-0062",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as Donor Branch staff or Administrator
+2. Check notification bell and Transfers queue","1. Notification indicator shows unread alert
+2. Pending transfer request displays with requesting branch and requested item details",1. Notice: 'New Transfer Request from Branch 2',1,Highway Tires V1.0 Alpha Testing,5,,Inventory Stock Monitoring and Inter-Branch Transfers,,,no
+63,[TC-0063] Administrator reviews pending inter-branch transfer request,Functional black-box manual test case for Use Cases 4 & 5: Inventory & Inter-Branch Transfers. Administrator reviews pending inter-branch transfer request,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System displays requested item, requested quantity, donor branch stock, and requesting branch","hwtires,inventory_stock_monitorin,tc-0063",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open Transfers module (/admin/transfers/)
+2. Select pending transfer request
+3. Inspect donor stock availability and requesting branch need","1. Transfers list displays
+2. Request details open
+3. System shows current donor stock (15), requested qty (4), and remaining balance (11)",1. Request ID: TR-20260827-0012,1,Highway Tires V1.0 Alpha Testing,5,,Inventory Stock Monitoring and Inter-Branch Transfers,,,no
+64,[TC-0064] Administrator approves inter-branch stock transfer request,Functional black-box manual test case for Use Cases 4 & 5: Inventory & Inter-Branch Transfers. Administrator approves inter-branch stock transfer request,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System updates request status to Approved and notifies both involved branches,"hwtires,inventory_stock_monitorin,tc-0064",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. On pending transfer view, click 'Approve Transfer'
+2. Confirm approval","1. Action confirmed
+2. Request status updates to 'Approved' and notification is dispatched to Donor Branch to dispatch items",1. Status: Approved,1,Highway Tires V1.0 Alpha Testing,5,,Inventory Stock Monitoring and Inter-Branch Transfers,,,no
+65,[TC-0065] Administrator rejects transfer request due to insufficient donor stock,Functional black-box manual test case for Use Cases 4 & 5: Inventory & Inter-Branch Transfers. Administrator rejects transfer request due to insufficient donor stock,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System updates request status to Rejected with reason and notifies requesting branch,"hwtires,inventory_stock_monitorin,tc-0065",high,normal,functional,negative,is-not-automated,actual,no,e2e,classic,"1. On pending transfer, click 'Reject Transfer'
+2. Enter rejection reason (e.g. insufficient donor reserve)
+3. Confirm rejection","1. Rejection form active
+2. Reason entered
+3. Status updates to 'Rejected' and requesting branch is notified",1. Reason: Insufficient local reserve,1,Highway Tires V1.0 Alpha Testing,5,,Inventory Stock Monitoring and Inter-Branch Transfers,,,no
+66,[TC-0066] Donor branch dispatches approved items for transfer,Functional black-box manual test case for Use Cases 4 & 5: Inventory & Inter-Branch Transfers. Donor branch dispatches approved items for transfer,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System marks transfer as Dispatched and deducts item quantity from donor branch stock,"hwtires,inventory_stock_monitorin,tc-0066",critical,critical,smoke,positive,is-not-automated,actual,no,e2e,classic,"1. Donor branch staff marks transfer as 'Dispatched'
+2. Confirm item release","1. Dispatch confirmed
+2. Item quantity is automatically deducted from Donor Branch inventory
+3. Transfer status updates to 'In Transit'",1. Donor Stock: 15 -> 11 units,1,Highway Tires V1.0 Alpha Testing,5,,Inventory Stock Monitoring and Inter-Branch Transfers,,,no
+67,[TC-0067] Requesting branch receives and confirms transferred stock shipment,Functional black-box manual test case for Use Cases 4 & 5: Inventory & Inter-Branch Transfers. Requesting branch receives and confirms transferred stock shipment,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System adds transferred quantity to requesting branch stock and marks transfer as Completed,"hwtires,inventory_stock_monitorin,tc-0067",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Requesting branch staff verifies arrival of physical items
+2. Click 'Confirm Receipt'
+3. Confirm received quantity","1. Receipt confirmed
+2. Transferred quantity is automatically added to Requesting Branch inventory
+3. Transfer status marks 'Completed'","1. Recipient Stock: 0 -> 4 units
+2. Status: Completed",1,Highway Tires V1.0 Alpha Testing,5,,Inventory Stock Monitoring and Inter-Branch Transfers,,,no
+68,[TC-0068] Staff views complete transaction history of an inventory item,Functional black-box manual test case for Use Cases 4 & 5: Inventory & Inter-Branch Transfers. Staff views complete transaction history of an inventory item,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System displays chronological log of stock-ins, stock-outs, transfers, job usages, and adjustments","hwtires,inventory_stock_monitorin,tc-0068",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Select inventory item
+2. Click 'View Transaction History'","1. Transaction drawer opens
+2. Displays complete chronological table of Stock-In, Stock-Out, Transfers, Job Consumptions, and Adjustments with user IDs and timestamps",1. Item ID: 55,1,Highway Tires V1.0 Alpha Testing,5,,Inventory Stock Monitoring and Inter-Branch Transfers,,,no
+69,[TC-0069] Administrator generates weekly demand forecast for tire models,Functional black-box manual test case for Use Case 8: Forecasting & Decision Support System. Administrator generates weekly demand forecast for tire models,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System analyzes historical weekly service usage and displays projected tire unit demand,"hwtires,predictive_demand_forecas,tc-0069",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open Forecasting module (/admin/forecasting/)
+2. Select 'Weekly Forecast' tab
+3. Select tire product line
+4. Click 'Generate Forecast'","1. Forecasting view loads
+2. Historical weekly usage evaluated
+3. System calculates and displays moving average demand projection for upcoming weeks","1. Timeframe: Weekly
+2. Category: Tires",1,Highway Tires V1.0 Alpha Testing,6,,Predictive Demand Forecasting and Decision Support,,,no
+70,[TC-0070] Administrator generates monthly demand forecast for maintenance consumables,Functional black-box manual test case for Use Case 8: Forecasting & Decision Support System. Administrator generates monthly demand forecast for maintenance consumables,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System evaluates monthly service transactions and projects upcoming parts consumption,"hwtires,predictive_demand_forecas,tc-0070",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Select 'Monthly Forecast' tab
+2. Select fast-moving maintenance consumables
+3. Click 'Calculate Monthly Forecast'","1. Monthly tab active
+2. Historical monthly trends processed
+3. Projected parts consumption quantities displayed in chart and data table","1. Timeframe: Monthly
+2. Category: Consumables",1,Highway Tires V1.0 Alpha Testing,6,,Predictive Demand Forecasting and Decision Support,,,no
+71,"[TC-0071] Administrator filters forecasting analysis by branch, category, and year","Functional black-box manual test case for Use Case 8: Forecasting & Decision Support System. Administrator filters forecasting analysis by branch, category, and year",XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System recalculates forecast metrics dynamically based on selected branch and item category,"hwtires,predictive_demand_forecas,tc-0071",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. In Forecasting module, set Branch filter to 'Branch 1', Category to 'Tires', Year to '2026'
+2. Click 'Filter'","1. Filters selected
+2. System recalculates analytics dynamically
+3. Dashboard refreshes to display filtered forecasts and demand graphs","1. Branch: Branch 1
+2. Category: Tires
+3. Year: 2026",1,Highway Tires V1.0 Alpha Testing,6,,Predictive Demand Forecasting and Decision Support,,,no
+72,[TC-0072] Administrator views item-level historical consumption trend,Functional black-box manual test case for Use Case 8: Forecasting & Decision Support System. Administrator views item-level historical consumption trend,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System displays chart and data table of past consumption versus projected future requirements,"hwtires,predictive_demand_forecas,tc-0072",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Click on a specific inventory item in forecasting list
+2. Review item-level trend card","1. Item selected
+2. System renders historical consumption vs projected future demand comparison chart and monthly variance breakdown",1. Item: Bridgestone Ecopia 195/65R15,1,Highway Tires V1.0 Alpha Testing,6,,Predictive Demand Forecasting and Decision Support,,,no
+73,[TC-0073] System classifies fast-depleting items as High Stockout Risk,Functional black-box manual test case for Use Case 8: Forecasting & Decision Support System. System classifies fast-depleting items as High Stockout Risk,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System calculates days of remaining stock and flags items requiring urgent replenishment,"hwtires,predictive_demand_forecas,tc-0073",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Navigate to Stock Risk Classification tab
+2. Review items with high depletion rates and low inventory balances","1. Risk table loads
+2. System flags items with less than 7 days of supply with red 'High Risk (Stockout)' badge",1. Days of Supply: < 7 days,1,Highway Tires V1.0 Alpha Testing,6,,Predictive Demand Forecasting and Decision Support,,,no
+74,[TC-0074] System classifies slow-moving items as Overstocked,Functional black-box manual test case for Use Case 8: Forecasting & Decision Support System. System classifies slow-moving items as Overstocked,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System detects low turnover items with excess stock relative to demand and flags as Overstocked,"hwtires,predictive_demand_forecas,tc-0074",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,1. Review items in Stock Risk table with low historical sales and high holding stock,"1. Slow-moving items identified
+2. System classifies items exceeding 60 days of demand with purple 'Overstocked' badge",1. Days of Supply: > 60 days,1,Highway Tires V1.0 Alpha Testing,6,,Predictive Demand Forecasting and Decision Support,,,no
+75,[TC-0075] System calculates recommended reorder quantities for low-stock items,Functional black-box manual test case for Use Case 8: Forecasting & Decision Support System. System calculates recommended reorder quantities for low-stock items,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System applies safety stock formula and suggests optimal replenishment order quantities,"hwtires,predictive_demand_forecas,tc-0075",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open 'Reorder Recommendations' section
+2. Review calculated reorder suggestions for low-stock items","1. Recommendation table displays
+2. System computes recommended reorder batch quantities based on safety stock formula (Demand * Lead Time + Safety Buffer)",1. Suggested Reorder: 12 units,1,Highway Tires V1.0 Alpha Testing,6,,Predictive Demand Forecasting and Decision Support,,,no
+76,[TC-0076] System recommends inter-branch stock rebalancing matches,Functional black-box manual test case for Use Case 8: Forecasting & Decision Support System. System recommends inter-branch stock rebalancing matches,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System identifies branches with excess stock and suggests transfers to branches with shortages,"hwtires,predictive_demand_forecas,tc-0076",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open 'Branch Transfer Suggestions' tab
+2. Review matching recommendations","1. Rebalancing engine runs
+2. System identifies branches with overstock and pairs them with branches experiencing stockout risk",1. Match: Transfer 4 units from Main Branch (Overstock) to Branch 2 (Critical),1,Highway Tires V1.0 Alpha Testing,6,,Predictive Demand Forecasting and Decision Support,,,no
+77,[TC-0077] Administrator views forecast for newly added items with limited history,Functional black-box manual test case for Use Case 8: Forecasting & Decision Support System. Administrator views forecast for newly added items with limited history,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System displays baseline stock recommendations and informs user of limited historical data,"hwtires,predictive_demand_forecas,tc-0077",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,1. View forecast for newly registered inventory item with under 30 days of transaction records,"1. Item loaded
+2. System displays baseline stock recommendation and informative notice: 'Limited historical data; baseline estimates applied'",1. New Item ID: 99,1,Highway Tires V1.0 Alpha Testing,6,,Predictive Demand Forecasting and Decision Support,,,no
+78,[TC-0078] Administrator exports forecasting and restocking recommendations,Functional black-box manual test case for Use Case 8: Forecasting & Decision Support System. Administrator exports forecasting and restocking recommendations,XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System exports recommended reorder and transfer plans into a downloadable spreadsheet file,"hwtires,predictive_demand_forecas,tc-0078",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. In Forecasting dashboard, click 'Export Recommendations'
+2. Choose CSV format","1. Export clicked
+2. System generates and downloads CSV spreadsheet containing item codes, current stock, risk level, and recommended reorder quantities",1. Format: CSV,1,Highway Tires V1.0 Alpha Testing,6,,Predictive Demand Forecasting and Decision Support,,,no
+79,[TC-0079] Administrator generates consolidated service volume report,"Functional black-box manual test case for Use Cases 9-14: Reports, Notifications, Catalog & Admin. Administrator generates consolidated service volume report",XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System compiles total services rendered, job counts, and revenue trends across all branches","hwtires,operational_reports,_noti,tc-0079",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open Reports module (/admin/reports/)
+2. Select 'Service Volume Report'
+3. Set date range and select 'All Branches'
+4. Click 'Generate Report'","1. Reports page loads
+2. Parameters set
+3. System compiles and displays total services rendered, job order counts, and revenue trends across all branches","1. Date Range: Last 30 Days
+2. Branch: All Branches",1,Highway Tires V1.0 Alpha Testing,7,,"Operational Reports, Notifications, and Administration",,,no
+80,[TC-0080] Administrator generates branch turnaround time performance report,"Functional black-box manual test case for Use Cases 9-14: Reports, Notifications, Catalog & Admin. Administrator generates branch turnaround time performance report",XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System calculates average duration from job order creation to release per branch and technician,"hwtires,operational_reports,_noti,tc-0080",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Select 'Turnaround Time Analytics' report
+2. Choose branch and technician group
+3. Click 'Generate'","1. Report generated
+2. System calculates average elapsed time from job order creation to vehicle release per branch and technician",1. Metric: Average Turnaround (Hours/Minutes),1,Highway Tires V1.0 Alpha Testing,7,,"Operational Reports, Notifications, and Administration",,,no
+81,[TC-0081] Administrator generates repeat customer visit and retention report,"Functional black-box manual test case for Use Cases 9-14: Reports, Notifications, Catalog & Admin. Administrator generates repeat customer visit and retention report",XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System tracks customer return frequencies and displays vehicle maintenance return cycles,"hwtires,operational_reports,_noti,tc-0081",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Select 'Customer Retention & Repeat Visits' report
+2. Click 'Generate'","1. Analytics process
+2. System displays repeat customer ratios, vehicle revisit intervals, and branch customer retention percentages",1. Retention Metric: Revisit Frequency,1,Highway Tires V1.0 Alpha Testing,7,,"Operational Reports, Notifications, and Administration",,,no
+82,[TC-0082] Staff exports operational reports and inventory summaries to CSV,"Functional black-box manual test case for Use Cases 9-14: Reports, Notifications, Catalog & Admin. Staff exports operational reports and inventory summaries to CSV",XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System downloads selected report data into a standard CSV spreadsheet file,"hwtires,operational_reports,_noti,tc-0082",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. On generated report view, click 'Export to CSV' button","1. Export initiated
+2. System downloads formatted CSV spreadsheet containing full tabulated report dataset",1. File: service_volume_report_2026.csv,1,Highway Tires V1.0 Alpha Testing,7,,"Operational Reports, Notifications, and Administration",,,no
+83,[TC-0083] System generates low-stock and pending job notifications,"Functional black-box manual test case for Use Cases 9-14: Reports, Notifications, Catalog & Admin. System generates low-stock and pending job notifications",XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System displays unread notification badges for low inventory, pending operations, and transfers","hwtires,operational_reports,_noti,tc-0083",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Click notification bell icon in top navigation header
+2. Inspect notification dropdown list","1. Bell clicked
+2. System displays unread notification cards for low stock items, incoming transfer requests, and completed jobs",1. Notification counter: e.g. '3 Unread',1,Highway Tires V1.0 Alpha Testing,7,,"Operational Reports, Notifications, and Administration",,,no
+84,[TC-0084] User marks notifications as read or dismisses alerts,"Functional black-box manual test case for Use Cases 9-14: Reports, Notifications, Catalog & Admin. User marks notifications as read or dismisses alerts",XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System updates notification status and clears unread badge indicator,"hwtires,operational_reports,_noti,tc-0084",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. In notifications list, click 'Mark as Read' on an alert or click 'Mark All Read'","1. Action clicked
+2. Notification read status updates in database and unread badge count decrements",1. Action: Mark as Read,1,Highway Tires V1.0 Alpha Testing,7,,"Operational Reports, Notifications, and Administration",,,no
+85,"[TC-0085] Administrator adds, edits, or archives services in Service Catalog","Functional black-box manual test case for Use Cases 9-14: Reports, Notifications, Catalog & Admin. Administrator adds, edits, or archives services in Service Catalog",XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System updates available services, descriptions, standard prices, and category classifications","hwtires,operational_reports,_noti,tc-0085",high,normal,functional,destructive,is-not-automated,actual,no,e2e,classic,"1. Open Service Catalog module (/admin/services/)
+2. Add new service package with title, standard price, and description
+3. Edit or archive existing service","1. Catalog loads
+2. New service is saved and becomes instantly available in quotation service selector
+3. Archived service is hidden","1. Service: Wheel Alignment & Balancing Combo
+2. Price: 1,200.00",1,Highway Tires V1.0 Alpha Testing,7,,"Operational Reports, Notifications, and Administration",,,no
+86,[TC-0086] Administrator creates new user account and assigns role and branch,"Functional black-box manual test case for Use Cases 9-14: Reports, Notifications, Catalog & Admin. Administrator creates new user account and assigns role and branch",XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System validates account details, creates user profile, and assigns authorized branch access","hwtires,operational_reports,_noti,tc-0086",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open User Management module (/admin/users/)
+2. Click 'Add User'
+3. Enter name, username, email, password, select role (Admin/Front Desk), and assign branch
+4. Click 'Save User'","1. User form displays
+2. Form validated
+3. User account is created with encrypted password and assigned role/branch access permissions","1. Name: Sarah Jenkins
+2. Role: Front Desk
+3. Branch: Branch 2",1,Highway Tires V1.0 Alpha Testing,7,,"Operational Reports, Notifications, and Administration",,,no
+87,[TC-0087] Administrator manages branch information and technician roster,"Functional black-box manual test case for Use Cases 9-14: Reports, Notifications, Catalog & Admin. Administrator manages branch information and technician roster",XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System updates branch contact details, operating hours, and active technician assignments","hwtires,operational_reports,_noti,tc-0087",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open Branch Management module (/admin/branch-management/)
+2. Select branch and update contact info
+3. Add new technician to branch roster","1. Branch page loads
+2. Branch details updated
+3. Technician is added to branch roster and becomes selectable in Job Order assignment","1. Branch: Highway Tires - Branch 2
+2. Tech Name: Roberto Cruz",1,Highway Tires V1.0 Alpha Testing,7,,"Operational Reports, Notifications, and Administration",,,no
+88,"[TC-0088] Administrator configures system branding, contact details, and logo","Functional black-box manual test case for Use Cases 9-14: Reports, Notifications, Catalog & Admin. Administrator configures system branding, contact details, and logo",XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System validates branding inputs, updates system name/logo, and reflects updates across app","hwtires,operational_reports,_noti,tc-0088",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open System Settings module (/admin/settings/)
+2. Update Organization Name, Contact Phone, and Upload company logo
+3. Click 'Save Settings'","1. Settings page loads
+2. Logo and text validated
+3. Settings saved; new branding and logo appear across header, login page, and PDF quotations","1. Org: Highway Tires Multi-Branch
+2. Logo: logo.png",1,Highway Tires V1.0 Alpha Testing,7,,"Operational Reports, Notifications, and Administration",,,no
+89,[TC-0089] System records user operations in the Activity Audit Trail,"Functional black-box manual test case for Use Cases 9-14: Reports, Notifications, Catalog & Admin. System records user operations in the Activity Audit Trail",XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,"System verifies and completes: System logs user ID, action type, affected record, timestamp, and IP address for all transactions","hwtires,operational_reports,_noti,tc-0089",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open Audit Trail module
+2. Perform a state-changing action (e.g. update job status)
+3. Refresh Audit Trail view","1. Audit view loads
+2. System logs user ID, action type, affected record, timestamp, and IP address in immutable audit log table",1. Log entry: User #1 updated Job #82 to Ongoing,1,Highway Tires V1.0 Alpha Testing,7,,"Operational Reports, Notifications, and Administration",,,no
+90,[TC-0090] Administrator filters Audit Logs by date range and record ID,"Functional black-box manual test case for Use Cases 9-14: Reports, Notifications, Catalog & Admin. Administrator filters Audit Logs by date range and record ID",XAMPP Apache & MySQL active. Database 'hwtires' connected. User is on the Highway Tires system.,System verifies and completes: System filters and displays Audit Log entries matching selected date range and record ID,"hwtires,operational_reports,_noti,tc-0090",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. On Audit Trail page, select Date Range filter and enter specific Record ID
+2. Click 'Filter Logs'","1. Filter parameters applied
+2. Table displays only audit entries matching date range and record ID",1. Record ID: JO-2026-0082,1,Highway Tires V1.0 Alpha Testing,7,,"Operational Reports, Notifications, and Administration",,,no

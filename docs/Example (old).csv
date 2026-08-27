@@ -1,0 +1,103 @@
+id,title,description,preconditions,postconditions,tags,priority,severity,type,behavior,automation,status,is_flaky,layer,steps_type,steps_actions,steps_result,steps_data,milestone_id,milestone,suite_id,suite_parent_id,suite,suite_without_cases,parameters,is_muted
+,,,,,,,,,,,,,,,,,,,,1,,"Launch Control",1
+,,,,,,,,,,,,,,,,,,,,2,,Navigation,1
+1,"Launch Control - [case with simple steps]",,"The system is in an undefined state.","The postconditions for this test case are undefined.","planning,validation,payment,preferences",undefined,undefined,regression,positive,is-not-automated,actual,yes,api,classic,"1. Login page loads
+2. Authorize into internal system
+3. Go to profile page
+4. Sign in
+5. Log out
+","1. Redirects to the client dashboard
+2. Sign-in successful
+3. 
+4. Auto-populate login info
+5. Return to home screen
+","1. Credentials
+2. Login / Pass
+3. www.qase.io/login Password: 1235
+4. Testing page
+5. Logout page
+",1,"Release 1.0",1,,"Launch Control",,"Parameter:Value one
+Parameter:Value two",yes
+2,"Launchpad - [case with nested steps]",,"The system is in Sprint 50.","The postconditions for this test case are undefined.",,undefined,normal,regression,undefined,to-be-automated,actual,no,unknown,classic,"1. Parent Step one
+	1. Child of 'Parent Step one'
+2. Parent Step two
+	1. Child of 'Parent Step two'
+		1. Child of [Child of 'Parent Step two']
+","1. Input data of parent step one
+	1. Child of 'Parent Step one'
+2. Input data of parent step two
+	1. Child of 'Parent Step two'
+		1. Child of [Child of 'Parent Step two']
+","1. Input data of parent step one
+	1. Child of 'Parent Step one'
+2. Input data of parent step two
+	1. Child of 'Parent Step two'
+		1. Child of [Child of 'Parent Step two']
+",2,"Milesone two",1,,"Launch Control",,"Group Parameter One:Value One
+Group Parameter Two:Value Two",yes
+3,"Ground Control - [step formatting]",,"The system is in Sprint 50.","The postconditions for this test case are undefined.","Sprint 50",high,normal,regression,undefined,automated,actual,no,unknown,classic,"1. You can choose to fill just the step action column and leave the input data and expected result blank for a test case.
+2. Please ensure that steps are covered in quotation marks like you see in this example.
+3. # Here's formatting for Heading 1
+
+## Heading 2 
+
+**Bold text**
+*Italic text*
+<u>Underlined text</u>
+~~Strikethrough text~~
+4. [Hyperlinked text for example.com](https://www.example.com)
+5. ### Heading 3 with bulleted list
+
+* one
+* two
+* three
+6. ### Heading 3 with numbered list
+
+1. one
+2. two
+3. three
+7. | Column one | Column two |
+| ---------- | ---------- |
+| Row one | Row two |
+","1. 
+2. 
+3. 
+4. 
+5. 
+6. 
+7. 
+","1. 
+2. 
+3. 
+4. 
+5. 
+6. 
+7. 
+",,,1,,"Launch Control",,"param1:value1
+param1:value2
+g_param1:v1
+g_param1:v1.1
+g_param2:v2
+g_param2:v2.2
+g_param3:v3
+g_param3:v3.3",no
+4,"Inertial Nav Module - [gherkin steps]",,"The system is in an undefined state.","The postconditions for this test case are undefined.",,undefined,critical,smoke,negative,to-be-automated,draft,yes,e2e,gherkin,"1. Given the car is in a safe and controlled environment
+2. And the car's ignition is turned on
+3. When the mechanic starts the engine
+4. Then the engine should start without unusual noises
+5. And the engine should idle smoothly
+6. And the mechanic should observe power-related indicators (e.g., RPM gauge, voltage meter)
+","1. 
+2. 
+3. 
+4. 
+5. 
+6. 
+","1. 
+2. 
+3. 
+4. 
+5. 
+6. 
+",,,2,,Navigation,,,no
+5,"GPS Nav Module",,"The system is in an undefined state.","The postconditions for this test case are undefined.",,high,major,regression,positive,to-be-automated,actual,no,e2e,classic,,,,,,2,,Navigation,,,yes

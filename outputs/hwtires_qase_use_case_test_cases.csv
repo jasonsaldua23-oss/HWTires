@@ -1,0 +1,1414 @@
+id,title,description,preconditions,postconditions,tags,priority,severity,type,behavior,automation,status,is_flaky,layer,steps_type,steps_actions,steps_result,steps_data,milestone_id,milestone,suite_id,suite_parent_id,suite,suite_without_cases,parameters,is_muted
+,,,,,,,,,,,,,,,,,,,,1,,"UC01 - Manage User Session",1,,
+,,,,,,,,,,,,,,,,,,,,2,,"UC02 - View Dashboard",1,,
+,,,,,,,,,,,,,,,,,,,,3,,"UC03 - Manage Own Profile",1,,
+,,,,,,,,,,,,,,,,,,,,4,,"UC04 - View Customer and Vehicle Records",1,,
+,,,,,,,,,,,,,,,,,,,,5,,"UC05 - Maintain Customer and Vehicle Records",1,,
+,,,,,,,,,,,,,,,,,,,,6,,"UC06 - View Service Operation Records",1,,
+,,,,,,,,,,,,,,,,,,,,7,,"UC07 - Create and Update Service Operations",1,,
+,,,,,,,,,,,,,,,,,,,,8,,"UC08 - View Job Orders",1,,
+,,,,,,,,,,,,,,,,,,,,9,,"UC09 - Create Job Orders",1,,
+,,,,,,,,,,,,,,,,,,,,10,,"UC10 - Track Service Status and Tasks",1,,
+,,,,,,,,,,,,,,,,,,,,11,,"UC11 - View Inventory Records",1,,
+,,,,,,,,,,,,,,,,,,,,12,,"UC12 - Add Inventory Items",1,,
+,,,,,,,,,,,,,,,,,,,,13,,"UC13 - Process Branch Stock Movements",1,,
+,,,,,,,,,,,,,,,,,,,,14,,"UC14 - Monitor and Process Inter-Branch Transfers",1,,
+,,,,,,,,,,,,,,,,,,,,15,,"UC15 - View Inventory Forecasting",1,,
+,,,,,,,,,,,,,,,,,,,,16,,"UC16 - View Reports and Export CSV",1,,
+,,,,,,,,,,,,,,,,,,,,17,,"UC17 - Manage Notifications",1,,
+,,,,,,,,,,,,,,,,,,,,18,,"UC18 - Manage Service Catalog",1,,
+,,,,,,,,,,,,,,,,,,,,19,,"UC19 - Manage Users and Roles",1,,
+,,,,,,,,,,,,,,,,,,,,20,,"UC20 - Manage Branches and Technicians",1,,
+,,,,,,,,,,,,,,,,,,,,21,,"UC21 - Configure System Settings",1,,
+,,,,,,,,,,,,,,,,,,,,22,,"UC22 - Notify Customer for Pickup",1,,
+1,"UC01 - Admin logs in and is redirected to admin dashboard","Verifies valid admin authentication, session creation, and role-based redirect.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc01,authentication,admin",high,critical,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open /hwtires/index.php.
+2. Enter the admin login ID and password.
+3. Click Sign In.
+4. Observe the redirected page and sidebar role label.
+5. Open a protected admin URL in the same browser session.
+","1. Login page loads with Highway Tires branding.
+2. Credentials are accepted.
+3. User is redirected to /hwtires/admin/.
+4. Admin/Owner navigation and dashboard are visible.
+5. Protected admin page opens without returning to login.
+","1. URL: /hwtires/index.php
+2. Login ID: admin@hwtires.local; Password: admin123
+3. Button: Sign In
+4. Expected role label: Admin/Owner
+5. Example URL: /hwtires/admin/customers/
+",,,1,,"UC01 - Manage User Session",,,no
+2,"UC01 - Front desk logs in and is redirected to branch dashboard","Verifies valid front desk authentication and branch session context.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc01,authentication,front-desk",high,critical,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Open /hwtires/index.php.
+2. Enter a front desk login ID and password.
+3. Click Sign In.
+4. Observe the redirected page, sidebar role label, and branch context.
+5. Open a protected front desk URL in the same browser session.
+","1. Login page loads.
+2. Credentials are accepted.
+3. User is redirected to /hwtires/front-desk/.
+4. Front Desk navigation is visible with the assigned branch.
+5. Protected front desk page opens without returning to login.
+","1. Login ID: frontdesk1@hwtires.local; Password: password123
+2. Button: Sign In
+3. Expected redirect: /hwtires/front-desk/
+4. Expected role label: Front Desk
+5. Example URL: /hwtires/front-desk/customers/
+",,,1,,"UC01 - Manage User Session",,,no
+3,"UC01 - Invalid credentials are rejected","Verifies the login form does not create a session for bad credentials.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc01,authentication,negative",high,critical,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Open /hwtires/index.php in a signed-out browser.
+2. Enter a valid-looking login ID with an incorrect password.
+3. Click Sign In.
+4. Review the page URL and error message.
+5. Try opening /hwtires/admin/ directly.
+","1. Login page loads.
+2. Submitted credentials are rejected.
+3. An invalid login ID or password message is shown.
+4. User remains on the login page.
+5. Protected admin page redirects back to login.
+","1. Login ID: admin@hwtires.local
+2. Password: wrong-password
+3. Button: Sign In
+4. Expected message: Invalid login ID or password.
+5. URL: /hwtires/admin/
+",,,1,,"UC01 - Manage User Session",,,no
+4,"UC01 - Logged-in user logs out and session is destroyed","Verifies logout clears the current session and protected pages require login again.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc01,logout,session",high,critical,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as any active user.
+2. Click Logout from the sidebar or account menu.
+3. Confirm logout if the browser confirmation appears.
+4. Observe the redirected page.
+5. Use the browser address bar to revisit the previous protected page.
+","1. User reaches their dashboard.
+2. Logout request is sent to /hwtires/logout.php.
+3. Logout confirmation is accepted.
+4. User is redirected to the login page.
+5. Protected page does not open and redirects to login.
+","1. User: frontdesk1@hwtires.local / password123
+2. Logout link: /hwtires/logout.php
+3. Confirmation: OK
+4. Expected page: /hwtires/index.php
+5. Example protected URL: /hwtires/front-desk/job-orders/
+",,,1,,"UC01 - Manage User Session",,,no
+5,"UC02 - Admin dashboard shows cross-branch operational summary","Verifies Admin/Owner dashboard exposes whole-system monitoring data and shortcuts.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc02,dashboard,admin",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as Admin/Owner.
+2. Open /hwtires/admin/.
+3. Review KPI cards and recent activity sections.
+4. Click a dashboard link to a recent service operation or job order.
+5. Return to dashboard and open forecasting or inventory alert shortcut.
+","1. Admin dashboard loads successfully.
+2. Counts and activity include all accessible branches.
+3. Recent records show branch labels.
+4. Selected record detail page opens.
+5. Shortcut opens the related admin module.
+","1. User: admin@hwtires.local / admin123
+2. URL: /hwtires/admin/
+3. Expected sections: KPI cards, alerts, recent service operations, recent job orders
+4. Example link: recent quotation/job link
+5. Example shortcut: View Forecasting
+",,,2,,"UC02 - View Dashboard",,,no
+6,"UC02 - Front desk dashboard shows only assigned branch work","Verifies the front desk dashboard uses the logged-in user branch.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc02,dashboard,branch",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Open /hwtires/front-desk/.
+3. Review active job orders for the week.
+4. Review recent service operations and customer visits.
+5. Open each quick action tile.
+","1. Front desk dashboard loads.
+2. Dashboard title/labels show the assigned branch.
+3. Job, operation, and visit data belongs to the assigned branch.
+4. Quick actions route to front desk customer, service operation, and job order screens.
+5. No admin-only shortcuts are visible.
+","1. User: frontdesk1@hwtires.local / password123
+2. URL: /hwtires/front-desk/
+3. Expected branch: Branch 1
+4. Sections: active jobs, service operations, recent customer visits
+5. Quick actions: Search Customer, Add Customer, Service Operation, Job Order
+",,,2,,"UC02 - View Dashboard",,,no
+7,"UC02 - Unauthorized dashboard URL redirects by role","Verifies users cannot access the wrong dashboard surface.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc02,authorization,role",high,major,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Open /hwtires/admin/ directly.
+3. Record the redirect target.
+4. Log out and log in as admin.
+5. Open /hwtires/front-desk/ directly.
+","1. Front desk session is active.
+2. Admin page redirects away from admin dashboard.
+3. User lands on the front desk dashboard.
+4. Admin session is active.
+5. Front desk page redirects away or returns to the correct admin area.
+","1. Front desk user: frontdesk1@hwtires.local / password123
+2. Blocked URL: /hwtires/admin/
+3. Expected target: /hwtires/front-desk/
+4. Admin user: admin@hwtires.local / admin123
+5. Blocked URL: /hwtires/front-desk/
+",,,2,,"UC02 - View Dashboard",,,no
+8,"UC03 - User views profile details","Verifies the profile page displays account role and branch information.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc03,profile",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as a front desk user.
+2. Open /hwtires/profile.php.
+3. Review the displayed name, login ID, role, and branch fields.
+4. Return to dashboard using the profile page navigation.
+","1. Profile page opens.
+2. User identity fields are populated.
+3. Role and branch are read-only.
+4. Dashboard link returns to the correct role dashboard.
+","1. User: frontdesk1@hwtires.local / password123
+2. URL: /hwtires/profile.php
+3. Expected role: Front Desk
+4. Expected dashboard: /hwtires/front-desk/
+",,,3,,"UC03 - Manage Own Profile",,,no
+9,"UC03 - User updates own display name and login ID","Verifies an authenticated user can update allowed profile fields with CSRF protection.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc03,profile,update",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as a test front desk user.
+2. Open /hwtires/profile.php.
+3. Change the display name and login ID to unused valid values.
+4. Submit the profile form.
+5. Log out and log in with the new login ID.
+","1. Profile page displays current values.
+2. Fields accept valid changes.
+3. Success message is shown and session values refresh.
+4. User is returned to the profile page.
+5. New login ID authenticates successfully.
+","1. Use a disposable test user or restore values after test
+2. URL: /hwtires/profile.php
+3. Login ID format: letters, numbers, dots, underscores, @, dashes
+4. Submit button: Save Changes
+5. Expected result: login works with updated ID
+",,,3,,"UC03 - Manage Own Profile",,,no
+10,"UC03 - Duplicate or invalid profile login ID is rejected","Verifies profile validation prevents duplicate and malformed login IDs.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc03,profile,validation",medium,normal,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Open /hwtires/profile.php.
+3. Replace the login ID with another active user login ID.
+4. Submit the profile form.
+5. Repeat using a malformed login ID shorter than three characters or containing invalid symbols.
+","1. Profile page opens.
+2. Duplicate value is entered.
+3. Error message states the login ID is already in use.
+4. Original login ID remains active.
+5. Invalid format is rejected with a validation message.
+","1. Current user: frontdesk1@hwtires.local
+2. Duplicate login ID: frontdesk2@hwtires.local
+3. Submit button: Save Changes
+4. Expected duplicate message: That login ID is already in use.
+5. Invalid login ID example: a!
+",,,3,,"UC03 - Manage Own Profile",,,no
+11,"UC03 - Profile update with invalid CSRF token is rejected","Verifies profile changes require a valid security token.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc03,csrf,security",high,major,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as any active user.
+2. Open /hwtires/profile.php.
+3. Submit the profile update request with a missing or altered csrf_token.
+4. Refresh the profile page.
+","1. User has an active session.
+2. Profile form is available.
+3. Request is rejected with an invalid security token error.
+4. Profile values are unchanged.
+","1. User: admin@hwtires.local / admin123
+2. URL: /hwtires/profile.php
+3. csrf_token: remove or alter value before submit
+4. Expected message: Invalid security token
+",,,3,,"UC03 - Manage Own Profile",,,no
+12,"UC04 - Admin searches and filters customer and vehicle records across branches","Verifies Admin/Owner can monitor customer and vehicle records across all branches.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc04,customers,vehicles,admin",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as Admin/Owner.
+2. Open /hwtires/admin/customers/.
+3. Search for an existing customer or plate number.
+4. Apply a branch filter.
+5. Open the matching customer or vehicle profile.
+","1. Customer records page loads.
+2. Search returns matching customer and vehicle records.
+3. Branch filter updates the visible records.
+4. Profile page opens for the selected record.
+5. Branch and ownership/history details are visible.
+","1. User: admin@hwtires.local / admin123
+2. Search examples: John Smith, ABC-123
+3. Filter: Branch 1 or Branch 2
+4. Open link: customer profile or vehicle profile
+",,,4,,"UC04 - View Customer and Vehicle Records",,,no
+13,"UC04 - Front desk searches customer records within assigned branch","Verifies front desk records are scoped to the user branch.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc04,branch-access",high,major,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Open /hwtires/front-desk/customers/.
+3. Search for a Branch 1 customer or vehicle.
+4. Search for a customer known to belong only to another branch.
+5. Open a visible customer profile.
+","1. Front desk customer page loads.
+2. Branch 1 record appears.
+3. Other-branch-only record does not appear as an editable branch record.
+4. Profile opens for an allowed customer.
+5. Operational actions remain scoped to Branch 1.
+","1. User: frontdesk1@hwtires.local / password123
+2. Allowed search: John Smith
+3. Other branch example: Sarah Johnson
+4. Expected profile route: /hwtires/front-desk/customers/profile.php?id=...
+",,,4,,"UC04 - View Customer and Vehicle Records",,,no
+14,"UC04 - Vehicle profile displays service and ownership history","Verifies vehicle detail pages show the linked customer, service history, and ownership summary.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc04,vehicle-history",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as Admin/Owner or the owning front desk branch.
+2. Open the vehicle records page.
+3. Select an active vehicle with service history.
+4. Review vehicle details, current owner, and service history panel.
+5. Open the history summary if available.
+","1. Vehicle list loads.
+2. Vehicle profile link is available.
+3. Vehicle profile displays plate, make, model, owner, and branch.
+4. Service/ownership history entries are visible.
+5. History summary opens without errors.
+","1. Example plate: GHI-999 or ABC-123
+2. Routes: /hwtires/admin/vehicles/profile.php?id=... or /hwtires/front-desk/vehicles/profile.php?id=...
+3. Expected sections: profile, ownership, service history
+",,,4,,"UC04 - View Customer and Vehicle Records",,,no
+15,"UC04 - Direct access to unauthorized branch record is blocked or read-only","Verifies branch ownership restrictions are enforced when bypassing list filters.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc04,authorization,branch",high,critical,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Copy the profile URL for a customer or vehicle belonging only to Branch 2.
+3. Paste the URL into the browser.
+4. Attempt to open any edit/archive control if the page loads.
+","1. Front desk Branch 1 session is active.
+2. Unauthorized Branch 2 profile does not expose Branch 1 edit controls, or redirects/blocks access.
+3. Edit/archive action is unavailable or rejected.
+4. No data is modified.
+","1. User: frontdesk1@hwtires.local / password123
+2. Other branch sample: Sarah Johnson / Branch 2
+3. Expected behavior: no unauthorized modification
+",,,4,,"UC04 - View Customer and Vehicle Records",,,no
+16,"UC05 - Front desk adds a new customer with vehicle details","Verifies customer creation, optional vehicle creation, branch ownership record, and audit trail.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc05,customer-create,vehicle-create",high,major,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Open /hwtires/front-desk/customers/?open=add.
+3. Fill required customer fields and vehicle fields.
+4. Submit the add customer form.
+5. Search for the new customer and open the profile.
+","1. Add customer modal/form opens.
+2. All required fields accept valid data.
+3. Customer added success message is shown.
+4. New customer appears in Branch 1 records.
+5. Linked vehicle appears under the customer profile.
+","1. Name: Qase Test Customer
+2. Mobile: 09171234567
+3. Plate: TST-1234; Make: Toyota; Model: Vios; Mileage: 25000
+4. Button: Save/Add Customer
+5. Search: Qase Test Customer
+",,,5,,"UC05 - Maintain Customer and Vehicle Records",,,no
+17,"UC05 - Duplicate customer name is rejected","Verifies active duplicate customer protection.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc05,duplicate,customer",high,major,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Open the add customer form.
+3. Enter a customer name that already exists as active.
+4. Enter valid contact details.
+5. Submit the form.
+","1. Add customer form opens.
+2. Duplicate name is entered.
+3. Request is rejected.
+4. Error explains the customer already exists and suggests adding vehicle from profile.
+5. No duplicate active customer row is created.
+","1. Existing customer example: John Smith
+2. Mobile: 09170000001
+3. Expected message includes: Customer already exists
+",,,5,,"UC05 - Maintain Customer and Vehicle Records",,,no
+18,"UC05 - Invalid customer phone and plate validations are enforced","Verifies customer and vehicle validation rules.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc05,validation",high,major,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Open the add customer form.
+3. Enter a mobile number that is not an 11-digit Philippine mobile number.
+4. Enter vehicle details with an invalid plate format.
+5. Submit the form.
+","1. Form opens.
+2. Invalid phone is accepted into the field for submission.
+3. Invalid plate is accepted into the field for submission.
+4. Submission fails with validation message.
+5. No customer or vehicle is created.
+","1. Mobile example: 12345
+2. Plate example: ABC123
+3. Expected messages: Contact number must be an 11-digit Philippine mobile number; Plate number must follow the ABC-1234 format
+",,,5,,"UC05 - Maintain Customer and Vehicle Records",,,no
+19,"UC05 - Front desk updates customer details","Verifies customer edit saves valid values and preserves branch context.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc05,customer-update",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as the branch front desk that owns the customer.
+2. Open the customer profile or customer list edit control.
+3. Change the customer email, address, or customer type.
+4. Submit the update form.
+5. Reload the customer profile.
+","1. Editable customer controls are available.
+2. Form is populated with current values.
+3. Success message is shown.
+4. Updated values are visible after reload.
+5. Customer remains associated with the same branch.
+","1. User: frontdesk1@hwtires.local
+2. Customer: John Smith or disposable test customer
+3. New email: qase.customer@example.test
+4. Button: Save Changes
+",,,5,,"UC05 - Maintain Customer and Vehicle Records",,,no
+20,"UC05 - Add vehicle to existing customer","Verifies additional vehicle creation from a customer profile.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc05,vehicle-add",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Open an active Branch 1 customer profile.
+3. Click Add Vehicle.
+4. Enter valid plate, make, model, year, color, condition, and mileage.
+5. Submit and review the vehicle list on the profile.
+","1. Customer profile opens.
+2. Add vehicle form is displayed.
+3. Vehicle fields accept valid data.
+4. Vehicle added success message appears.
+5. New vehicle is listed under the customer and uses the front desk branch.
+","1. Customer: John Smith
+2. Plate: NEW-1234
+3. Make/Model: Honda Civic
+4. Mileage: 12000
+",,,5,,"UC05 - Maintain Customer and Vehicle Records",,,no
+21,"UC05 - Archive customer cascades related operational records","Verifies customer archive preserves records by status change and audit data.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc05,archive",medium,major,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Create or select a disposable Branch 1 customer with related vehicle and service/job records if available.
+3. Open the customer archive action.
+4. Confirm the archive request.
+5. Search active lists and archive reports for the customer.
+","1. User has permission for the branch record.
+2. Archive confirmation appears.
+3. Customer archive completes successfully.
+4. Customer/vehicles are removed from active lists or marked inactive.
+5. Archived record is visible in archived records reporting with preserved related data.
+","1. Customer: disposable test customer recommended
+2. Action: Archive customer
+3. Expected statuses: customer inactive, vehicles inactive, linked job/service records archived when applicable
+",,,5,,"UC05 - Maintain Customer and Vehicle Records",,,no
+22,"UC06 - Service operation list supports search and filters","Verifies service operations can be viewed and narrowed by status/date/search.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc06,service-operation,list",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as admin.
+2. Open /hwtires/admin/quotations/.
+3. Search by customer name or quotation number.
+4. Apply a status filter such as pending or approved.
+5. Clear filters and verify list returns to default state.
+","1. Service operation list loads.
+2. Search narrows visible records.
+3. Status filter shows only matching records.
+4. Clearing filters restores normal results.
+5. No error is shown during filtering.
+","1. User: admin@hwtires.local
+2. Search example: QT-2026-001 or John Smith
+3. Status examples: pending, approved, rejected
+",,,6,,"UC06 - View Service Operation Records",,,no
+23,"UC06 - Service operation detail and print view load correctly","Verifies detailed record view and printable output.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc06,print,detail",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as an authorized user.
+2. Open a service operation from the quotations/service operations list.
+3. Review customer, vehicle, inspection, line items, totals, and status.
+4. Click Print or view printable/PDF output.
+","1. Detail page opens.
+2. All major fields are populated.
+3. Line item subtotal and total match the displayed quantities/prices.
+4. Printable output opens or downloads without error.
+","1. Example operation: QT-2026-001
+2. Route: /hwtires/admin/quotations/view.php?id=... or /hwtires/front-desk/quotations/view.php?id=...
+3. Print route: /hwtires/api/quotation-print.php?id=...
+",,,6,,"UC06 - View Service Operation Records",,,no
+24,"UC06 - Admin can view but not perform front desk-only service operation changes","Verifies operational mutations stay with front desk users.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc06,admin-read-only,authorization",high,critical,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as Admin/Owner.
+2. Open a service operation detail page.
+3. Look for approve/reject/edit/archive controls intended for front desk workflow.
+4. Attempt a direct POST to the quotation update endpoint as admin if controls are hidden.
+","1. Admin can open and review operation details.
+2. Front desk-only controls are hidden or disabled.
+3. Direct mutation request is rejected by server-side permission.
+4. The service operation status and line items remain unchanged.
+","1. User: admin@hwtires.local / admin123
+2. Endpoint: /hwtires/api/quotations-api.php
+3. Actions to probe: update_status, archive
+",,,6,,"UC06 - View Service Operation Records",,,no
+25,"UC07 - Create service operation with inspection and service catalog items","Verifies the front desk can create a pending service operation with required inspection details.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc07,service-operation,create",high,major,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Open /hwtires/front-desk/quotations/create.php.
+3. Select an active customer and vehicle from the branch.
+4. Complete complaint, findings, recommendations, and mileage inspection fields.
+5. Add one or more service catalog items and submit.
+","1. Create form loads.
+2. Customer and vehicle selections are available.
+3. Inspection fields accept valid values.
+4. Service line items are added to the operation.
+5. A pending service operation is created with a generated QT number.
+","1. Customer: John Smith
+2. Vehicle: ABC-123 / Toyota Camry
+3. Inspection: complaint/findings/recommendations text
+4. Service: Tire Rotation or Oil Change
+5. Expected status: pending
+",,,7,,"UC07 - Create and Update Service Operations",,,no
+26,"UC07 - Service operation totals calculate parts and tire items correctly","Verifies totals are based on labor plus non-service line item subtotals.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc07,calculation",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Open the service operation create form.
+3. Enter labor cost.
+4. Add a part line item with quantity and unit price.
+5. Add a tire line item with quantity and unit price.
+6. Submit and review the detail page totals.
+","1. Create form opens.
+2. Labor cost is accepted.
+3. Part subtotal is quantity multiplied by unit price.
+4. Tire subtotal is quantity multiplied by unit price.
+5. Displayed total equals labor plus part and tire subtotals.
+6. Saved detail page matches the calculated total.
+","1. Labor: 500
+2. Part: Oil Filter, qty 1, unit price 12
+3. Tire: All-Season Radial Tire, qty 2, unit price 120
+4. Expected total: labor + 12 + 240
+",,,7,,"UC07 - Create and Update Service Operations",,,no
+27,"UC07 - Missing inspection blocks service operation creation","Verifies mandatory inspection fields must be completed before saving.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc07,validation",high,major,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Open the create service operation form.
+3. Select a valid customer and vehicle.
+4. Leave complaint, findings, or recommendations blank.
+5. Submit the form.
+","1. Form opens.
+2. Customer and vehicle are accepted.
+3. A required inspection field is blank.
+4. Submission is rejected.
+5. No service operation is created.
+","1. Customer: John Smith
+2. Blank field: inspection findings
+3. Expected message: Service inspection must be completed before creating a quotation
+",,,7,,"UC07 - Create and Update Service Operations",,,no
+28,"UC07 - Other-branch inventory item creates transfer request","Verifies selecting an item from another branch creates a pending inter-branch request and notification.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc07,transfer-request",high,major,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1 or a service branch user.
+2. Open the service operation create form.
+3. Select a part or tire sourced from another active inventory branch.
+4. Submit the completed service operation.
+5. Open the donor branch transfer or notification screen.
+","1. Form loads with inventory source options.
+2. Other-branch item is selected with quantity.
+3. Service operation is saved.
+4. A pending transfer request is created for the donor branch.
+5. Donor branch receives a transfer notification.
+","1. Source: other_branch
+2. Donor branch: Branch 2 or Branch 3
+3. Quantity: 1 or 2
+4. Expected request prefix: TXF-YYYYMMDD-
+",,,7,,"UC07 - Create and Update Service Operations",,,no
+29,"UC07 - Approve and reject service operation status","Verifies status transitions for pending service operations.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc07,status",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as the owning front desk user.
+2. Open a pending service operation detail page.
+3. Set status to approved and submit.
+4. Return to the operation and set another pending operation to rejected.
+5. Review list filters for approved and rejected statuses.
+","1. Pending operation opens.
+2. Approve action saves successfully.
+3. Operation status changes to approved.
+4. Reject action saves successfully for another operation.
+5. List filters show each operation under the correct status.
+","1. User: frontdesk1@hwtires.local
+2. Action: update_status
+3. Allowed statuses: pending, approved, rejected
+",,,7,,"UC07 - Create and Update Service Operations",,,no
+30,"UC07 - Archive service operation obeys linked record restrictions","Verifies service operation archive is allowed only before job/history/active transfer dependencies.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc07,archive,dependency",high,major,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as the owning front desk user.
+2. Archive a pending service operation that has no job order, service history, or non-pending transfer.
+3. Confirm it disappears from active operation lists.
+4. Open an operation with a linked job order or service history.
+5. Attempt to archive the linked operation.
+","1. Eligible pending operation is archived successfully.
+2. Archived operation is removed from active records.
+3. Linked operation detail opens.
+4. Archive request is rejected.
+5. Error explains the service operation already has a job/history/active transfer dependency.
+","1. Eligible status: pending
+2. Blocked examples: operation converted to job order, completed history exists, transfer approved/received
+3. Expected status after allowed archive: archived
+",,,7,,"UC07 - Create and Update Service Operations",,,no
+31,"UC08 - Admin views and filters all job orders","Verifies Admin/Owner can monitor job orders across branches.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc08,job-orders,list",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as Admin/Owner.
+2. Open /hwtires/admin/job-orders/.
+3. Apply a branch filter.
+4. Apply a status filter.
+5. Search by job number or customer name.
+","1. Job order list loads.
+2. Branch filter changes the visible records.
+3. Status filter shows matching jobs only.
+4. Search narrows results.
+5. Branch labels remain visible for each record.
+","1. User: admin@hwtires.local
+2. Status examples: waiting, in-progress, completed
+3. Search example: JO-20260425-0001 or John Smith
+",,,8,,"UC08 - View Job Orders",,,no
+32,"UC08 - Front desk views branch job order details","Verifies front desk users can inspect job details for their branch.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc08,job-order-detail,front-desk",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Open /hwtires/front-desk/job-orders/.
+3. Select a Branch 1 job order.
+4. Open the detail view or modal.
+5. Review customer, vehicle, service lines, schedule, technician, notes, and status.
+","1. Branch job order list loads.
+2. Only assigned branch jobs are visible.
+3. Detail control opens the selected job.
+4. All job order details are displayed.
+5. Operational links point to front desk routes.
+","1. User: frontdesk1@hwtires.local
+2. Example job: JO-20260425-0001
+3. Expected route: /hwtires/front-desk/job-orders/view.php?id=...
+",,,8,,"UC08 - View Job Orders",,,no
+33,"UC08 - Front desk cannot view another branch job by direct URL","Verifies job details enforce branch access server-side.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc08,branch-access,negative",high,critical,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Obtain a Branch 2 job order ID.
+3. Open /hwtires/front-desk/job-orders/view.php?id={branch2_job_id}.
+4. Attempt to update or archive that job if page controls are visible.
+","1. Front desk Branch 1 session is active.
+2. Unauthorized job detail is blocked, redirected, or stripped of modification controls.
+3. Mutation attempt is rejected.
+4. Branch 2 job is unchanged.
+","1. User: frontdesk1@hwtires.local
+2. Other branch sample: JO-20260420-0001
+3. Expected behavior: Unauthorized access
+",,,8,,"UC08 - View Job Orders",,,no
+34,"UC09 - Create job order from approved service operation","Verifies approved operations can be converted into job orders.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc09,job-create,quotation-conversion",high,major,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as the owning front desk user.
+2. Open an approved service operation detail page.
+3. Click Create Job Order or Convert to Job Order.
+4. Review the auto-populated customer, vehicle, branch, and service information.
+5. Assign technician names, schedule the job, and submit.
+","1. Approved operation detail opens.
+2. Job order creation form opens.
+3. Customer, vehicle, branch, and service data are prefilled.
+4. Job order is created with generated JO number.
+5. New job appears in waiting or selected starting status.
+","1. Example operation: QT-2026-001
+2. Technician: Mike Johnson
+3. Job date: today
+4. Expected job number prefix: JO-YYYYMMDD-
+",,,9,,"UC09 - Create Job Orders",,,no
+35,"UC09 - Non-approved service operation cannot become job order","Verifies pending/rejected service operations are blocked from conversion.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc09,validation",high,major,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as the owning front desk user.
+2. Open a pending or rejected service operation.
+3. Attempt to navigate to job order create with its quotation_id.
+4. Submit if the form is shown.
+","1. Source operation is not approved.
+2. System displays a warning or blocks conversion.
+3. Job order is not created.
+4. User remains on a safe list/detail page.
+","1. Operation status: pending or rejected
+2. Route: /hwtires/front-desk/job-orders/create.php?quotation_id=...
+3. Expected message: Only approved quotations can be converted to job orders
+",,,9,,"UC09 - Create Job Orders",,,no
+36,"UC09 - Create manual job order for customer and vehicle","Verifies front desk can create a standalone job order without an approved quotation.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc09,manual-job",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Open /hwtires/front-desk/job-orders/create.php.
+3. Select an active customer and vehicle from the branch.
+4. Choose assigned technician names and enter schedule details.
+5. Submit the form.
+","1. Manual job order form loads.
+2. Customer selection filters vehicle choices.
+3. Technician and schedule details are accepted.
+4. Job order is created successfully.
+5. New job appears in the front desk job order list.
+","1. Customer: John Smith
+2. Vehicle: ABC-123
+3. Technician: Mike Johnson
+4. Status: waiting
+",,,9,,"UC09 - Create Job Orders",,,no
+37,"UC09 - Expected completion date cannot be before job date","Verifies schedule date validation.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc09,schedule,validation",medium,normal,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Open the manual job order form.
+3. Select a valid customer and branch.
+4. Set job date to a later date than expected completion date.
+5. Submit the form.
+","1. Form opens.
+2. Required customer and branch values are accepted.
+3. Invalid date relationship is submitted.
+4. Request is rejected.
+5. No job order is created.
+","1. Job date: 2026-08-25
+2. Expected completion date: 2026-08-24
+3. Expected message: Expected completion date cannot be earlier than the job date
+",,,9,,"UC09 - Create Job Orders",,,no
+38,"UC09 - Cross-branch job creation is rejected for front desk","Verifies a front desk user cannot create a job in another branch by altering submitted branch_id.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc09,branch-access,security",high,critical,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Open the job order create form.
+3. Prepare a valid job for a Branch 1 customer.
+4. Alter the submitted branch_id to Branch 2 before submit.
+5. Submit the form.
+","1. Front desk session has Branch 1 context.
+2. Valid form data is prepared.
+3. Branch ID is tampered.
+4. Server rejects the request as unauthorized.
+5. No Branch 2 job is created.
+","1. User branch: 1
+2. Tampered branch_id: 2
+3. Expected message: Unauthorized access to this branch
+",,,9,,"UC09 - Create Job Orders",,,no
+39,"UC10 - Update job status from waiting to in-progress","Verifies front desk can begin a waiting job and the status timestamp/summary updates.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc10,status,in-progress",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as the owning front desk user.
+2. Open /hwtires/front-desk/service-status/.
+3. Select a waiting job.
+4. Change status to in-progress.
+5. Refresh the service status board.
+","1. Service status board loads.
+2. Waiting job is visible.
+3. Status update succeeds.
+4. Job moves to or displays as In Progress.
+5. Summary counts update for waiting and in-progress statuses.
+","1. User: frontdesk1@hwtires.local
+2. Action: update_job_status
+3. New status: in-progress
+",,,10,,"UC10 - Track Service Status and Tasks",,,no
+40,"UC10 - Update task-level progress","Verifies individual job tasks can be checked off and summary progress changes.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc10,task-progress",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as the owning front desk user.
+2. Open a job with task-level progress.
+3. Check one incomplete task.
+4. Observe the progress summary and job status.
+5. Uncheck the same task.
+","1. Job progress panel opens.
+2. Task checkbox is available.
+3. Task update succeeds.
+4. Progress percent/count increases and job status becomes or remains in-progress.
+5. Task update succeeds again and progress decreases.
+","1. Endpoint action: update_job_progress
+2. task_key: any visible incomplete task
+3. is_done values: 1 then 0
+",,,10,,"UC10 - Track Service Status and Tasks",,,no
+41,"UC10 - Completing all tasks completes job and generates history","Verifies finishing work creates service history and updates job status.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc10,completion,service-history",high,major,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as the owning front desk user.
+2. Open an in-progress job with all required transfer items ready.
+3. Mark every task as done or update status to completed.
+4. Open the job detail and customer/vehicle history.
+5. Review service history records.
+","1. Job progress is available.
+2. All tasks can be marked complete.
+3. Job status changes to completed.
+4. Service history record is generated or updated for the completed job.
+5. Vehicle last service date and customer branch record are updated.
+","1. Status: completed
+2. Expected side effect: service_history row linked by job_order_id
+3. Expected customer history: completed services visible
+",,,10,,"UC10 - Track Service Status and Tasks",,,no
+42,"UC10 - Task that depends on pending transfer cannot be completed","Verifies transfer readiness blocks task completion until donor branch transfers the item.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc10,transfer-readiness",high,major,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as the requesting branch front desk.
+2. Open a job order whose service operation includes another-branch inventory item.
+3. Locate the task linked to the requested item.
+4. Attempt to mark the task as done before transfer completion.
+5. Complete the related transfer as donor branch and retry.
+","1. Job progress panel opens.
+2. Transfer-dependent task is visible.
+3. Initial completion request is rejected with a transfer readiness message.
+4. Transfer status becomes received after donor completion.
+5. Task can then be marked done successfully.
+","1. Transfer status before retry: pending or approved
+2. Expected message: item has not been sent from the branch yet
+3. Transfer status after donor action: received
+",,,10,,"UC10 - Track Service Status and Tasks",,,no
+43,"UC10 - Completed job cannot be moved back except by reopening progress","Verifies completed jobs are protected from ordinary status rollback.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc10,reopen,completed",high,major,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as the owning front desk user.
+2. Open a completed job order.
+3. Attempt to change status back to waiting or in-progress from the normal status update action.
+4. Then reopen through task progress by unchecking a completed task if available.
+","1. Completed job opens.
+2. Normal rollback request is rejected.
+3. Job remains completed.
+4. Progress reopen path is allowed where supported.
+5. Reopened job status becomes in-progress and generated history/SMS cleanup is applied.
+","1. Initial status: completed
+2. Blocked action: update_job_status to waiting
+3. Allowed action: update_job_progress with is_done=0
+",,,10,,"UC10 - Track Service Status and Tasks",,,no
+44,"UC10 - Invalid service status values are rejected","Verifies service progress does not accept quotation-only or cancelled statuses.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc10,status-validation",medium,normal,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Open a job status update form or send the update_job_status request.
+3. Submit status rejected.
+4. Submit status cancelled.
+5. Review the job order status.
+","1. User has front desk permission.
+2. Status request is submitted.
+3. Rejected status is refused.
+4. Cancelled status is refused.
+5. Job order status remains unchanged.
+","1. Allowed statuses: waiting, in-progress, completed
+2. Invalid statuses: rejected, cancelled
+3. Expected message: Invalid status
+",,,10,,"UC10 - Track Service Status and Tasks",,,no
+45,"UC11 - View inventory records with search and category filters","Verifies inventory list displays items and supports filtering.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc11,inventory,list",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as admin or front desk with inventory access.
+2. Open the tire inventory page.
+3. Search by item name, brand, SKU, or size.
+4. Apply category or branch filters where available.
+5. Clear filters.
+","1. Inventory page loads.
+2. Items display with quantity, reorder level, branch, and pricing details.
+3. Search returns matching items.
+4. Filters restrict records correctly.
+5. Default inventory list is restored after clearing filters.
+","1. Admin route: /hwtires/admin/tire-inventory/
+2. Front desk route: /hwtires/front-desk/tire-inventory/
+3. Search example: Brake Pad or 205/60R16
+",,,11,,"UC11 - View Inventory Records",,,no
+46,"UC11 - Low stock items are highlighted and counted","Verifies low stock visibility uses quantity and reorder level.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc11,low-stock",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as admin.
+2. Open /hwtires/admin/tire-inventory/.
+3. Locate items where quantity is less than or equal to reorder level.
+4. Open the sidebar/header notification area.
+5. Compare the low-stock count with visible low-stock records.
+","1. Inventory page loads.
+2. Low-stock items show visual alert styling or low-stock section.
+3. Notification area includes low-stock alert.
+4. Alert count matches items at or below reorder level for accessible branches.
+","1. Example seeded item: Performance Radial Tire 225/45R17, quantity 8, reorder level 10
+2. Expected classification: low stock
+",,,11,,"UC11 - View Inventory Records",,,no
+47,"UC11 - View inventory transaction history","Verifies inventory movements are visible with references and tags.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc11,inventory-transactions",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as admin.
+2. Open /hwtires/admin/tire-inventory/transactions.php.
+3. Filter by branch or transaction type.
+4. Search for an item with stock movement.
+5. Review transaction details.
+","1. Transactions page loads.
+2. Filters update the transaction list.
+3. Search returns matching stock movement records.
+4. Each transaction shows date, item, type, quantity, user, reference, and notes where available.
+5. Customer/vehicle/job references are displayed when tagged.
+","1. Route: /hwtires/admin/tire-inventory/transactions.php
+2. Types: stock_in, stock_out
+3. Search example: Oil Filter
+",,,11,,"UC11 - View Inventory Records",,,no
+48,"UC11 - Front desk inventory view is limited to assigned branch","Verifies front desk inventory access does not expose unrelated branch records.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc11,branch-access",high,critical,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk2.
+2. Open /hwtires/front-desk/tire-inventory/.
+3. Record displayed branch name and inventory items.
+4. Search for an item available only in another branch.
+5. Attempt direct access to another branch item operation if an item ID is known.
+","1. Front desk inventory page loads for Branch 2.
+2. Displayed records belong to Branch 2.
+3. Other branch-only item is not exposed as an editable item.
+4. Direct mutation is rejected with unauthorized access.
+","1. User: frontdesk2@hwtires.local / password123
+2. Other branch example: Branch 3 item SKU WIPERS-002
+3. Expected message: Unauthorized access
+",,,11,,"UC11 - View Inventory Records",,,no
+49,"UC12 - Add active inventory item to an inventory branch","Verifies valid item creation for tire, part, or accessory.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc12,inventory-add",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as admin or the owning front desk user.
+2. Open the tire inventory page.
+3. Click Add Inventory Item.
+4. Fill branch, category, item name, brand, model, size, SKU, serial number, quantity, reorder level, and unit price.
+5. Submit the form and search for the new item.
+","1. Inventory page loads.
+2. Add item form opens.
+3. Valid values are accepted.
+4. Inventory item is created successfully.
+5. New active item appears in the correct branch inventory.
+","1. Category: tire
+2. Item name: Qase Test Tire 195/55R16
+3. SKU: QASE-TIRE-19555R16
+4. Serial: QASE-SN-001
+5. Quantity/Reorder/Price: 10 / 5 / 2500.00
+",,,12,,"UC12 - Add Inventory Items",,,no
+50,"UC12 - Required inventory fields are enforced","Verifies missing required fields are rejected.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc12,validation",high,major,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk2.
+2. Open the Add Inventory Item form.
+3. Leave item name, brand, size, SKU, serial number, or unit price blank.
+4. Submit the form.
+","1. Form opens.
+2. Required values are missing.
+3. Submission is rejected.
+4. Validation message identifies the missing field.
+5. No item is created.
+","1. Route: /hwtires/front-desk/tire-inventory/
+2. Required examples: Item name, Brand, Size, SKU, Unit price
+3. Expected behavior: HTTP 400 or visible validation error
+",,,12,,"UC12 - Add Inventory Items",,,no
+51,"UC12 - Duplicate SKU or serial number is rejected","Verifies inventory unique identifiers are enforced for active items.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc12,duplicate",high,major,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as an inventory-capable user.
+2. Open Add Inventory Item.
+3. Enter a SKU already used by an active inventory item.
+4. Submit the form.
+5. Repeat with a duplicate serial number if serial tracking is enabled.
+","1. Add form opens.
+2. Duplicate SKU is entered.
+3. Submission fails with duplicate SKU message.
+4. No duplicate active item is created.
+5. Duplicate serial number is also rejected when applicable.
+","1. Existing SKU example: TIRE-001
+2. Expected message: SKU already exists in active inventory
+",,,12,,"UC12 - Add Inventory Items",,,no
+52,"UC12 - Future manufacturing date is rejected","Verifies inventory date validation prevents future dates.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc12,date-validation",medium,normal,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk2.
+2. Open Add Inventory Item.
+3. Fill all required fields with valid values.
+4. Set manufacturing date to a future date.
+5. Submit the form.
+","1. Add item form opens.
+2. Valid base values are accepted.
+3. Future manufacturing date is entered.
+4. Submission is rejected.
+5. No item is created.
+","1. Manufacturing date: tomorrow relative to test date
+2. Expected message: Manufacturing date cannot be in the future
+",,,12,,"UC12 - Add Inventory Items",,,no
+53,"UC12 - Front desk cannot add item to another branch","Verifies branch ownership is enforced for item creation.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc12,branch-access,security",high,critical,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk2.
+2. Open Add Inventory Item.
+3. Prepare valid item data.
+4. Tamper submitted branch_id to Branch 3.
+5. Submit the request.
+","1. Front desk Branch 2 session is active.
+2. Valid item data is prepared.
+3. Branch ID is changed outside the UI.
+4. Server rejects the request.
+5. No Branch 3 inventory item is created.
+","1. User branch: 2
+2. Tampered branch_id: 3
+3. Expected message: Unauthorized access
+",,,12,,"UC12 - Add Inventory Items",,,no
+54,"UC13 - Stock in increases quantity and logs transaction","Verifies front desk stock-in updates item quantity and transaction history.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc13,stock-in",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as the front desk user for an inventory branch.
+2. Open the branch tire inventory page.
+3. Select an active item and click Stock In.
+4. Enter source type, supplier/reference, quantity, and notes.
+5. Submit and open transaction history for the item.
+","1. Inventory page loads.
+2. Stock In form opens.
+3. Valid stock-in details are accepted.
+4. Item quantity increases by the entered quantity.
+5. A stock_in transaction and audit entry are recorded.
+","1. User: frontdesk2@hwtires.local
+2. Item: Oil Filter or Brake Pad Set
+3. Quantity: 5
+4. Source type: supplier_delivery
+",,,13,,"UC13 - Process Branch Stock Movements",,,no
+55,"UC13 - Stock out decreases quantity and can tag customer and vehicle","Verifies front desk stock-out with optional customer/vehicle linkage.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc13,stock-out,tagging",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as the front desk user for the item branch.
+2. Open tire inventory.
+3. Select an active item and click Stock Out.
+4. Enter quantity, reason, customer, and vehicle from the same accessible branch.
+5. Submit and review transaction history.
+","1. Stock Out form opens.
+2. Customer/vehicle tag selections are available.
+3. Stock-out saves successfully.
+4. Item quantity decreases by the entered quantity.
+5. Transaction history shows stock_out with customer and vehicle references.
+","1. User: frontdesk2@hwtires.local
+2. Quantity: 1
+3. Reason: direct_sale
+4. Customer/vehicle: active Branch 2 customer and vehicle
+",,,13,,"UC13 - Process Branch Stock Movements",,,no
+56,"UC13 - Insufficient stock out is rejected","Verifies stock cannot go negative.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc13,insufficient-stock",high,major,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as an inventory branch front desk user.
+2. Open Stock Out for an item with known quantity.
+3. Enter a quantity greater than current stock.
+4. Submit the form.
+5. Refresh the inventory page.
+","1. Stock Out form opens.
+2. Excess quantity is submitted.
+3. Request is rejected with insufficient stock message.
+4. Item quantity remains unchanged.
+5. No stock_out transaction is recorded for the failed request.
+","1. Example: item current quantity 3, submit 999
+2. Expected message includes: Insufficient stock available
+",,,13,,"UC13 - Process Branch Stock Movements",,,no
+57,"UC13 - Direct branch transfer updates source and target quantities","Verifies direct stock transfer between matching inventory items in different branches.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc13,direct-transfer",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as front desk user for the source branch.
+2. Open the inventory item with available stock.
+3. Choose Transfer Stock.
+4. Select a matching target item in a different active inventory branch.
+5. Enter quantity and submit.
+6. Review quantities and transactions for both source and target items.
+","1. Transfer form opens.
+2. Matching target item is selectable.
+3. Transfer saves successfully.
+4. Source quantity decreases and target quantity increases by the same amount.
+5. Both stock_out and stock_in transactions are created and receiving branch is notified.
+","1. Source: Branch 2 tire/part
+2. Target: matching Branch 3 tire/part
+3. Quantity: 1
+4. Expected message: Stock transferred successfully
+",,,13,,"UC13 - Process Branch Stock Movements",,,no
+58,"UC13 - Invalid direct transfer is rejected","Verifies source/target validation for direct stock transfer.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc13,transfer-validation",medium,major,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as a front desk inventory user.
+2. Open Transfer Stock for an item.
+3. Select the same item as source and target or select a mismatched category/size target.
+4. Submit the transfer.
+","1. Transfer form opens.
+2. Invalid source/target data is submitted.
+3. Request is rejected.
+4. No source or target quantity changes occur.
+5. No transfer transaction is created.
+","1. Invalid case 1: same source_item_id and target_item_id
+2. Invalid case 2: tire source to accessory target
+3. Expected messages: Source and target item must be different; Transfer items must match by category and item details
+",,,13,,"UC13 - Process Branch Stock Movements",,,no
+59,"UC13 - Admin stock movement is view-only","Verifies Admin/Owner cannot perform stock in/out or direct branch transfer from admin inventory.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc13,admin-view-only",high,critical,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as Admin/Owner.
+2. Open /hwtires/admin/tire-inventory/.
+3. Attempt to submit stock_in through the visible UI or direct API request.
+4. Attempt stock_out or transfer_stock through direct API request.
+5. Review item quantities.
+","1. Admin inventory page is accessible for monitoring.
+2. Stock movement controls are hidden or not intended for admin use.
+3. stock_in request is rejected.
+4. stock_out and transfer_stock requests are rejected.
+5. Inventory quantities remain unchanged.
+","1. User: admin@hwtires.local
+2. Endpoint: /hwtires/api/inventory-api.php
+3. Expected messages include: Admin inventory is view-only for stock movement
+",,,13,,"UC13 - Process Branch Stock Movements",,,no
+60,"UC14 - Check other-branch availability for requested item","Verifies available donor branches are returned only when stock exceeds reorder level.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc14,availability",medium,normal,functional,positive,is-not-automated,actual,no,api,classic,"1. Log in as a front desk user.
+2. Open the inventory or service operation item selector.
+3. Choose an item from the requesting branch.
+4. Request availability check for a needed quantity.
+5. Review returned donor branch options.
+","1. Item selector opens.
+2. Availability request is sent.
+3. Response identifies matching active items in other branches.
+4. Only branches with quantity above reorder level are listed.
+5. Requested item name and quantity are shown.
+","1. Endpoint action: check_availability
+2. Fields: item_id, requesting_branch_id, quantity_needed
+3. Expected data: available_branches array
+",,,14,,"UC14 - Monitor and Process Inter-Branch Transfers",,,no
+61,"UC14 - Create inter-branch transfer request","Verifies request creation, generated request number, notifications, and audit.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc14,transfer-create",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as requesting branch front desk.
+2. Open inventory/service operation transfer request flow.
+3. Select donor branch, item, quantity, reason, and priority.
+4. Submit the transfer request.
+5. Open donor branch notifications or transfer review screen.
+","1. Transfer request form opens.
+2. Valid donor item and quantity are selected.
+3. Request is created with TXF request number and pending status.
+4. Donor and requesting branch users receive notifications.
+5. Audit log records transfer request creation.
+","1. Action: create_request
+2. Quantity: 1
+3. Priority: medium or high
+4. Expected status: pending
+",,,14,,"UC14 - Monitor and Process Inter-Branch Transfers",,,no
+62,"UC14 - Donor branch approves transfer request","Verifies only donor branch or admin can approve a request within requested quantity.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc14,transfer-approve",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as donor branch front desk.
+2. Open incoming transfer requests.
+3. Select a pending request for the donor branch.
+4. Enter approved quantity less than or equal to requested quantity.
+5. Submit approval.
+","1. Incoming request is visible to donor branch.
+2. Approval form opens.
+3. Approved quantity is accepted.
+4. Request status changes to approved.
+5. Both branches receive approval notification.
+","1. Action: approve_request
+2. approved_quantity: 1
+3. Expected status: approved
+",,,14,,"UC14 - Monitor and Process Inter-Branch Transfers",,,no
+63,"UC14 - Approve quantity greater than requested is rejected","Verifies donor approval cannot exceed original request quantity.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc14,transfer-validation",medium,major,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as donor branch front desk.
+2. Open a pending transfer request.
+3. Enter an approved quantity greater than requested quantity.
+4. Submit approval.
+5. Refresh the request detail.
+","1. Pending request is visible.
+2. Invalid approved quantity is submitted.
+3. Request is rejected with validation error.
+4. Transfer remains pending.
+5. No approval notification or stock movement is created.
+","1. Requested quantity: 1
+2. Approved quantity: 2
+3. Expected message: Approved quantity cannot exceed requested quantity
+",,,14,,"UC14 - Monitor and Process Inter-Branch Transfers",,,no
+64,"UC14 - Complete transfer deducts donor stock and receives requester stock","Verifies completion changes transfer status and inventory quantities.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc14,transfer-complete",high,major,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as donor branch front desk or admin.
+2. Open an approved transfer request.
+3. Click Complete Transfer or mark as transferred.
+4. Review donor branch inventory quantity.
+5. Log in as requesting branch and review receiving inventory or service-status readiness.
+","1. Approved transfer opens.
+2. Completion request succeeds.
+3. Donor item quantity decreases by approved/requested quantity.
+4. Request status changes to received with shipping and received dates.
+5. Requesting inventory is increased if it has inventory; otherwise service task readiness is updated.
+","1. Action: complete_transfer
+2. Expected status: received
+3. Expected transactions: donor stock_out and requester stock_in when applicable
+",,,14,,"UC14 - Monitor and Process Inter-Branch Transfers",,,no
+65,"UC14 - Non-donor front desk cannot approve or complete transfer","Verifies transfer authorization checks.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc14,authorization,branch",high,critical,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as a front desk user from a branch that is neither donor nor authorized admin.
+2. Open or submit approval for another branch transfer request.
+3. Submit complete_transfer for the same request.
+4. Review transfer status and inventory quantities.
+","1. Unauthorized user session is active.
+2. Approval request is rejected.
+3. Completion request is rejected.
+4. Transfer status remains unchanged.
+5. No inventory quantity changes occur.
+","1. Expected messages: Only donor branch can approve transfers; Only the donor branch can mark this request as transferred
+",,,14,,"UC14 - Monitor and Process Inter-Branch Transfers",,,no
+66,"UC15 - View weekly monthly and item inventory forecasts","Verifies forecasting screens and API can return demand/risk information.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc15,forecasting",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as admin.
+2. Open /hwtires/admin/forecasting/.
+3. Switch between weekly, monthly, and item forecast views.
+4. Review forecast tables and charts.
+5. Open decision support recommendations.
+","1. Forecasting page loads.
+2. Each forecast view changes the displayed data.
+3. Usage and demand values are shown.
+4. Charts render with non-empty data where history exists.
+5. Recommendations are visible for at-risk items.
+","1. Route: /hwtires/admin/forecasting/
+2. API action: forecast_inventory or decision_support
+3. Seeded history: inventory_transactions stock_out records
+",,,15,,"UC15 - View Inventory Forecasting",,,no
+67,"UC15 - Forecast filters by branch category status year and search","Verifies forecast filtering changes the result set.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc15,forecast-filters",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as admin.
+2. Open forecasting.
+3. Apply a branch filter.
+4. Apply category/status/year filters.
+5. Enter a search term.
+6. Clear filters.
+","1. Forecasting page opens.
+2. Branch filter scopes data.
+3. Category/status/year filters update rows.
+4. Search term narrows forecast items.
+5. Clearing filters restores default forecast view.
+","1. Branch: Branch 2
+2. Category: tire
+3. Search: Performance Radial
+",,,15,,"UC15 - View Inventory Forecasting",,,no
+68,"UC15 - Reorder and transfer recommendations classify stock risk","Verifies low stock and demand history produce actionable recommendations.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc15,recommendations",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as admin.
+2. Open forecasting decision support.
+3. Locate high-priority and medium-priority stock risks.
+4. Review reorder quantity recommendations.
+5. Review branch transfer match recommendations.
+","1. Decision support panel loads.
+2. Items below reorder or with high consumption are classified as risk.
+3. Reorder quantity is shown.
+4. Transfer recommendations identify branches with available matching stock.
+5. Recommended actions link back to inventory workflows when available.
+","1. Example low-stock item: Winter Tire 235/50R18
+2. Expected output: risk label, reorder quantity, transfer match when possible
+",,,15,,"UC15 - View Inventory Forecasting",,,no
+69,"UC15 - Front desk forecast access is limited to assigned branch","Verifies branch-scoped forecasting for non-admin users.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc15,branch-access",high,critical,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk2.
+2. Open /hwtires/front-desk/forecasting/.
+3. Review default forecast branch.
+4. Attempt to request another branch through the forecasting API or URL parameters.
+5. Review returned results or error.
+","1. Front desk forecasting page loads.
+2. Default data is for Branch 2.
+3. Cross-branch request is rejected or ignored.
+4. Other branch inventory details are not returned.
+","1. User: frontdesk2@hwtires.local
+2. Tampered branch: 3
+3. Expected behavior: Unauthorized access or branch forced to user branch
+",,,15,,"UC15 - View Inventory Forecasting",,,no
+70,"UC16 - Admin views reports dashboard for all branches","Verifies admin reports include summary, service, job, inventory, and customer/vehicle metrics.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc16,reports,admin",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as Admin/Owner.
+2. Open /hwtires/admin/reports/.
+3. Select All Branches.
+4. Review summary cards and detailed report sections.
+5. Open links from report rows to source records.
+","1. Reports dashboard loads.
+2. All-branch data is summarized.
+3. Service, job, inventory, and customer/vehicle metrics display.
+4. Detail rows include branch labels.
+5. Source record links open correctly.
+","1. User: admin@hwtires.local
+2. Route: /hwtires/admin/reports/
+3. Branch filter: all
+",,,16,,"UC16 - View Reports and Export CSV",,,no
+71,"UC16 - Front desk reports are scoped to assigned branch","Verifies front desk reporting does not leak other branch records.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc16,reports,branch-access",high,critical,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk2.
+2. Open /hwtires/front-desk/reports/.
+3. Review the branch label and report rows.
+4. Search for an item/customer from another branch only.
+5. Export CSV for the current report tab.
+","1. Front desk reports page opens.
+2. Branch label matches Branch 2.
+3. Visible detail rows belong to Branch 2.
+4. Other branch-only search does not expose unrelated records.
+5. Exported CSV contains only allowed branch data.
+","1. User: frontdesk2@hwtires.local
+2. Route: /hwtires/front-desk/reports/
+3. Other branch sample: Branch 3 customer/item
+",,,16,,"UC16 - View Reports and Export CSV",,,no
+72,"UC16 - Report filters by type date status and search","Verifies report controls change table contents and totals.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc16,filters",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as admin.
+2. Open reports.
+3. Select the Service Report tab.
+4. Set date range, status filter, branch filter, and search term.
+5. Compare visible rows and summary totals before and after filter.
+","1. Reports page opens.
+2. Service report tab loads.
+3. Filters are applied.
+4. Detail rows match the selected date/status/branch/search criteria.
+5. Summary totals update consistently with visible filtered data.
+","1. Date range: 2026-04-01 to 2026-04-30
+2. Status: completed or approved
+3. Search: John Smith
+",,,16,,"UC16 - View Reports and Export CSV",,,no
+73,"UC16 - Export service report CSV","Verifies Qase-critical CSV export behavior for service reports.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc16,csv-export",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as admin.
+2. Open /hwtires/admin/reports/.
+3. Select Service Report and apply a date range with known data.
+4. Click Export CSV.
+5. Open the downloaded CSV and inspect headers and rows.
+","1. Reports page opens.
+2. Service report is selected.
+3. Export request starts file download.
+4. CSV file name includes report label and date range.
+5. CSV contains metadata rows and service detail columns such as Date, Branch, Customer, Vehicle, Services, Status, and Amount.
+","1. URL parameter: export=csv
+2. Expected content type: text/csv
+3. Date range: 2026-04-01 to 2026-04-30
+",,,16,,"UC16 - View Reports and Export CSV",,,no
+74,"UC16 - Export inventory movement and archived records reports","Verifies CSV export supports operational and archive report tabs.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc16,csv-export,inventory,archives",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as admin.
+2. Open reports.
+3. Select Stock Movement Report and export CSV.
+4. Select Archived Records Report and export CSV.
+5. Inspect each downloaded CSV.
+","1. Reports page opens.
+2. Stock movement CSV downloads with inventory transaction columns.
+3. Archived records CSV downloads with archive-specific columns.
+4. Each CSV respects selected filters.
+5. Files open without malformed rows.
+","1. Report tabs: stock_movement, archives
+2. Expected stock columns: Date, Branch, Type, Item, Qty, Customer, Vehicle, Reference
+3. Expected archive columns: Archived Date, Branch, Record Type, Record, Archived By, Reason
+",,,16,,"UC16 - View Reports and Export CSV",,,no
+75,"UC16 - Report export handles no-result filter gracefully","Verifies empty exports still produce a valid CSV file.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc16,csv-export,empty-state",medium,normal,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as admin.
+2. Open reports.
+3. Apply a future date range or unlikely search term that returns no rows.
+4. Click Export CSV.
+5. Open the downloaded file.
+","1. Reports page accepts no-result filters.
+2. Export request completes.
+3. CSV file downloads.
+4. CSV contains report metadata and header rows.
+5. No malformed blank data rows or server errors occur.
+","1. Search term: NO_MATCH_QASE_999
+2. Date range: future no-data period
+3. Expected result: valid CSV with headers
+",,,16,,"UC16 - View Reports and Export CSV",,,no
+76,"UC17 - Notification center lists relevant system notifications","Verifies notification counts and list entries are shown for accessible events.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc17,notifications",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as admin.
+2. Open the sidebar/header notification area.
+3. Review low-stock, pending service operation, active job, and transfer notifications.
+4. Open a notification action link.
+","1. Notification area opens.
+2. Counts match accessible events.
+3. Notification titles and details are readable.
+4. Action link opens the related module or record.
+","1. Expected notification sources: low stock, pending quotations, active jobs, transfer requests
+",,,17,,"UC17 - Manage Notifications",,,no
+77,"UC17 - Mark notification read and unread","Verifies notification state API updates transfer notification read state.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc17,read-state",medium,normal,functional,positive,is-not-automated,actual,no,api,classic,"1. Log in as a user with an unread transfer notification.
+2. Open notification center.
+3. Mark the notification as read.
+4. Refresh and verify it is read.
+5. Mark the same notification as unread and refresh.
+","1. Unread notification is visible.
+2. Mark read action succeeds.
+3. Notification no longer counts as unread.
+4. Mark unread action succeeds.
+5. Notification returns to unread state.
+","1. Endpoint: /hwtires/api/notifications-api.php
+2. Actions: mark_read, mark_unread
+3. ids: notification IDs owned by user or branch
+",,,17,,"UC17 - Manage Notifications",,,no
+78,"UC17 - Notification update is limited to owned or branch notifications","Verifies a user cannot mark another branch/user notification.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc17,notification-ownership",high,major,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Identify a notification ID owned by another branch/user.
+3. Submit mark_read with that ID.
+4. Review the API response updated count.
+5. Log in as the original owner and check the notification state.
+","1. Front desk session is active.
+2. Foreign notification ID is submitted.
+3. API does not update unauthorized notification.
+4. Updated count is zero or unauthorized record remains unchanged.
+5. Original owner still sees the original notification state.
+","1. Endpoint action: mark_read
+2. ids: other branch notification ID
+3. Expected updated count: 0
+",,,17,,"UC17 - Manage Notifications",,,no
+79,"UC18 - Admin adds a service catalog item","Verifies service catalog creation for use in service operations.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc18,service-catalog,create",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as Admin/Owner.
+2. Open /hwtires/admin/services/.
+3. Click Add Service.
+4. Enter service name, category, price, labor cost, duration, description, and variable price flag.
+5. Submit and search for the new service.
+","1. Services page opens.
+2. Add Service form opens.
+3. Valid service details are accepted.
+4. Service is created successfully.
+5. New active service appears in the catalog and can be selected in service operation creation.
+","1. Service name: Qase Alignment Check
+2. Category: Alignment
+3. Price/Labor: 1500 / 1500
+",,,18,,"UC18 - Manage Service Catalog",,,no
+80,"UC18 - Admin edits service catalog pricing and details","Verifies catalog updates persist and affect future service selection.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc18,service-catalog,update",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as admin.
+2. Open Services.
+3. Choose an active service and click Edit.
+4. Change price, labor cost, duration, or description.
+5. Submit and reopen the service.
+","1. Service list loads.
+2. Edit form contains current values.
+3. Update saves successfully.
+4. Changed values appear after reload.
+5. Future service operation item selection uses updated service details.
+","1. Example service: Tire Rotation
+2. New price: 450
+3. Expected result: updated catalog row
+",,,18,,"UC18 - Manage Service Catalog",,,no
+81,"UC18 - Admin archives service catalog item","Verifies archived services are hidden from new operations but preserved.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc18,service-catalog,archive",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as admin.
+2. Open Services.
+3. Select a disposable or test service.
+4. Click Archive and confirm.
+5. Open service operation create page and search the catalog.
+","1. Services page opens.
+2. Archive confirmation appears.
+3. Service status changes to inactive or archived.
+4. Service is hidden from new service operation selection.
+5. Historical records that used the service remain intact.
+","1. Recommended target: Qase test service
+2. Action: archive
+",,,18,,"UC18 - Manage Service Catalog",,,no
+82,"UC18 - Front desk cannot access service catalog maintenance","Verifies service catalog administration is admin-only.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc18,admin-only",high,critical,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Open /hwtires/admin/services/ directly.
+3. Attempt to submit a service add/edit/archive request if route loads.
+4. Review services list as admin.
+","1. Front desk session is active.
+2. Admin services page redirects away or blocks access.
+3. Mutation request is rejected.
+4. Catalog remains unchanged.
+","1. User: frontdesk1@hwtires.local
+2. Blocked route: /hwtires/admin/services/
+3. Expected target: /hwtires/front-desk/ or unauthorized behavior
+",,,18,,"UC18 - Manage Service Catalog",,,no
+83,"UC19 - Admin creates front desk user with branch assignment","Verifies user creation for branch-scoped staff.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc19,users,front-desk",high,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as Admin/Owner.
+2. Open /hwtires/admin/users/.
+3. Click Add User.
+4. Enter name, login ID/email, password, role Front Desk, active status, and branch.
+5. Submit and log in as the new user.
+","1. Users page opens.
+2. Add user form opens.
+3. Branch is required for Front Desk role.
+4. User is created successfully.
+5. New user can log in and sees only assigned branch dashboard.
+","1. Name: Qase Front Desk
+2. Login ID: qase.frontdesk@example.test
+3. Role: front-desk
+4. Branch: Branch 1
+",,,19,,"UC19 - Manage Users and Roles",,,no
+84,"UC19 - Admin creates admin user without branch requirement","Verifies Admin/Owner role can be created for all-branch access.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc19,users,admin",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as Admin/Owner.
+2. Open Users.
+3. Click Add User.
+4. Select Admin/Owner role and leave branch unset if the UI hides it.
+5. Submit and log in as the new admin.
+","1. Users page opens.
+2. Admin role selection hides or clears branch field.
+3. User is created successfully.
+4. New admin can log in.
+5. New admin can access admin dashboard and all-branch monitoring pages.
+","1. Role: admin
+2. Branch: blank/all branches
+3. Expected dashboard: /hwtires/admin/
+",,,19,,"UC19 - Manage Users and Roles",,,no
+85,"UC19 - Admin updates user role branch and status","Verifies user maintenance changes persist and affect access.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc19,users,update",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as admin.
+2. Open Users.
+3. Edit a disposable user.
+4. Change role, branch, or active/inactive status.
+5. Save changes and test login/access with that user.
+","1. Edit form opens with current values.
+2. Valid changes are accepted.
+3. User row updates after save.
+4. Login and access behavior follows the new role/branch/status.
+","1. Use a disposable test user
+2. Status options: active, inactive
+3. Roles: admin, front-desk
+",,,19,,"UC19 - Manage Users and Roles",,,no
+86,"UC19 - System prevents removal of last active admin or own admin access","Verifies admin lockout protection.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc19,last-admin,security",high,critical,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as the only active admin or prepare a user state with one active admin.
+2. Open Users.
+3. Attempt to deactivate, archive, or change role for the current active admin.
+4. Submit the request.
+5. Review the user row and login ability.
+","1. Admin user page opens.
+2. Risky admin access change is attempted.
+3. Request is rejected.
+4. At least one active admin remains.
+5. Current admin can still access admin pages.
+","1. Expected messages: You cannot remove your own active admin access; At least one active admin user is required
+",,,19,,"UC19 - Manage Users and Roles",,,no
+87,"UC19 - Invalid or duplicate user details are rejected","Verifies user creation/edit validation.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc19,validation",high,major,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as admin.
+2. Open Add User.
+3. Enter a login ID/email already used by an active user.
+4. Submit the form.
+5. Repeat with missing required branch for Front Desk role.
+","1. Add User form opens.
+2. Duplicate login value is submitted.
+3. Duplicate user request is rejected.
+4. Missing front desk branch request is rejected.
+5. No invalid user is created.
+","1. Duplicate login ID: admin@hwtires.local
+2. Role: front-desk with no branch
+",,,19,,"UC19 - Manage Users and Roles",,,no
+88,"UC20 - Admin adds active branch","Verifies branch creation for operational use.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc20,branch-create",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as admin.
+2. Open /hwtires/admin/branch-management/.
+3. Click Add Branch.
+4. Enter branch name, location, supervisor, contact details, inventory flag, and active status.
+5. Submit and review branch list.
+","1. Branch Management page opens.
+2. Add Branch form opens.
+3. Valid branch details are accepted.
+4. Branch is created successfully.
+5. Branch appears in admin filters and relevant branch selectors.
+","1. Branch name: Qase Branch
+2. Inventory flag: enabled
+3. Status: active
+",,,20,,"UC20 - Manage Branches and Technicians",,,no
+89,"UC20 - Admin edits branch details and inventory flag","Verifies branch metadata updates persist.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc20,branch-update",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as admin.
+2. Open Branch Management.
+3. Edit an existing test branch.
+4. Change supervisor, contact number, email, location, or inventory flag.
+5. Save and reload the page.
+","1. Branch list loads.
+2. Edit form displays existing branch values.
+3. Changes save successfully.
+4. Updated details remain after reload.
+5. Inventory-enabled/disabled behavior follows the updated flag.
+","1. Branch: Qase Branch or disposable branch
+2. Inventory flag: on/off
+",,,20,,"UC20 - Manage Branches and Technicians",,,no
+90,"UC20 - Admin archives and reactivates branch","Verifies branch lifecycle controls.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc20,branch-archive",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as admin.
+2. Open Branch Management.
+3. Archive a disposable active branch.
+4. Confirm it is no longer active in filters/selectors.
+5. Reactivate the branch and verify it returns to active lists.
+","1. Branch Management page opens.
+2. Archive action succeeds.
+3. Branch is marked inactive and hidden from active-only selectors.
+4. Reactivate action succeeds.
+5. Branch returns to active lists.
+","1. Branch target: disposable test branch
+2. Statuses: active, inactive
+",,,20,,"UC20 - Manage Branches and Technicians",,,no
+91,"UC20 - Admin maintains technician roster by branch","Verifies technicians can be added or updated for branch job assignment.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc20,technicians",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as admin.
+2. Open Branch Management.
+3. Open technician roster for a branch.
+4. Add or edit technician names assigned to that branch.
+5. Open front desk job order creation for that branch.
+","1. Branch Management page loads.
+2. Technician roster controls are visible.
+3. Technician changes save successfully.
+4. Updated technician appears in the job order assignment choices for that branch.
+","1. Branch: Branch 1
+2. Technician name: Qase Technician
+3. Expected downstream page: /hwtires/front-desk/job-orders/create.php
+",,,20,,"UC20 - Manage Branches and Technicians",,,no
+92,"UC20 - Front desk cannot access branch and technician management","Verifies branch management is admin-only.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc20,admin-only",high,critical,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Open /hwtires/admin/branch-management/ directly.
+3. Attempt branch or technician mutation if any form is visible.
+4. Log in as admin and verify data did not change.
+","1. Front desk session is active.
+2. Admin branch management route redirects or blocks access.
+3. Mutation is unavailable or rejected.
+4. Branch and technician records remain unchanged.
+","1. User: frontdesk1@hwtires.local
+2. Blocked route: /hwtires/admin/branch-management/
+",,,20,,"UC20 - Manage Branches and Technicians",,,no
+93,"UC21 - Admin updates company branding and contact settings","Verifies system settings persist and affect displayed branding.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc21,settings,branding",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as admin.
+2. Open /hwtires/admin/settings/.
+3. Update company name, system title, contact email, contact phone, and primary color.
+4. Save settings.
+5. Reload login page, dashboard, or header areas.
+","1. Settings page opens.
+2. Brand/contact fields are editable.
+3. Settings save successfully.
+4. Updated values persist after reload.
+5. Branding/contact display reflects the saved settings.
+","1. Company name: Highway Tires QA
+2. Primary color: #06B6D4
+3. Recommended: restore original values after test
+",,,21,,"UC21 - Configure System Settings",,,no
+94,"UC21 - Admin uploads company logo","Verifies logo upload stores file and updates rendered logo.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc21,logo-upload",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as admin.
+2. Open Settings.
+3. Choose a valid PNG or JPG logo file.
+4. Submit the upload/save form.
+5. Reload the login page and app header.
+","1. Settings page opens.
+2. Logo file is selected.
+3. Upload succeeds.
+4. Stored company_logo setting points to the uploaded asset.
+5. New logo appears where branding is rendered.
+","1. File type: PNG or JPG
+2. Example route after save: /hwtires/index.php
+",,,21,,"UC21 - Configure System Settings",,,no
+95,"UC21 - Invalid settings CSRF token is rejected","Verifies settings changes require a valid security token.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc21,csrf,security",high,major,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as admin.
+2. Open Settings.
+3. Prepare a valid settings update.
+4. Remove or alter csrf_token before submitting.
+5. Reload settings.
+","1. Settings page opens.
+2. Valid field changes are prepared.
+3. Request is rejected as invalid security token.
+4. Settings remain unchanged.
+5. No uploaded logo or branding change is applied.
+","1. csrf_token: blank or altered
+2. Expected message: Invalid security token
+",,,21,,"UC21 - Configure System Settings",,,no
+96,"UC21 - Front desk cannot access system settings","Verifies settings are admin-only.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc21,admin-only",high,critical,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as frontdesk1.
+2. Open /hwtires/admin/settings/ directly.
+3. Attempt a settings POST request if the route loads.
+4. Log in as admin and verify settings are unchanged.
+","1. Front desk session is active.
+2. Admin settings route redirects or blocks access.
+3. Mutation request is unavailable or rejected.
+4. System settings remain unchanged.
+","1. User: frontdesk1@hwtires.local
+2. Blocked route: /hwtires/admin/settings/
+",,,21,,"UC21 - Configure System Settings",,,no
+97,"UC22 - Completed job queues pickup SMS for customer with phone number","Verifies customer pickup notification is queued when a job is completed.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc22,sms,pickup",high,major,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as the owning front desk user.
+2. Open an in-progress job for a customer with phone_mobile or contact value.
+3. Complete all job tasks or set status to completed.
+4. Open the job detail or database-backed SMS outbox view if available.
+5. Review the user-facing completion message.
+","1. Job detail/progress opens.
+2. Completion action succeeds.
+3. Job status becomes completed.
+4. sms_outbox receives one queued pickup SMS linked to the job.
+5. Completion message includes the SMS queue result when provided.
+","1. Customer phone example: 09171234567
+2. Expected sms_outbox status: queued
+3. Unique key: one SMS row per job_order_id
+",,,22,,"UC22 - Notify Customer for Pickup",,,no
+98,"UC22 - Completion without customer phone is handled gracefully","Verifies missing phone does not break job completion.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc22,sms,no-phone",medium,normal,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Prepare or select a customer with no phone_mobile/contact value.
+2. Create or open an in-progress job for that customer.
+3. Complete the job.
+4. Review job status and SMS result.
+","1. Job is available for completion.
+2. Completion action is submitted.
+3. Job is completed successfully.
+4. SMS queue reports not queued or failed gracefully.
+5. No server error prevents service history creation.
+","1. Customer phone: blank
+2. Expected job status: completed
+3. Expected SMS behavior: no queued message or failed result with clear message
+",,,22,,"UC22 - Notify Customer for Pickup",,,no
+99,"UC22 - Repeated completion does not create duplicate pickup SMS","Verifies sms_outbox uniqueness by job order.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc22,sms,idempotency",medium,normal,functional,positive,is-not-automated,actual,no,e2e,classic,"1. Log in as front desk.
+2. Complete a job that has not previously queued SMS.
+3. Record the SMS outbox entry for the job.
+4. Submit completed status again or refresh/retry the completion action.
+5. Review SMS outbox entries for the job.
+","1. First completion succeeds.
+2. One SMS outbox row is created.
+3. Repeated completion does not create another queued pickup SMS.
+4. Existing SMS record remains associated with the job.
+5. Job remains completed.
+","1. Expected database rule: UNIQUE job_order_id in sms_outbox
+2. Expected row count for job: 1
+",,,22,,"UC22 - Notify Customer for Pickup",,,no
+100,"UC22 - Reopening completed job cancels queued or failed pickup SMS","Verifies reopening progress cleans up pending customer notification.","HW Tires is running with the seeded database. Test users are available: admin@hwtires.local / admin123, frontdesk1@hwtires.local / password123, frontdesk2@hwtires.local / password123, frontdesk3@hwtires.local / password123.","The tested workflow is completed and any created records can be reviewed from the related list/detail page.","hwtires,use-case,uc22,sms,reopen",high,major,functional,negative,is-not-automated,actual,no,e2e,classic,"1. Log in as front desk.
+2. Complete a job and confirm SMS is queued or failed.
+3. Open task progress for the completed job.
+4. Uncheck one completed task to reopen progress.
+5. Review job status and SMS outbox status.
+","1. Completed job has SMS outbox record.
+2. Task progress can be reopened.
+3. Job status changes back to in-progress.
+4. Queued or failed SMS row is marked cancelled.
+5. Service history generated for the completed state is removed or unsynced as expected.
+","1. Action: update_job_progress
+2. is_done: 0
+3. Expected SMS status: cancelled
+",,,22,,"UC22 - Notify Customer for Pickup",,,no
