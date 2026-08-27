@@ -4,19 +4,27 @@
  * Database Configuration
  */
 
-// Database credentials
-define('DB_HOST', 'localhost');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-define('DB_NAME', 'hwtires');
-define('DB_PORT', 3306);
+// Database credentials (with environment variable support for cloud hosting like Render)
+define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
+define('DB_USER', getenv('DB_USER') ?: 'root');
+define('DB_PASS', getenv('DB_PASS') !== false ? getenv('DB_PASS') : '');
+define('DB_NAME', getenv('DB_NAME') ?: 'hwtires');
+define('DB_PORT', getenv('DB_PORT') ? (int)getenv('DB_PORT') : 3306);
 
 // Application constants
-define('APP_NAME', 'HW Tires Management');
+define('APP_NAME', getenv('APP_NAME') ?: 'HW Tires Management');
 if (!defined('APP_URL')) {
-    define('APP_URL', '/hwtires');
+    $env_app_url = getenv('APP_URL');
+    if ($env_app_url !== false) {
+        define('APP_URL', rtrim($env_app_url, '/'));
+    } else {
+        // Auto-detect root vs subfolder
+        $doc_root = isset($_SERVER['DOCUMENT_ROOT']) ? realpath($_SERVER['DOCUMENT_ROOT']) : '';
+        $app_root = realpath(__DIR__ . '/..');
+        define('APP_URL', ($doc_root && $app_root && $doc_root === $app_root) ? '' : '/hwtires');
+    }
 }
-define('APP_TIMEZONE', 'UTC');
+define('APP_TIMEZONE', getenv('APP_TIMEZONE') ?: 'Asia/Manila');
 
 // Session configuration
 define('SESSION_TIMEOUT', 3600); // 1 hour in seconds
@@ -215,6 +223,9 @@ if (!function_exists('log_audit')) {
  */
 if (!function_exists('redirect')) {
     function redirect($url) {
+        if (defined('APP_URL') && APP_URL !== '/hwtires' && strpos($url, '/hwtires/') === 0) {
+            $url = APP_URL . substr($url, strlen('/hwtires'));
+        }
         header('Location: ' . $url);
         exit;
     }
