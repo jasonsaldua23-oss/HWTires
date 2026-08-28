@@ -134,7 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $csrf_token = generate_csrf_token();
-$dashboard_url = ($account['role'] ?? '') === 'admin' ? '/hwtires/admin/' : '/hwtires/front-desk/';
+$dashboard_url = ($account['role'] ?? '') === 'admin' ? (APP_URL . '/admin/') : (APP_URL . '/front-desk/');
 ?>
 
 <?php require_once __DIR__ . '/includes/header.php'; ?>

@@ -1639,19 +1639,22 @@ if (!function_exists('ensure_vehicles_branch_column')) {
     }
 }
 
-ensure_vehicle_condition_column();
-ensure_job_orders_assigned_technician_name_column();
-ensure_job_orders_scheduled_end_date_column();
-ensure_job_orders_estimated_duration_column();
-ensure_quotation_service_inspection_columns();
-ensure_archive_status_values();
-ensure_service_catalog_table();
-ensure_customers_branch_column();
-ensure_vehicles_branch_column();
-ensure_vehicle_ownership_history_table();
-sync_current_vehicle_ownership_history();
-ensure_inventory_transaction_tagging_columns();
-sync_inventory_transaction_customer_tags();
-ensure_customer_branch_records_table();
-sync_customer_branch_records();
+// Execute database schema setup and sync only when explicitly requested or via CLI
+if (getenv('RUN_MIGRATIONS') === 'true' || (php_sapi_name() === 'cli' && empty($_SERVER['HTTP_HOST']))) {
+    ensure_vehicle_condition_column();
+    ensure_job_orders_assigned_technician_name_column();
+    ensure_job_orders_scheduled_end_date_column();
+    ensure_job_orders_estimated_duration_column();
+    ensure_quotation_service_inspection_columns();
+    ensure_archive_status_values();
+    ensure_service_catalog_table();
+    ensure_customers_branch_column();
+    ensure_vehicles_branch_column();
+    ensure_vehicle_ownership_history_table();
+    sync_current_vehicle_ownership_history();
+    ensure_inventory_transaction_tagging_columns();
+    sync_inventory_transaction_customer_tags();
+    ensure_customer_branch_records_table();
+    sync_customer_branch_records();
+}
 ?>

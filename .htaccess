@@ -1,0 +1,7 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Route any legacy /hwtires/ prefixed URLs seamlessly to the root application
+    RewriteRule ^hwtires/(.*)$ /$1 [L,QSA]
+</IfModule>

@@ -19,6 +19,5 @@ if ($user) {
 session_destroy();
 
 // Redirect to login
-header('Location: /hwtires/index.php');
-exit;
+redirect(APP_URL . '/index.php');
 ?>

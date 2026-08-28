@@ -10,9 +10,8 @@ session_start();
 // If already logged in, redirect
 if (is_logged_in()) {
     $user = app_get_session_user();
-    $redirect = ($user['role'] === 'admin') ? '/hwtires/admin/' : '/hwtires/front-desk/';
-    header('Location: ' . $redirect, true, 302);
-    exit;
+    $redirect = ($user['role'] === 'admin') ? (APP_URL . '/admin/') : (APP_URL . '/front-desk/');
+    redirect($redirect);
 }
 
 $error = '';
@@ -83,9 +82,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
                 // Force session save before redirect
                 session_write_close();
 
-                $redirect = ($user['role'] === 'admin') ? '/hwtires/admin/' : '/hwtires/front-desk/';
-                header('Location: ' . $redirect, true, 302);
-                exit;
+                $redirect = ($user['role'] === 'admin') ? (APP_URL . '/admin/') : (APP_URL . '/front-desk/');
+                redirect($redirect);
             } else {
                 $error = 'Invalid login ID or password.';
             }
