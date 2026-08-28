@@ -1520,10 +1520,16 @@ try {
             $display_records = array_values(array_filter($raw_activity_records, static function ($record) {
                 return ($record['record_type'] ?? '') === 'job';
             }));
+        } elseif ($active_tab === 'audit') {
+            $display_records = $raw_activity_records;
         } else {
-            $display_records = $is_raw_activity_tab
-                ? $raw_activity_records
-                : vehicle_profile_group_records($role, $raw_activity_records);
+            // 'overview' (Service Visits) and 'timeline' (Visit Timeline)
+            $grouped = vehicle_profile_group_records($role, $raw_activity_records);
+            // Service Visits tab should only show actual service visits (QT, SH, JO) and not standalone inventory transactions
+            $display_records = array_values(array_filter($grouped, static function ($record) {
+                $primary_type = $record['primary_type'] ?? ($record['record_type'] ?? '');
+                return $primary_type !== 'item';
+            }));
         }
 
         if ($active_tab === 'timeline') {
