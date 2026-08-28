@@ -49,6 +49,7 @@ $status_filter = strtolower(trim($_GET['status'] ?? 'all'));
 $search_filter = trim($_GET['search'] ?? '');
 $year_filter = trim($_GET['year'] ?? 'latest');
 $view_filter = strtolower(trim($_GET['view'] ?? 'weekly'));
+$sort_filter = strtolower(trim($_GET['sort'] ?? 'urgency'));
 $page_sizes = [10, 20, 50];
 $per_page = (int) ($_GET['per_page'] ?? 10);
 if (!in_array($per_page, $page_sizes, true)) {
@@ -63,12 +64,14 @@ $forecast = forecast_build_inventory_dss($pdo, [
     'search' => $search_filter,
     'year' => $year_filter,
     'view' => $view_filter,
+    'sort' => $sort_filter,
     'allowed_branch_ids' => $allowed_branch_ids,
 ]);
 
 $category_filter = $forecast['filters']['category'];
 $branch_filter = $forecast['filters']['branch'];
 $status_filter = $forecast['filters']['status'];
+$sort_filter = $forecast['filters']['sort'];
 $search_filter = $forecast['filters']['search'];
 $year_filter = $forecast['filters']['year'];
 $view_filter = $forecast['filters']['view'];
@@ -371,6 +374,25 @@ foreach ($movement_category_totals as $category_total) {
                 </select>
             </label>
             <label class="forecast-compact-field">
+                <span>Sort By</span>
+                <select name="sort">
+                    <?php
+                    $sort_options = [
+                        'urgency' => 'Highest Risk / Urgency',
+                        'demand' => 'Highest Demand (Fast Movers)',
+                        'growth' => 'Demand Surge (+% Growth)',
+                        'stock_asc' => 'Lowest Stock First',
+                        'name' => 'Product Name (A-Z)',
+                    ];
+                    foreach ($sort_options as $sort_val => $sort_label):
+                    ?>
+                        <option value="<?php echo esc_attr($sort_val); ?>" <?php echo $sort_filter === $sort_val ? 'selected' : ''; ?>>
+                            <?php echo esc_html($sort_label); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <label class="forecast-compact-field">
                 <span>Analysis Year</span>
                 <select name="year">
                     <option value="latest" <?php echo $year_filter === 'latest' ? 'selected' : ''; ?>>Latest Available</option>
@@ -382,9 +404,9 @@ foreach ($movement_category_totals as $category_total) {
                 </select>
             </label>
             <button type="submit" class="forecast-compact-apply">Apply</button>
-            <?php if ($category_filter !== 'all' || $branch_filter !== 'all' || $status_filter !== 'all' || $year_filter !== 'latest' || $view_filter !== 'weekly'): ?>
+            <?php if ($category_filter !== 'all' || $branch_filter !== 'all' || $status_filter !== 'all' || $year_filter !== 'latest' || $view_filter !== 'weekly' || $sort_filter !== 'urgency'): ?>
                 <a class="forecast-compact-reset"
-                   href="<?php echo esc_attr(forecast_filter_url('all', 'all', 'all', $search_filter, $per_page, null, 'latest', 'weekly')); ?>#forecast-analysis">
+                   href="<?php echo esc_attr(forecast_filter_url('all', 'all', 'all', $search_filter, $per_page, null, 'latest', 'weekly', 'urgency')); ?>#forecast-analysis">
                     Reset
                 </a>
             <?php endif; ?>
@@ -398,6 +420,9 @@ foreach ($movement_category_totals as $category_total) {
             <?php endif; ?>
             <?php if ($status_filter !== 'all'): ?>
                 <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
+            <?php endif; ?>
+            <?php if ($sort_filter !== 'urgency'): ?>
+                <input type="hidden" name="sort" value="<?php echo esc_attr($sort_filter); ?>">
             <?php endif; ?>
             <?php if ($year_filter !== 'latest'): ?>
                 <input type="hidden" name="year" value="<?php echo esc_attr($year_filter); ?>">
@@ -416,7 +441,7 @@ foreach ($movement_category_totals as $category_total) {
             <button type="submit" class="forecast-search-btn">Search</button>
             <?php if ($search_filter !== ''): ?>
                 <a class="forecast-search-clear"
-                   href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, '', $per_page, null, $year_filter, $view_filter)); ?>#forecast-analysis">
+                   href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, '', $per_page, null, $year_filter, $view_filter, $sort_filter)); ?>#forecast-analysis">
                     Clear
                 </a>
             <?php endif; ?>
@@ -426,7 +451,7 @@ foreach ($movement_category_totals as $category_total) {
     <nav class="forecast-view-tabs" aria-label="Forecast views">
         <?php foreach ($forecast_view_tabs as $tab_key => $tab): ?>
             <a class="forecast-view-tab <?php echo $view_filter === $tab_key ? 'active' : ''; ?>"
-               href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, null, $year_filter, $tab_key)); ?>#forecast-analysis"
+               href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, null, $year_filter, $tab_key, $sort_filter)); ?>#forecast-analysis"
                aria-current="<?php echo $view_filter === $tab_key ? 'page' : 'false'; ?>">
                 <i class="<?php echo esc_attr($tab['icon']); ?>"></i>
                 <span><?php echo esc_html($tab['label']); ?></span>
@@ -648,9 +673,22 @@ foreach ($movement_category_totals as $category_total) {
             </div>
         </header>
 
+        <?php
+        $timeframe_badge = [
+            'weekly' => ['label' => 'Weekly Replenishment Horizon (7–14 Days)', 'icon' => 'far fa-calendar-days', 'class' => 'pill-weekly'],
+            'monthly' => ['label' => 'Monthly Procurement Horizon (30–60 Days)', 'icon' => 'far fa-calendar', 'class' => 'pill-monthly'],
+            'items' => ['label' => 'Catalog Health & Movement Velocity', 'icon' => 'fas fa-list-check', 'class' => 'pill-items'],
+        ][$view_filter] ?? ['label' => 'Forecast Analysis', 'icon' => 'fas fa-chart-line', 'class' => ''];
+        ?>
         <div class="records-table-toolbar forecast-table-toolbar">
             <div>
-                <h3><?php echo esc_html(forecast_view_label($view_filter)); ?> Records</h3>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <h3><?php echo esc_html(forecast_view_label($view_filter)); ?> Records</h3>
+                    <span class="forecast-timeframe-pill <?php echo esc_attr($timeframe_badge['class']); ?>">
+                        <i class="<?php echo esc_attr($timeframe_badge['icon']); ?>"></i>
+                        <?php echo esc_html($timeframe_badge['label']); ?>
+                    </span>
+                </div>
                 <p>Showing <?php echo (int) $showing_from; ?>-<?php echo (int) $showing_to; ?> of <?php echo (int) $total_records; ?> items</p>
             </div>
             <form class="records-page-size-form" method="get" action="./#forecast-analysis">
@@ -662,6 +700,9 @@ foreach ($movement_category_totals as $category_total) {
                 <?php endif; ?>
                 <?php if ($status_filter !== 'all'): ?>
                     <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
+                <?php endif; ?>
+                <?php if ($sort_filter !== 'urgency'): ?>
+                    <input type="hidden" name="sort" value="<?php echo esc_attr($sort_filter); ?>">
                 <?php endif; ?>
                 <?php if ($search_filter !== ''): ?>
                     <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
@@ -827,23 +868,23 @@ foreach ($movement_category_totals as $category_total) {
                 <ul class="pagination justify-content-center">
                     <?php if ($page > 1): ?>
                         <li class="page-item">
-                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, 1, $year_filter, $view_filter)); ?>#forecast-analysis">First</a>
+                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, 1, $year_filter, $view_filter, $sort_filter)); ?>#forecast-analysis">First</a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $page - 1, $year_filter, $view_filter)); ?>#forecast-analysis">Previous</a>
+                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $page - 1, $year_filter, $view_filter, $sort_filter)); ?>#forecast-analysis">Previous</a>
                         </li>
                     <?php endif; ?>
                     <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
                         <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
-                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $i, $year_filter, $view_filter)); ?>#forecast-analysis"><?php echo (int) $i; ?></a>
+                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $i, $year_filter, $view_filter, $sort_filter)); ?>#forecast-analysis"><?php echo (int) $i; ?></a>
                         </li>
                     <?php endfor; ?>
                     <?php if ($page < $total_pages): ?>
                         <li class="page-item">
-                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $page + 1, $year_filter, $view_filter)); ?>#forecast-analysis">Next</a>
+                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $page + 1, $year_filter, $view_filter, $sort_filter)); ?>#forecast-analysis">Next</a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $total_pages, $year_filter, $view_filter)); ?>#forecast-analysis">Last</a>
+                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $total_pages, $year_filter, $view_filter, $sort_filter)); ?>#forecast-analysis">Last</a>
                         </li>
                     <?php endif; ?>
                 </ul>

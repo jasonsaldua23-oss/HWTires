@@ -143,11 +143,15 @@ if (!function_exists('inventory_transaction_source_links')) {
 }
 
 if (!function_exists('inventory_filter_url')) {
-    function inventory_filter_url($category, $branch, $search = '', $per_page = null, $page = null, $view = 'all') {
+    function inventory_filter_url($category, $branch, $search = '', $per_page = null, $page = null, $view = 'all', $sales_mode = 'all') {
         $query = [];
 
         if ($view !== 'all') {
             $query['view'] = $view;
+        }
+
+        if ($view === 'last_month_sales' && $sales_mode === 'top10') {
+            $query['sales_mode'] = 'top10';
         }
 
         if ($category !== 'all') {
@@ -206,6 +210,11 @@ if (!in_array($view_filter, $valid_inventory_views, true)) {
 }
 $transaction_views = ['stock_in', 'stock_out', 'last_month_sales'];
 $is_transaction_view = in_array($view_filter, $transaction_views, true);
+
+$sales_mode = strtolower(trim($_GET['sales_mode'] ?? 'all'));
+if (!in_array($sales_mode, ['all', 'top10'], true)) {
+    $sales_mode = 'all';
+}
 
 $branch_filter = trim($_GET['branch'] ?? 'all');
 if ($branch_filter === '') {
@@ -491,7 +500,279 @@ if ($view_filter === 'low_stock') {
     $records_empty_message = 'No sales records found for ' . $last_month_label . '.';
 }
 
-$active_filter_url = inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, $page, $view_filter);
+$dynamic_stats = [];
+$top_10_items = [];
+if ($view_filter === 'last_month_sales') {
+    $top10_stmt = $pdo->prepare("
+        SELECT
+            i.id,
+            i.item_name,
+            i.category,
+            i.brand,
+            i.size,
+            i.sku,
+            i.unit_price,
+            i.branch_id,
+            b.name AS branch_name,
+            COUNT(t.id) AS total_orders,
+            COALESCE(SUM(t.quantity), 0) AS total_sold_qty,
+            COALESCE(SUM(t.quantity * i.unit_price), 0) AS total_sold_amount
+        FROM inventory_transactions t
+        INNER JOIN inventory_items i ON i.id = t.item_id
+        LEFT JOIN branches b ON b.id = i.branch_id
+        LEFT JOIN users u ON u.id = t.created_by
+        LEFT JOIN customers tagged_customer ON tagged_customer.id = t.customer_id
+        LEFT JOIN vehicles tagged_vehicle ON tagged_vehicle.id = t.vehicle_id
+        LEFT JOIN job_orders tagged_job ON tagged_job.id = t.job_order_id
+        LEFT JOIN quotations tagged_quotation ON tagged_quotation.id = t.quotation_id
+        WHERE $transaction_where_sql
+        GROUP BY t.item_id
+        ORDER BY total_sold_qty DESC, total_sold_amount DESC
+        LIMIT 10
+    ");
+    $top10_stmt->execute($transaction_params);
+    $top_10_items = $top10_stmt->fetchAll();
+    $top_item = $top_10_items[0] ?? null;
+
+    $tx_summary_stmt = $pdo->prepare("
+        SELECT
+            COUNT(*) AS total_tx,
+            COALESCE(SUM(t.quantity), 0) AS total_units,
+            COALESCE(SUM(t.quantity * i.unit_price), 0) AS total_revenue
+        FROM inventory_transactions t
+        INNER JOIN inventory_items i ON i.id = t.item_id
+        LEFT JOIN branches b ON b.id = i.branch_id
+        LEFT JOIN users u ON u.id = t.created_by
+        LEFT JOIN customers tagged_customer ON tagged_customer.id = t.customer_id
+        LEFT JOIN vehicles tagged_vehicle ON tagged_vehicle.id = t.vehicle_id
+        LEFT JOIN job_orders tagged_job ON tagged_job.id = t.job_order_id
+        LEFT JOIN quotations tagged_quotation ON tagged_quotation.id = t.quotation_id
+        WHERE $transaction_where_sql
+    ");
+    $tx_summary_stmt->execute($transaction_params);
+    $tx_summary = $tx_summary_stmt->fetch() ?: ['total_tx' => 0, 'total_units' => 0, 'total_revenue' => 0];
+
+    $dynamic_stats = [
+        [
+            'label' => 'Total Sales Revenue',
+            'value' => inventory_money($tx_summary['total_revenue']),
+            'subtext' => 'Sales in ' . $last_month_label,
+            'icon' => 'fas fa-peso-sign',
+            'icon_class' => 'icon-green',
+        ],
+        [
+            'label' => 'Total Units Sold',
+            'value' => number_format((float) $tx_summary['total_units']) . ' units',
+            'subtext' => number_format((int) $tx_summary['total_tx']) . ' sales records',
+            'icon' => 'fas fa-box-open',
+            'icon_class' => 'icon-cyan',
+        ],
+        [
+            'label' => 'Most Sold Item',
+            'value' => $top_item ? esc_html($top_item['item_name']) : 'None',
+            'subtext' => $top_item ? (number_format((float) $top_item['total_sold_qty']) . ' units · ₱' . number_format((float) $top_item['total_sold_amount'])) : 'No sales recorded',
+            'icon' => 'fas fa-fire',
+            'icon_class' => 'icon-gold',
+        ],
+    ];
+} elseif ($view_filter === 'stock_out') {
+    $tx_summary_stmt = $pdo->prepare("
+        SELECT
+            COUNT(*) AS total_tx,
+            COALESCE(SUM(t.quantity), 0) AS total_units,
+            COALESCE(SUM(t.quantity * i.unit_price), 0) AS total_value
+        FROM inventory_transactions t
+        INNER JOIN inventory_items i ON i.id = t.item_id
+        LEFT JOIN branches b ON b.id = i.branch_id
+        LEFT JOIN users u ON u.id = t.created_by
+        LEFT JOIN customers tagged_customer ON tagged_customer.id = t.customer_id
+        LEFT JOIN vehicles tagged_vehicle ON tagged_vehicle.id = t.vehicle_id
+        LEFT JOIN job_orders tagged_job ON tagged_job.id = t.job_order_id
+        LEFT JOIN quotations tagged_quotation ON tagged_quotation.id = t.quotation_id
+        WHERE $transaction_where_sql
+    ");
+    $tx_summary_stmt->execute($transaction_params);
+    $tx_summary = $tx_summary_stmt->fetch() ?: ['total_tx' => 0, 'total_units' => 0, 'total_value' => 0];
+
+    $top_item_stmt = $pdo->prepare("
+        SELECT
+            i.item_name,
+            COALESCE(SUM(t.quantity), 0) AS total_qty,
+            COALESCE(SUM(t.quantity * i.unit_price), 0) AS total_amount
+        FROM inventory_transactions t
+        INNER JOIN inventory_items i ON i.id = t.item_id
+        LEFT JOIN branches b ON b.id = i.branch_id
+        LEFT JOIN users u ON u.id = t.created_by
+        LEFT JOIN customers tagged_customer ON tagged_customer.id = t.customer_id
+        LEFT JOIN vehicles tagged_vehicle ON tagged_vehicle.id = t.vehicle_id
+        LEFT JOIN job_orders tagged_job ON tagged_job.id = t.job_order_id
+        LEFT JOIN quotations tagged_quotation ON tagged_quotation.id = t.quotation_id
+        WHERE $transaction_where_sql
+        GROUP BY t.item_id
+        ORDER BY total_qty DESC, total_amount DESC
+        LIMIT 1
+    ");
+    $top_item_stmt->execute($transaction_params);
+    $top_item = $top_item_stmt->fetch() ?: null;
+
+    $dynamic_stats = [
+        [
+            'label' => 'Total Stock-Out Value',
+            'value' => inventory_money($tx_summary['total_value']),
+            'subtext' => 'Total outbound value',
+            'icon' => 'fas fa-arrow-trend-up',
+            'icon_class' => 'icon-green',
+        ],
+        [
+            'label' => 'Units Dispatched',
+            'value' => number_format((float) $tx_summary['total_units']) . ' units',
+            'subtext' => number_format((int) $tx_summary['total_tx']) . ' dispatch records',
+            'icon' => 'fas fa-dolly',
+            'icon_class' => 'icon-cyan',
+        ],
+        [
+            'label' => 'Most Dispatched Item',
+            'value' => $top_item ? esc_html($top_item['item_name']) : 'None',
+            'subtext' => $top_item ? (number_format((float) $top_item['total_qty']) . ' units · ₱' . number_format((float) $top_item['total_amount'])) : 'No dispatches recorded',
+            'icon' => 'fas fa-fire',
+            'icon_class' => 'icon-gold',
+        ],
+    ];
+} elseif ($view_filter === 'stock_in') {
+    $tx_summary_stmt = $pdo->prepare("
+        SELECT
+            COUNT(*) AS total_tx,
+            COALESCE(SUM(t.quantity), 0) AS total_units,
+            COALESCE(SUM(t.quantity * i.unit_price), 0) AS total_value
+        FROM inventory_transactions t
+        INNER JOIN inventory_items i ON i.id = t.item_id
+        LEFT JOIN branches b ON b.id = i.branch_id
+        LEFT JOIN users u ON u.id = t.created_by
+        LEFT JOIN customers tagged_customer ON tagged_customer.id = t.customer_id
+        LEFT JOIN vehicles tagged_vehicle ON tagged_vehicle.id = t.vehicle_id
+        LEFT JOIN job_orders tagged_job ON tagged_job.id = t.job_order_id
+        LEFT JOIN quotations tagged_quotation ON tagged_quotation.id = t.quotation_id
+        WHERE $transaction_where_sql
+    ");
+    $tx_summary_stmt->execute($transaction_params);
+    $tx_summary = $tx_summary_stmt->fetch() ?: ['total_tx' => 0, 'total_units' => 0, 'total_value' => 0];
+
+    $top_item_stmt = $pdo->prepare("
+        SELECT
+            i.item_name,
+            COALESCE(SUM(t.quantity), 0) AS total_qty,
+            COALESCE(SUM(t.quantity * i.unit_price), 0) AS total_amount
+        FROM inventory_transactions t
+        INNER JOIN inventory_items i ON i.id = t.item_id
+        LEFT JOIN branches b ON b.id = i.branch_id
+        LEFT JOIN users u ON u.id = t.created_by
+        LEFT JOIN customers tagged_customer ON tagged_customer.id = t.customer_id
+        LEFT JOIN vehicles tagged_vehicle ON tagged_vehicle.id = t.vehicle_id
+        LEFT JOIN job_orders tagged_job ON tagged_job.id = t.job_order_id
+        LEFT JOIN quotations tagged_quotation ON tagged_quotation.id = t.quotation_id
+        WHERE $transaction_where_sql
+        GROUP BY t.item_id
+        ORDER BY total_qty DESC, total_amount DESC
+        LIMIT 1
+    ");
+    $top_item_stmt->execute($transaction_params);
+    $top_item = $top_item_stmt->fetch() ?: null;
+
+    $dynamic_stats = [
+        [
+            'label' => 'Total Stock-In Value',
+            'value' => inventory_money($tx_summary['total_value']),
+            'subtext' => 'Total restocked value',
+            'icon' => 'fas fa-boxes-stacked',
+            'icon_class' => 'icon-green',
+        ],
+        [
+            'label' => 'Units Received',
+            'value' => number_format((float) $tx_summary['total_units']) . ' units',
+            'subtext' => number_format((int) $tx_summary['total_tx']) . ' receiving records',
+            'icon' => 'fas fa-truck-ramp-box',
+            'icon_class' => 'icon-cyan',
+        ],
+        [
+            'label' => 'Most Restocked Item',
+            'value' => $top_item ? esc_html($top_item['item_name']) : 'None',
+            'subtext' => $top_item ? (number_format((float) $top_item['total_qty']) . ' units · ₱' . number_format((float) $top_item['total_amount'])) : 'No restocks recorded',
+            'icon' => 'fas fa-cubes',
+            'icon_class' => 'icon-cyan',
+        ],
+    ];
+} elseif ($view_filter === 'low_stock') {
+    $low_stock_summary_stmt = $pdo->prepare("
+        SELECT
+            COUNT(*) AS total_items,
+            COALESCE(SUM(i.quantity * i.unit_price), 0) AS total_stock_value,
+            SUM(CASE WHEN i.quantity = 0 THEN 1 ELSE 0 END) AS out_of_stock_count
+        FROM inventory_items i
+        WHERE $item_list_where_sql
+    ");
+    $low_stock_summary_stmt->execute($item_list_params);
+    $ls_summary = $low_stock_summary_stmt->fetch() ?: ['total_items' => 0, 'total_stock_value' => 0, 'out_of_stock_count' => 0];
+
+    $lowest_item_stmt = $pdo->prepare("
+        SELECT i.item_name, i.quantity, i.reorder_level
+        FROM inventory_items i
+        WHERE $item_list_where_sql
+        ORDER BY i.quantity ASC, i.reorder_level DESC, i.item_name ASC
+        LIMIT 1
+    ");
+    $lowest_item_stmt->execute($item_list_params);
+    $lowest_item = $lowest_item_stmt->fetch() ?: null;
+
+    $dynamic_stats = [
+        [
+            'label' => 'Low Stock Items',
+            'value' => number_format((int) $ls_summary['total_items']) . ' items',
+            'subtext' => 'At or below reorder level',
+            'icon' => 'fas fa-triangle-exclamation',
+            'icon_class' => 'icon-gold',
+        ],
+        [
+            'label' => 'Low Stock Value',
+            'value' => inventory_money($ls_summary['total_stock_value']),
+            'subtext' => 'Capital in low stock',
+            'icon' => 'fas fa-vault',
+            'icon_class' => 'icon-cyan',
+        ],
+        [
+            'label' => 'Lowest Stock Item',
+            'value' => $lowest_item ? esc_html($lowest_item['item_name']) : 'None',
+            'subtext' => $lowest_item ? ((int) $lowest_item['quantity'] . ' unit' . ((int) $lowest_item['quantity'] === 1 ? '' : 's') . ' left · Reorder: ' . (int) $lowest_item['reorder_level']) : 'No low stock items',
+            'icon' => 'fas fa-circle-exclamation',
+            'icon_class' => 'icon-red',
+        ],
+    ];
+} else {
+    $dynamic_stats = [
+        [
+            'label' => 'Total Items',
+            'value' => number_format((int) ($stats['total_items'] ?? 0)),
+            'subtext' => 'Active inventory items',
+            'icon' => 'fas fa-boxes-stacked',
+            'icon_class' => 'icon-cyan',
+        ],
+        [
+            'label' => 'Total Stock Value',
+            'value' => inventory_money($stats['total_stock_value'] ?? 0),
+            'subtext' => 'Total inventory valuation',
+            'icon' => 'fas fa-vault',
+            'icon_class' => 'icon-green',
+        ],
+        [
+            'label' => 'Low Stock Alerts',
+            'value' => number_format((int) ($stats['low_stock_count'] ?? 0)),
+            'subtext' => 'Items needing reorder',
+            'icon' => 'fas fa-triangle-exclamation',
+            'icon_class' => 'icon-red',
+        ],
+    ];
+}
+
+$active_filter_url = inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, $page, $view_filter, $sales_mode);
 $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' ? '' : $active_filter_url) . '#inventory-records';
 ?>
 
@@ -528,27 +809,20 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
     <?php endif; ?>
 
     <section class="inventory-summary-grid" aria-label="Inventory summary">
-        <article class="inventory-summary-card">
-            <div>
-                <span>Total Items</span>
-                <strong><?php echo (int) ($stats['total_items'] ?? 0); ?></strong>
-            </div>
-            <span class="inventory-summary-icon icon-cyan"><i class="fas fa-arrow-trend-up"></i></span>
-        </article>
-        <article class="inventory-summary-card">
-            <div>
-                <span>Total Stock Value</span>
-                <strong><?php echo inventory_money($stats['total_stock_value'] ?? 0); ?></strong>
-            </div>
-            <span class="inventory-summary-icon icon-green"><i class="fas fa-arrow-trend-up"></i></span>
-        </article>
-        <article class="inventory-summary-card">
-            <div>
-                <span>Low Stock Alerts</span>
-                <strong><?php echo (int) ($stats['low_stock_count'] ?? 0); ?></strong>
-            </div>
-            <span class="inventory-summary-icon icon-red"><i class="fas fa-exclamation"></i></span>
-        </article>
+        <?php foreach ($dynamic_stats as $stat): ?>
+            <article class="inventory-summary-card">
+                <div>
+                    <span><?php echo esc_html($stat['label']); ?></span>
+                    <strong><?php echo esc_html($stat['value']); ?></strong>
+                    <?php if (!empty($stat['subtext'])): ?>
+                        <small style="display:block; font-size: 11px; color: var(--company-muted); margin-top: 2px;" title="<?php echo esc_attr(strip_tags($stat['subtext'])); ?>"><?php echo esc_html($stat['subtext']); ?></small>
+                    <?php endif; ?>
+                </div>
+                <span class="inventory-summary-icon <?php echo esc_attr($stat['icon_class']); ?>">
+                    <i class="<?php echo esc_attr($stat['icon']); ?>"></i>
+                </span>
+            </article>
+        <?php endforeach; ?>
     </section>
 
     <section class="inventory-filter-card">
@@ -714,17 +988,43 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
     </details>
 
     <section class="inventory-table-card" id="inventory-records" aria-label="Inventory records">
+        <?php if ($view_filter === 'last_month_sales'): ?>
+            <div class="inventory-sales-subtabs">
+                <a href="<?php echo esc_attr(inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, 1, 'last_month_sales', 'all')); ?>#inventory-records"
+                   class="inventory-sales-subtab <?php echo $sales_mode !== 'top10' ? 'active' : ''; ?>">
+                    <i class="fas fa-list-ul"></i>
+                    <span>All Sales Transactions (<?php echo (int) $total_records; ?>)</span>
+                </a>
+                <a href="<?php echo esc_attr(inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, 1, 'last_month_sales', 'top10')); ?>#inventory-records"
+                   class="inventory-sales-subtab <?php echo $sales_mode === 'top10' ? 'active' : ''; ?>">
+                    <i class="fas fa-trophy"></i>
+                    <span>Top 10 Best Sellers</span>
+                </a>
+            </div>
+        <?php endif; ?>
+
         <div class="records-table-toolbar inventory-table-toolbar">
             <div>
-                <h2><?php echo esc_html($records_heading); ?></h2>
+                <h2>
+                    <?php if ($view_filter === 'last_month_sales' && $sales_mode === 'top10'): ?>
+                        Top 10 Best Selling Items
+                    <?php else: ?>
+                        <?php echo esc_html($records_heading); ?>
+                    <?php endif; ?>
+                </h2>
                 <p>
-                    Showing <?php echo (int) $showing_from; ?>-<?php echo (int) $showing_to; ?>
-                    of <?php echo (int) $total_records; ?> <?php echo esc_html($records_noun); ?>
-                    <?php if ($view_filter === 'last_month_sales'): ?>
-                        for <?php echo esc_html($last_month_label); ?>
+                    <?php if ($view_filter === 'last_month_sales' && $sales_mode === 'top10'): ?>
+                        Showing top 10 items ranked by sales quantity for <?php echo esc_html($last_month_label); ?>
+                    <?php else: ?>
+                        Showing <?php echo (int) $showing_from; ?>-<?php echo (int) $showing_to; ?>
+                        of <?php echo (int) $total_records; ?> <?php echo esc_html($records_noun); ?>
+                        <?php if ($view_filter === 'last_month_sales'): ?>
+                            for <?php echo esc_html($last_month_label); ?>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </p>
             </div>
+            <?php if (!($view_filter === 'last_month_sales' && $sales_mode === 'top10')): ?>
             <form class="records-page-size-form" method="get" action="./#inventory-records">
                 <?php if ($view_filter !== 'all'): ?>
                     <input type="hidden" name="view" value="<?php echo esc_attr($view_filter); ?>">
@@ -749,9 +1049,90 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                     </select>
                 </label>
             </form>
+            <?php endif; ?>
         </div>
         <div class="table-responsive">
-            <?php if ($is_transaction_view): ?>
+            <?php if ($view_filter === 'last_month_sales' && $sales_mode === 'top10'): ?>
+                <table class="inventory-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 70px; text-align: center;">Rank</th>
+                            <th>Item Name</th>
+                            <th>Category</th>
+                            <th>Branch</th>
+                            <th style="text-align: right;">Unit Price</th>
+                            <th style="text-align: center;">Units Sold</th>
+                            <th style="text-align: right;">Total Revenue</th>
+                            <th style="text-align: center;">Sales Share</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($top_10_items)): ?>
+                            <tr>
+                                <td colspan="8" class="inventory-table-empty">No sales records found for <?php echo esc_html($last_month_label); ?>.</td>
+                            </tr>
+                        <?php else: ?>
+                            <?php
+                            $rank = 1;
+                            $overall_units = max(1, (float) ($tx_summary['total_units'] ?? 1));
+                            foreach ($top_10_items as $top_item_row):
+                                $badge_class = $rank === 1 ? 'rank-gold' : ($rank === 2 ? 'rank-silver' : ($rank === 3 ? 'rank-bronze' : 'rank-normal'));
+                                $item_detail = inventory_item_details($top_item_row);
+                                $share_pct = round(((float) $top_item_row['total_sold_qty'] / $overall_units) * 100, 1);
+                            ?>
+                                <tr>
+                                    <td style="text-align: center;">
+                                        <span class="inventory-rank-badge <?php echo esc_attr($badge_class); ?>">
+                                            <?php if ($rank === 1): ?><i class="fas fa-crown"></i><?php endif; ?>
+                                            #<?php echo $rank; ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <strong><?php echo esc_html($top_item_row['item_name']); ?></strong>
+                                        <span class="inventory-item-sub">
+                                            <?php echo esc_html($top_item_row['brand'] ?: 'Unbranded'); ?>
+                                            <?php if ($item_detail !== '-'): ?>
+                                                &bull; <?php echo esc_html($item_detail); ?>
+                                            <?php endif; ?>
+                                            <?php if (!empty($top_item_row['sku'])): ?>
+                                                &bull; SKU: <?php echo esc_html($top_item_row['sku']); ?>
+                                            <?php endif; ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="inventory-category category-<?php echo esc_attr($top_item_row['category']); ?>">
+                                            <?php echo esc_html(inventory_category_label($top_item_row['category'])); ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="inventory-branch-pill inventory-branch-<?php echo (int) $top_item_row['branch_id']; ?>">
+                                            <?php echo esc_html(inventory_branch_label($top_item_row['branch_name'] ?? '')); ?>
+                                        </span>
+                                    </td>
+                                    <td style="text-align: right;">
+                                        <strong><?php echo inventory_money($top_item_row['unit_price']); ?></strong>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <strong style="font-size: 15px; color: #0096b6;"><?php echo number_format((float) $top_item_row['total_sold_qty']); ?> units</strong>
+                                        <small style="display: block; font-size: 11px; color: var(--company-muted);">in <?php echo (int) $top_item_row['total_orders']; ?> orders</small>
+                                    </td>
+                                    <td style="text-align: right;">
+                                        <strong style="font-size: 15px; color: #059669;"><?php echo inventory_money($top_item_row['total_sold_amount']); ?></strong>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <span style="display: inline-block; padding: 2px 8px; border-radius: 999px; background: #e0f2fe; color: #0369a1; font-weight: 700; font-size: 12px;">
+                                            <?php echo $share_pct; ?>%
+                                        </span>
+                                    </td>
+                                </tr>
+                            <?php
+                                $rank++;
+                            endforeach;
+                            ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            <?php elseif ($is_transaction_view): ?>
                 <table class="inventory-table inventory-transactions-table">
                     <thead>
                         <tr>
@@ -901,28 +1282,28 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                 </table>
             <?php endif; ?>
         </div>
-        <?php if ($total_pages > 1): ?>
+        <?php if ($total_pages > 1 && !($view_filter === 'last_month_sales' && $sales_mode === 'top10')): ?>
             <nav class="records-pagination inventory-records-pagination" aria-label="Inventory records pages">
                 <ul class="pagination justify-content-center">
                     <?php if ($page > 1): ?>
                         <li class="page-item">
-                            <a class="page-link" href="<?php echo esc_attr(inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, 1, $view_filter)); ?>#inventory-records">First</a>
+                            <a class="page-link" href="<?php echo esc_attr(inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, 1, $view_filter, $sales_mode)); ?>#inventory-records">First</a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="<?php echo esc_attr(inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, $page - 1, $view_filter)); ?>#inventory-records">Previous</a>
+                            <a class="page-link" href="<?php echo esc_attr(inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, $page - 1, $view_filter, $sales_mode)); ?>#inventory-records">Previous</a>
                         </li>
                     <?php endif; ?>
                     <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
                         <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
-                            <a class="page-link" href="<?php echo esc_attr(inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, $i, $view_filter)); ?>#inventory-records"><?php echo (int) $i; ?></a>
+                            <a class="page-link" href="<?php echo esc_attr(inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, $i, $view_filter, $sales_mode)); ?>#inventory-records"><?php echo (int) $i; ?></a>
                         </li>
                     <?php endfor; ?>
                     <?php if ($page < $total_pages): ?>
                         <li class="page-item">
-                            <a class="page-link" href="<?php echo esc_attr(inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, $page + 1, $view_filter)); ?>#inventory-records">Next</a>
+                            <a class="page-link" href="<?php echo esc_attr(inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, $page + 1, $view_filter, $sales_mode)); ?>#inventory-records">Next</a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="<?php echo esc_attr(inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, $total_pages, $view_filter)); ?>#inventory-records">Last</a>
+                            <a class="page-link" href="<?php echo esc_attr(inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, $total_pages, $view_filter, $sales_mode)); ?>#inventory-records">Last</a>
                         </li>
                     <?php endif; ?>
                 </ul>

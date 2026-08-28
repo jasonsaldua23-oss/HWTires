@@ -92,7 +92,7 @@ if (!function_exists('forecast_duration_human_months')) {
 }
 
 if (!function_exists('forecast_filter_url')) {
-    function forecast_filter_url($category, $branch, $status, $search = '', $per_page = null, $page = null, $year = 'latest', $view = 'weekly') {
+    function forecast_filter_url($category, $branch, $status, $search = '', $per_page = null, $page = null, $year = 'latest', $view = 'weekly', $sort = 'urgency') {
         $query = [];
 
         if ($category !== 'all') {
@@ -105,6 +105,11 @@ if (!function_exists('forecast_filter_url')) {
 
         if ($status !== 'all') {
             $query['status'] = $status;
+        }
+
+        $sort = strtolower(trim((string) $sort));
+        if ($sort !== '' && $sort !== 'urgency') {
+            $query['sort'] = $sort;
         }
 
         $year = trim((string) $year);
@@ -197,6 +202,11 @@ if (!function_exists('forecast_build_inventory_dss')) {
         $search_filter = trim((string) ($options['search'] ?? ''));
         $year_filter = trim((string) ($options['year'] ?? 'latest'));
         $view_filter = strtolower(trim((string) ($options['view'] ?? 'weekly')));
+        $valid_sorts = ['urgency', 'demand', 'growth', 'stock_asc', 'name'];
+        $sort_filter = strtolower(trim((string) ($options['sort'] ?? 'urgency')));
+        if (!in_array($sort_filter, $valid_sorts, true)) {
+            $sort_filter = 'urgency';
+        }
         $allowed_branch_ids = array_values(array_unique(array_map('intval', $options['allowed_branch_ids'] ?? [])));
 
         if (function_exists('mb_substr')) {
@@ -508,7 +518,61 @@ if (!function_exists('forecast_build_inventory_dss')) {
         $summary['monthly_demand_units'] = (int) ceil($summary['monthly_demand_units']);
         $summary['basis_out_units'] = (int) ceil($summary['basis_out_units']);
 
-        $sorter = static function ($a, $b) {
+        if ($sort_filter === 'demand') {
+            $sorter = static function ($a, $b) {
+                $a_demand = (float) ($a['weekly_usage'] ?? 0);
+                $b_demand = (float) ($b['weekly_usage'] ?? 0);
+                if ($a_demand !== $b_demand) {
+                    return $b_demand <=> $a_demand; // Highest demand first
+                }
+                return strcasecmp($a['item']['item_name'] ?? '', $b['item']['item_name'] ?? '');
+            };
+        } elseif ($sort_filter === 'growth') {
+            $sorter = static function ($a, $b) {
+                $a_growth = (int) ($a['trend_percent'] ?? 0);
+                $b_growth = (int) ($b['trend_percent'] ?? 0);
+                if ($a_growth !== $b_growth) {
+                    return $b_growth <=> $a_growth; // Highest growth first
+                }
+                $a_demand = (float) ($a['weekly_usage'] ?? 0);
+                $b_demand = (float) ($b['weekly_usage'] ?? 0);
+                if ($a_demand !== $b_demand) {
+                    return $b_demand <=> $a_demand;
+                }
+                return strcasecmp($a['item']['item_name'] ?? '', $b['item']['item_name'] ?? '');
+            };
+        } elseif ($sort_filter === 'stock_asc') {
+            $sorter = static function ($a, $b) {
+                $a_stock = (int) ($a['item']['quantity'] ?? 0);
+                $b_stock = (int) ($b['item']['quantity'] ?? 0);
+                if ($a_stock !== $b_stock) {
+                    return $a_stock <=> $b_stock; // Lowest stock first
+                }
+                return strcasecmp($a['item']['item_name'] ?? '', $b['item']['item_name'] ?? '');
+            };
+        } elseif ($sort_filter === 'name') {
+            $sorter = static function ($a, $b) {
+                return strcasecmp($a['item']['item_name'] ?? '', $b['item']['item_name'] ?? '');
+            };
+        } else {
+            $sorter = static function ($a, $b) {
+                $rank = ['critical' => 0, 'warning' => 1, 'good' => 2];
+                $status_diff = ($rank[$a['status']] ?? 3) <=> ($rank[$b['status']] ?? 3);
+                if ($status_diff !== 0) {
+                    return $status_diff;
+                }
+
+                $a_duration = $a['stock_duration'] ?? 999999;
+                $b_duration = $b['stock_duration'] ?? 999999;
+                if ($a_duration !== $b_duration) {
+                    return $a_duration <=> $b_duration;
+                }
+
+                return strcasecmp($a['item']['item_name'] ?? '', $b['item']['item_name'] ?? '');
+            };
+        }
+
+        $urgency_sorter = static function ($a, $b) {
             $rank = ['critical' => 0, 'warning' => 1, 'good' => 2];
             $status_diff = ($rank[$a['status']] ?? 3) <=> ($rank[$b['status']] ?? 3);
             if ($status_diff !== 0) {
@@ -525,7 +589,7 @@ if (!function_exists('forecast_build_inventory_dss')) {
         };
 
         usort($forecast_items, $sorter);
-        usort($base_items, $sorter);
+        usort($base_items, $urgency_sorter);
 
         $high_priority = array_values(array_filter($base_items, static function ($forecast) {
             return $forecast['status'] === 'critical' && $forecast['recommended_order'] > 0;
@@ -602,6 +666,7 @@ if (!function_exists('forecast_build_inventory_dss')) {
                 'category' => $category_filter,
                 'branch' => $branch_filter,
                 'status' => $status_filter,
+                'sort' => $sort_filter,
                 'search' => $search_filter,
                 'year' => $year_filter,
                 'view' => $view_filter,

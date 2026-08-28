@@ -25580,3 +25580,107 @@ button.customer-vehicle-status-pill.customer-status-action {
         max-width: none !important;
     }
 }
+
+/* Inventory Sales Sub-tabs (All Transactions vs Top 10 Best Sellers) */
+.inventory-sales-subtabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 4px;
+    background: #f1f5f9;
+    border-radius: 8px;
+}
+
+.inventory-sales-subtab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: all 0.15s ease;
+}
+
+.inventory-sales-subtab:hover {
+    color: #0f172a;
+    background: #e2e8f0;
+}
+
+.inventory-sales-subtab.active {
+    color: #ffffff;
+    background: #0096b6;
+    box-shadow: 0 2px 6px rgba(0, 150, 182, 0.25);
+}
+
+.inventory-rank-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 36px;
+    height: 32px;
+    padding: 0 8px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 850;
+}
+
+.inventory-rank-badge.rank-gold {
+    background: #fef08a;
+    color: #854d0e;
+    border: 1px solid #facc15;
+}
+
+.inventory-rank-badge.rank-silver {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+}
+
+.inventory-rank-badge.rank-bronze {
+    background: #ffedd5;
+    color: #9a3412;
+    border: 1px solid #fdba74;
+}
+
+.inventory-rank-badge.rank-normal {
+    background: #f8fafc;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+}
+
+/* Forecasting Horizon & Timeframe Pill */
+.forecast-timeframe-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.forecast-timeframe-pill.pill-weekly {
+    background: #ecfeff;
+    color: #0e7490;
+    border: 1px solid #a5f3fc;
+}
+
+.forecast-timeframe-pill.pill-monthly {
+    background: #f5f3ff;
+    color: #6d28d9;
+    border: 1px solid #ddd6fe;
+}
+
+.forecast-timeframe-pill.pill-items {
+    background: #f0fdf4;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+
