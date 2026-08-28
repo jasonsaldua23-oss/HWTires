@@ -69,7 +69,6 @@ foreach ($items as $item) {
 $quote_subtotal = (float) ($quotation['labor_cost'] ?? 0) + $quote_items_total;
 $quote_total_amount = $quote_subtotal;
 $issued_inventory_total = app_inventory_transaction_rows_total($issued_inventory_items ?? []);
-$display_total_amount = $quote_total_amount + $issued_inventory_total;
 
 // Check if print mode
 $is_print = isset($_GET['print']);
@@ -264,18 +263,18 @@ if ($flash_message && !$is_print):
                 <table class="table table-sm">
                     <tbody>
                         <tr>
-                            <td class="text-end"><strong>Service Operation Total:</strong></td>
-                            <td class="text-end" style="width: 120px;">&#8369;<?php echo number_format($quote_total_amount, 2); ?></td>
+                            <td class="text-end"><strong>Parts &amp; Items Subtotal:</strong></td>
+                            <td class="text-end" style="width: 140px;">&#8369;<?php echo number_format($quote_items_total, 2); ?></td>
                         </tr>
-                        <?php if ($issued_inventory_total > 0): ?>
+                        <?php if ((float) ($quotation['labor_cost'] ?? 0) > 0): ?>
                         <tr>
-                            <td class="text-end"><strong>Inventory Issued:</strong></td>
-                            <td class="text-end">&#8369;<?php echo number_format($issued_inventory_total, 2); ?></td>
+                            <td class="text-end"><strong>Labor Cost:</strong></td>
+                            <td class="text-end">&#8369;<?php echo number_format((float) $quotation['labor_cost'], 2); ?></td>
                         </tr>
                         <?php endif; ?>
                         <tr class="table-light">
-                            <td class="text-end"><h6 class="mb-0"><strong><?php echo $issued_inventory_total > 0 ? 'GRAND TOTAL:' : 'TOTAL AMOUNT:'; ?></strong></h6></td>
-                            <td class="text-end"><h6 class="mb-0"><strong>&#8369;<?php echo number_format($issued_inventory_total > 0 ? $display_total_amount : $quote_total_amount, 2); ?></strong></h6></td>
+                            <td class="text-end"><h5 class="mb-0"><strong>TOTAL AMOUNT:</strong></h5></td>
+                            <td class="text-end"><h5 class="mb-0 text-primary"><strong>&#8369;<?php echo number_format($quote_total_amount, 2); ?></strong></h5></td>
                         </tr>
                     </tbody>
                 </table>

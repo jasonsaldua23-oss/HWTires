@@ -264,6 +264,9 @@ if (!function_exists('app_line_item_load_linked_inventory_transactions')) {
         if (app_column_exists('inventory_transactions', 'transaction_type')) {
             $where[] = "LOWER(REPLACE(t.transaction_type, ' ', '_')) = 'stock_out'";
         }
+        if (app_column_exists('inventory_transactions', 'reference_type')) {
+            $where[] = "(t.reference_type IS NULL OR LOWER(REPLACE(t.reference_type, ' ', '_')) NOT IN ('inter_branch_transfer', 'transfer'))";
+        }
 
         $item_name_expr = app_inventory_item_select_expr('inventory_items', 'i', 'item_name', "'Inventory Item'");
         $category_expr = app_inventory_item_select_expr('inventory_items', 'i', 'category', "''");
