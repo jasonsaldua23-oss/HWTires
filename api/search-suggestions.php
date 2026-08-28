@@ -155,26 +155,41 @@ function search_suggestions_customer_branch_clause($customer_alias, &$params, $b
     }
 
     $params[] = (int) $branch_filter;
-    return " AND EXISTS (
+    return " AND ({$customer_alias}.branch_id = ? OR EXISTS (
         SELECT 1
         FROM customer_branch_records cbr_suggest
         WHERE cbr_suggest.customer_id = {$customer_alias}.id
           AND cbr_suggest.branch_id = ?
-          AND cbr_suggest.status = 'active'
-    )";
+    ) OR EXISTS (
+        SELECT 1
+        FROM vehicles v_suggest
+        WHERE v_suggest.customer_id = {$customer_alias}.id
+          AND v_suggest.branch_id = ?
+    ))";
 }
 
 function search_suggestions_customers($like, $limit, $branch_filter, &$suggestions, &$seen) {
-    $params = [$like, $like, $like];
-    $branch_clause = search_suggestions_customer_branch_clause('c', $params, $branch_filter);
+    $params = [];
+    $match = search_suggestions_match_clause(['c.name', 'c.phone_mobile', 'c.contact'], $params, $like);
+    
+    $branch_sql = '';
+    if ($branch_filter > 0) {
+        $branch_sql = " AND (c.branch_id = ? OR EXISTS (
+            SELECT 1 FROM vehicles v_b WHERE v_b.customer_id = c.id AND v_b.branch_id = ?
+        ))";
+        $params[] = (int) $branch_filter;
+        $params[] = (int) $branch_filter;
+    }
+
     $rows = search_suggestions_fetch("
         SELECT DISTINCT
+            c.id,
             c.name,
             COALESCE(NULLIF(c.phone_mobile, ''), NULLIF(c.contact, ''), '') AS phone
         FROM customers c
         WHERE c.status = 'active'
-          AND (c.name LIKE ? OR c.phone_mobile LIKE ? OR c.contact LIKE ?)
-          {$branch_clause}
+          AND {$match}
+          {$branch_sql}
         ORDER BY c.name ASC
         LIMIT {$limit}
     ", $params);
@@ -190,9 +205,17 @@ function search_suggestions_customers($like, $limit, $branch_filter, &$suggestio
         );
     }
 
-    $params = [$like, $like, $like, $like];
-    $branch_clause = search_suggestions_customer_branch_clause('c', $params, $branch_filter);
-    $rows = search_suggestions_fetch("
+    // Also match vehicles directly with customer name
+    $v_params = [];
+    $v_match = search_suggestions_match_clause(['v.plate_number', 'v.make', 'v.model', 'c.name'], $v_params, $like);
+    $v_branch_sql = '';
+    if ($branch_filter > 0) {
+        $v_branch_sql = " AND (v.branch_id = ? OR c.branch_id = ?)";
+        $v_params[] = (int) $branch_filter;
+        $v_params[] = (int) $branch_filter;
+    }
+
+    $v_rows = search_suggestions_fetch("
         SELECT DISTINCT
             v.plate_number,
             v.make,
@@ -202,18 +225,13 @@ function search_suggestions_customers($like, $limit, $branch_filter, &$suggestio
         INNER JOIN customers c ON c.id = v.customer_id
         WHERE v.status = 'active'
           AND c.status = 'active'
-          AND (
-              v.plate_number LIKE ?
-              OR v.make LIKE ?
-              OR v.model LIKE ?
-              OR c.name LIKE ?
-          )
-          {$branch_clause}
+          AND {$v_match}
+          {$v_branch_sql}
         ORDER BY v.plate_number ASC
         LIMIT {$limit}
-    ", $params);
+    ", $v_params);
 
-    foreach ($rows as $row) {
+    foreach ($v_rows as $row) {
         $plate = trim((string) ($row['plate_number'] ?? ''));
         $vehicle = trim(($row['make'] ?? '') . ' ' . ($row['model'] ?? ''));
         search_suggestions_add(
@@ -228,8 +246,15 @@ function search_suggestions_customers($like, $limit, $branch_filter, &$suggestio
 }
 
 function search_suggestions_vehicles($like, $limit, $branch_filter, &$suggestions, &$seen) {
-    $params = [$like, $like, $like, $like];
-    $branch_clause = search_suggestions_branch_clause('v', $params, $branch_filter, false);
+    $params = [];
+    $match = search_suggestions_match_clause(['v.plate_number', 'v.make', 'v.model', 'c.name'], $params, $like);
+    $branch_sql = '';
+    if ($branch_filter > 0) {
+        $branch_sql = " AND (v.branch_id = ? OR c.branch_id = ?)";
+        $params[] = (int) $branch_filter;
+        $params[] = (int) $branch_filter;
+    }
+
     $rows = search_suggestions_fetch("
         SELECT DISTINCT
             v.plate_number,
@@ -243,13 +268,8 @@ function search_suggestions_vehicles($like, $limit, $branch_filter, &$suggestion
         LEFT JOIN branches b ON b.id = v.branch_id
         WHERE v.status = 'active'
           AND c.status = 'active'
-          AND (
-              v.plate_number LIKE ?
-              OR v.make LIKE ?
-              OR v.model LIKE ?
-              OR c.name LIKE ?
-          )
-          {$branch_clause}
+          AND {$match}
+          {$branch_sql}
         ORDER BY v.updated_at DESC, v.id DESC
         LIMIT {$limit}
     ", $params);

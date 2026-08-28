@@ -437,7 +437,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                 <span>To</span>
                 <input type="date" name="date_to" value="<?php echo esc_attr($date_filter['to']); ?>">
             </label>
-            <button type="submit" class="customer-records-submit">Apply</button>
+            <button type="submit" class="customer-records-submit customer-records-apply-btn">Apply</button>
             <label class="customer-search-field">
                 <i class="fas fa-search"></i>
                 <input id="customerSearchInput" type="text" name="search" placeholder="Search by vehicle, plate number, customer, or branch..." value="<?php echo esc_attr($search); ?>">

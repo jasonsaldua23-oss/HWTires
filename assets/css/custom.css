@@ -1937,15 +1937,6 @@ body {
     box-shadow: 0 0 0 0.2rem rgba(0, 150, 182, 0.16);
 }
 
-.customer-records-submit {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-}
-
 .customer-records-table-card {
     overflow: hidden;
     background: #ffffff;
@@ -3697,6 +3688,123 @@ body {
     gap: 22px;
 }
 
+.customer-history-vehicle-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 18px;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+}
+
+.customer-history-vehicle-info {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.customer-history-vehicle-title {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #0f1f3d;
+    display: inline-flex;
+    align-items: center;
+}
+
+.customer-history-vehicle-branch-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 700;
+    padding: 4px 12px;
+    background: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+}
+
+.customer-history-filter-bar {
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: nowrap;
+    gap: 12px;
+    padding: 14px 16px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+}
+
+.customer-history-filter-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1 1 180px;
+    min-width: 140px;
+}
+
+.customer-history-filter-item label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #334155;
+    margin: 0;
+}
+
+.customer-history-filter-item select,
+.customer-history-filter-dates input {
+    width: 100%;
+    min-height: 40px;
+    height: 40px;
+    padding: 6px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #ffffff;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #0f1f3d;
+    outline: none;
+}
+
+.customer-history-filter-dates {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.customer-history-filter-dates input {
+    width: 140px;
+}
+
+.customer-history-apply-btn,
+.customer-history-apply {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    height: 40px;
+    padding: 0 20px;
+    background: #0096b6;
+    color: #ffffff;
+    border: 1px solid #0096b6;
+    border-radius: 6px;
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    flex: 0 0 auto;
+    margin-bottom: 0;
+    transition: background 0.15s ease-in-out;
+}
+
+.customer-history-apply-btn:hover,
+.customer-history-apply:hover {
+    background: #007f9c;
+    border-color: #007f9c;
+}
+
 .customer-history-controls {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -3771,27 +3879,13 @@ body {
 .customer-history-date-scope,
 .customer-history-date-row input {
     width: 100%;
-    min-height: 44px;
+    min-height: 40px;
     color: #0f1f3d;
     background: #ffffff;
     border: 1px solid #cbd5e1;
     border-radius: 8px;
-    font-size: 15px;
-    padding: 8px 12px;
-}
-
-.customer-history-vehicle-branch-pill {
-    justify-self: start;
-    display: inline-flex;
-    align-items: center;
-    min-height: 28px;
-    max-width: 100%;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 800;
-    line-height: 1.2;
+    font-size: 14px;
     padding: 6px 12px;
-    white-space: normal;
 }
 
 .customer-vehicle-history-modal .customer-history-branch-select {
@@ -3810,7 +3904,7 @@ body {
 
 .customer-history-date-row {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 10px;
     align-items: center;
 }
@@ -3822,14 +3916,14 @@ body {
 }
 
 .customer-history-date-row input {
-    flex: 1 1 135px;
+    flex: 0 0 135px;
     width: 135px;
 }
 
-.customer-history-apply,
 .customer-add-vehicle-btn,
 .customer-delete-vehicle-btn {
-    min-height: 44px;
+    min-height: 40px;
+    height: 40px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -3838,20 +3932,19 @@ body {
     background: #0096b6;
     border: 0;
     border-radius: 8px;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 800;
     padding: 8px 16px;
     white-space: nowrap;
 }
 
-.customer-history-apply:hover,
 .customer-add-vehicle-btn:hover {
     background: #007f9d;
 }
 
 .customer-add-vehicle-btn {
-    width: 44px;
-    min-width: 44px;
+    width: 40px;
+    min-width: 40px;
     padding: 0;
     background: #00a63e;
 }
@@ -23592,6 +23685,9 @@ button.customer-vehicle-status-pill.customer-status-action {
 
 .customer-records-page .customer-records-submit,
 .customer-records-filter .customer-records-submit,
+.customer-records-page .customer-records-apply-btn,
+.customer-records-filter .customer-records-apply-btn,
+.customer-records-apply-btn,
 .customer-records-page .records-date-filter button,
 .main-content .content .customer-records-filter-card > .records-date-filter button {
     display: inline-flex !important;
@@ -23600,12 +23696,12 @@ button.customer-vehicle-status-pill.customer-status-action {
     align-self: flex-end !important;
     min-height: 38px !important;
     height: 38px !important;
-    padding: 7px 16px !important;
+    padding: 7px 18px !important;
     color: #ffffff !important;
     background: #0096b6 !important;
     border: 1px solid #0096b6 !important;
     border-radius: 6px !important;
-    font-size: 13px !important;
+    font-size: 13.5px !important;
     font-weight: 700 !important;
     white-space: nowrap !important;
     cursor: pointer !important;
@@ -23617,6 +23713,9 @@ button.customer-vehicle-status-pill.customer-status-action {
 
 .customer-records-page .customer-records-submit:hover,
 .customer-records-filter .customer-records-submit:hover,
+.customer-records-page .customer-records-apply-btn:hover,
+.customer-records-filter .customer-records-apply-btn:hover,
+.customer-records-apply-btn:hover,
 .customer-records-page .records-date-filter button:hover,
 .main-content .content .customer-records-filter-card > .records-date-filter button:hover {
     background: #007f9c !important;

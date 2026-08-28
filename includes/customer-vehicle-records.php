@@ -1340,124 +1340,132 @@ if (!function_exists('cv_records_render_history_modal')) {
                     </div>
 
                     <div class="modal-body">
-                        <div class="customer-history-controls <?php echo $allow_add_vehicle ? 'has-add-vehicle' : 'no-add-vehicle'; ?>">
-                            <div class="customer-history-left-controls">
-                                <div class="customer-history-control customer-history-vehicle-control">
-                                    <label>Vehicle</label>
-                                    <div class="customer-history-vehicle-row">
-                                        <select class="customer-history-vehicle-select" data-history-vehicle-select>
-                                            <?php if (empty($vehicles)): ?>
-                                                <option value="">No vehicle records</option>
-                                            <?php else: ?>
-                                                <?php foreach ($vehicles as $vehicle): ?>
-                                                    <?php
-                                                    $vehicle_title = cv_records_vehicle_name($vehicle, true);
-                                                    $vehicle_branch_id = (int) ($vehicle['branch_id'] ?? 0);
-                                                    $vehicle_branch_name = cv_records_branch_label($vehicle['vehicle_branch_name'] ?? ('Branch ' . $vehicle_branch_id));
-                                                    $vehicle_branch_label = $vehicle_branch_id > 0 && $vehicle_branch_name !== '-' ? $vehicle_branch_name : 'Unassigned Branch';
-                                                    $vehicle_owner_name = trim((string) ($vehicle['customer_name'] ?? $customer['name'] ?? ''));
-                                                    $vehicle_profile_url = $vehicle_profile_base_url . '?id=' . (int) $vehicle['id'];
-                                                    $vehicle_option_label = $vehicle_title . ' - Current owner: ' . ($vehicle_owner_name !== '' ? $vehicle_owner_name : 'Unassigned');
-                                                    $vehicle_record_status = strtolower(trim((string) ($vehicle['status'] ?? 'active')));
-                                                    $vehicle_latest_service_date = $latest_service_date_by_vehicle[(int) ($vehicle['id'] ?? 0)] ?? '';
-                                                    ?>
-                                                    <option value="<?php echo (int) $vehicle['id']; ?>"
-                                                            data-title="<?php echo esc_attr($vehicle_title); ?>"
-                                                            data-owner-label="<?php echo esc_attr($vehicle_owner_name !== '' ? ('Current owner: ' . $vehicle_owner_name) : 'Current owner: -'); ?>"
-                                                            data-last-service-label="<?php echo esc_attr($vehicle_latest_service_date !== '' ? ('Last service: ' . cv_records_short_date($vehicle_latest_service_date)) : 'Last service: -'); ?>"
-                                                            data-branch-label="<?php echo esc_attr('Added at ' . $vehicle_branch_label); ?>"
-                                                            data-branch-class="<?php echo esc_attr(cv_records_branch_class($vehicle_branch_id)); ?>"
-                                                            data-profile-url="<?php echo esc_attr($vehicle_profile_url); ?>"
-                                                            data-vehicle-status="<?php echo esc_attr($vehicle_record_status); ?>"
-                                                            data-vehicle-branch-id="<?php echo $vehicle_branch_id; ?>">
-                                                        <?php echo esc_html($vehicle_option_label); ?>
-                                                    </option>
-                                                <?php endforeach; ?>
+                        <!-- Vehicle Title and Branch Header Card (No dropdown) -->
+                        <div class="customer-history-vehicle-card">
+                            <div class="customer-history-vehicle-info">
+                                <h3 class="customer-history-vehicle-title">
+                                    <i class="fas fa-car text-primary me-2"></i>
+                                    <span data-history-vehicle-display-title><?php echo $first_vehicle ? esc_html(cv_records_vehicle_name($first_vehicle, true)) : 'No vehicle record'; ?></span>
+                                </h3>
+                                <?php if (!empty($vehicles)): ?>
+                                    <?php
+                                    $first_vehicle_branch_id = (int) ($first_vehicle['branch_id'] ?? 0);
+                                    $first_vehicle_branch_name = cv_records_branch_label($first_vehicle['vehicle_branch_name'] ?? ('Branch ' . $first_vehicle_branch_id));
+                                    $first_vehicle_branch_label = $first_vehicle_branch_id > 0 && $first_vehicle_branch_name !== '-' ? $first_vehicle_branch_name : 'Unassigned Branch';
+                                    ?>
+                                    <span class="customer-history-vehicle-branch-pill <?php echo esc_attr(cv_records_branch_class($first_vehicle_branch_id)); ?>" data-history-vehicle-branch-label>
+                                        <?php echo esc_html('Added at ' . $first_vehicle_branch_label); ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+
+                            <?php if ($allow_add_vehicle || $show_delete_vehicle_action): ?>
+                                <div class="customer-history-vehicle-actions">
+                                    <?php if ($allow_add_vehicle): ?>
+                                        <button type="button"
+                                                class="customer-add-vehicle-btn"
+                                                title="Add vehicle"
+                                                aria-label="Add vehicle"
+                                                data-customer-id="<?php echo $customer_id; ?>"
+                                                data-customer-name="<?php echo esc_attr($customer['name'] ?? ''); ?>">
+                                            <i class="fas fa-plus"></i>
+                                            <span>Add Vehicle</span>
+                                        </button>
+                                    <?php endif; ?>
+                                    <?php if ($show_delete_vehicle_action): ?>
+                                        <form method="POST"
+                                              action="<?php echo esc_attr($delete_vehicle_action); ?>"
+                                              class="customer-delete-vehicle-form"
+                                              data-history-delete-vehicle-form
+                                              data-branch-id="<?php echo $delete_vehicle_branch_id; ?>"
+                                              data-requires-branch-match="<?php echo $delete_vehicle_requires_branch_match ? '1' : '0'; ?>"
+                                              onsubmit="return confirm('Archive this vehicle record? The record will be hidden but kept in the database.');"
+                                              hidden>
+                                            <input type="hidden" name="action" value="archive">
+                                            <input type="hidden" name="csrf_token" value="<?php echo esc_attr($delete_vehicle_csrf); ?>">
+                                            <?php if ($delete_vehicle_redirect !== ''): ?>
+                                                <input type="hidden" name="redirect" value="<?php echo esc_attr($delete_vehicle_redirect); ?>">
                                             <?php endif; ?>
-                                        </select>
-                                        <?php if ($allow_add_vehicle || $show_delete_vehicle_action): ?>
-                                            <div class="customer-history-vehicle-actions">
-                                                <?php if ($allow_add_vehicle): ?>
-                                                    <button type="button"
-                                                            class="customer-add-vehicle-btn"
-                                                            title="Add vehicle"
-                                                            aria-label="Add vehicle"
-                                                            data-customer-id="<?php echo $customer_id; ?>"
-                                                            data-customer-name="<?php echo esc_attr($customer['name'] ?? ''); ?>">
-                                                        <i class="fas fa-plus"></i>
-                                                        <span>Add Vehicle</span>
-                                                    </button>
-                                                <?php endif; ?>
-                                                <?php if ($show_delete_vehicle_action): ?>
-                                                    <form method="POST"
-                                                          action="<?php echo esc_attr($delete_vehicle_action); ?>"
-                                                          class="customer-delete-vehicle-form"
-                                                          data-history-delete-vehicle-form
-                                                          data-branch-id="<?php echo $delete_vehicle_branch_id; ?>"
-                                                          data-requires-branch-match="<?php echo $delete_vehicle_requires_branch_match ? '1' : '0'; ?>"
-                                                          onsubmit="return confirm('Archive this vehicle record? The record will be hidden but kept in the database.');"
-                                                          hidden>
-                                                        <input type="hidden" name="action" value="archive">
-                                                        <input type="hidden" name="csrf_token" value="<?php echo esc_attr($delete_vehicle_csrf); ?>">
-                                                        <?php if ($delete_vehicle_redirect !== ''): ?>
-                                                            <input type="hidden" name="redirect" value="<?php echo esc_attr($delete_vehicle_redirect); ?>">
-                                                        <?php endif; ?>
-                                                        <input type="hidden" name="id" value="" data-history-delete-vehicle-id>
-                                                        <button type="submit" class="customer-delete-vehicle-btn" title="Archive vehicle" aria-label="Archive vehicle">
-                                                            <i class="fas fa-box-archive"></i>
-                                                            <span>Archive Vehicle</span>
-                                                        </button>
-                                                    </form>
-                                                <?php endif; ?>
-                                            </div>
-                                        <?php endif; ?>
-                                    </div>
-                                    <?php if (!empty($vehicles)): ?>
-                                        <?php
-                                        $first_vehicle_branch_id = (int) ($first_vehicle['branch_id'] ?? 0);
-                                        $first_vehicle_branch_name = cv_records_branch_label($first_vehicle['vehicle_branch_name'] ?? ('Branch ' . $first_vehicle_branch_id));
-                                        $first_vehicle_branch_label = $first_vehicle_branch_id > 0 && $first_vehicle_branch_name !== '-' ? $first_vehicle_branch_name : 'Unassigned Branch';
-                                        ?>
-                                        <span class="customer-history-vehicle-branch-pill <?php echo esc_attr(cv_records_branch_class($first_vehicle_branch_id)); ?>" data-history-vehicle-branch-label>
-                                            <?php echo esc_html('Added at ' . $first_vehicle_branch_label); ?>
-                                        </span>
+                                            <input type="hidden" name="id" value="" data-history-delete-vehicle-id>
+                                            <button type="submit" class="customer-delete-vehicle-btn" title="Archive vehicle" aria-label="Archive vehicle">
+                                                <i class="fas fa-box-archive"></i>
+                                                <span>Archive Vehicle</span>
+                                            </button>
+                                        </form>
                                     <?php endif; ?>
                                 </div>
+                            <?php endif; ?>
+                        </div>
 
-                                <div class="customer-history-control customer-history-branch-control">
-                                    <label>Branch</label>
-                                    <select class="customer-history-branch-select" data-history-branch-select>
-                                        <option value="">All Branches</option>
-                                        <?php foreach ($branch_options as $branch_id => $branch_name): ?>
-                                            <option value="<?php echo (int) $branch_id; ?>" <?php echo $default_branch_filter === (int) $branch_id ? 'selected' : ''; ?>>
-                                                <?php echo esc_html($branch_name); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
+                        <!-- Hidden select for data binding and JS compatibility -->
+                        <select class="customer-history-vehicle-select" data-history-vehicle-select hidden>
+                            <?php if (empty($vehicles)): ?>
+                                <option value="">No vehicle records</option>
+                            <?php else: ?>
+                                <?php foreach ($vehicles as $vehicle): ?>
+                                    <?php
+                                    $vehicle_title = cv_records_vehicle_name($vehicle, true);
+                                    $vehicle_branch_id = (int) ($vehicle['branch_id'] ?? 0);
+                                    $vehicle_branch_name = cv_records_branch_label($vehicle['vehicle_branch_name'] ?? ('Branch ' . $vehicle_branch_id));
+                                    $vehicle_branch_label = $vehicle_branch_id > 0 && $vehicle_branch_name !== '-' ? $vehicle_branch_name : 'Unassigned Branch';
+                                    $vehicle_owner_name = trim((string) ($vehicle['customer_name'] ?? $customer['name'] ?? ''));
+                                    $vehicle_profile_url = $vehicle_profile_base_url . '?id=' . (int) $vehicle['id'];
+                                    $vehicle_option_label = $vehicle_title . ' - Current owner: ' . ($vehicle_owner_name !== '' ? $vehicle_owner_name : 'Unassigned');
+                                    $vehicle_record_status = strtolower(trim((string) ($vehicle['status'] ?? 'active')));
+                                    $vehicle_latest_service_date = $latest_service_date_by_vehicle[(int) ($vehicle['id'] ?? 0)] ?? '';
+                                    ?>
+                                    <option value="<?php echo (int) $vehicle['id']; ?>"
+                                            data-title="<?php echo esc_attr($vehicle_title); ?>"
+                                            data-owner-label="<?php echo esc_attr($vehicle_owner_name !== '' ? ('Current owner: ' . $vehicle_owner_name) : 'Current owner: -'); ?>"
+                                            data-last-service-label="<?php echo esc_attr($vehicle_latest_service_date !== '' ? ('Last service: ' . cv_records_short_date($vehicle_latest_service_date)) : 'Last service: -'); ?>"
+                                            data-branch-label="<?php echo esc_attr('Added at ' . $vehicle_branch_label); ?>"
+                                            data-branch-class="<?php echo esc_attr(cv_records_branch_class($vehicle_branch_id)); ?>"
+                                            data-profile-url="<?php echo esc_attr($vehicle_profile_url); ?>"
+                                            data-vehicle-status="<?php echo esc_attr($vehicle_record_status); ?>"
+                                            data-vehicle-branch-id="<?php echo $vehicle_branch_id; ?>">
+                                        <?php echo esc_html($vehicle_option_label); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </select>
+
+                        <!-- Clean, Horizontal Non-Stacking Filter Bar -->
+                        <div class="customer-history-filter-bar">
+                            <div class="customer-history-filter-item">
+                                <label>Branch</label>
+                                <select class="customer-history-branch-select" data-history-branch-select>
+                                    <option value="">All Branches</option>
+                                    <?php foreach ($branch_options as $branch_id => $branch_name): ?>
+                                        <option value="<?php echo (int) $branch_id; ?>" <?php echo $default_branch_filter === (int) $branch_id ? 'selected' : ''; ?>>
+                                            <?php echo esc_html($branch_name); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
                             </div>
 
-                            <div class="customer-history-control customer-history-date-control">
-                                <label>Records</label>
-                                <div class="customer-history-date-row">
-                                    <select class="customer-history-date-scope" data-history-scope>
-                                        <option value="all">All Records</option>
-                                        <option value="recent">Current Week</option>
-                                        <option value="day">Day</option>
-                                        <option value="week">Week</option>
-                                        <option value="month">Month</option>
-                                        <option value="year">Year</option>
-                                        <option value="range">Date Range</option>
-                                    </select>
-                                    <input type="date" data-history-date-input="day" hidden>
-                                    <input type="week" data-history-date-input="week" hidden>
-                                    <input type="month" data-history-date-input="month" hidden>
-                                    <input type="number" min="2000" max="2100" placeholder="Year" data-history-date-input="year" hidden>
-                                    <input type="date" data-history-date-input="from" hidden>
-                                    <input type="date" data-history-date-input="to" hidden>
-                                    <button type="button" class="customer-history-apply" data-history-apply>Apply</button>
-                                </div>
+                            <div class="customer-history-filter-item">
+                                <label>Period</label>
+                                <select class="customer-history-date-scope" data-history-scope>
+                                    <option value="all">All Records</option>
+                                    <option value="recent">Current Week</option>
+                                    <option value="day">Day</option>
+                                    <option value="week">Week</option>
+                                    <option value="month">Month</option>
+                                    <option value="year">Year</option>
+                                    <option value="range">Date Range</option>
+                                </select>
                             </div>
+
+                            <div class="customer-history-filter-dates" data-history-date-inputs-wrapper>
+                                <input type="date" data-history-date-input="day" hidden>
+                                <input type="week" data-history-date-input="week" hidden>
+                                <input type="month" data-history-date-input="month" hidden>
+                                <input type="number" min="2000" max="2100" placeholder="Year" data-history-date-input="year" hidden>
+                                <input type="date" data-history-date-input="from" hidden>
+                                <input type="date" data-history-date-input="to" hidden>
+                            </div>
+
+                            <button type="button" class="customer-history-apply-btn" data-history-apply>Apply</button>
                         </div>
 
                         <div class="customer-history-selected-summary" data-history-selected-summary>
@@ -1878,6 +1886,10 @@ if (!function_exists('cv_records_render_history_script')) {
 
                     if (vehicleSelect && title) {
                         const option = vehicleSelect.selectedOptions[0];
+                        const displayTitle = modal.querySelector('[data-history-vehicle-display-title]');
+                        if (displayTitle && option) {
+                            displayTitle.textContent = option.dataset.title || option.textContent.trim();
+                        }
                         title.textContent = option ? (option.dataset.title || option.textContent.trim()) : 'No vehicle selected';
 
                         if (ownerLabel) {
