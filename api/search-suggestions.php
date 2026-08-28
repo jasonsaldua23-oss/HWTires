@@ -106,12 +106,17 @@ function search_suggestions_match_clause(array $columns, &$params, $like) {
     if (!empty($search_terms)) {
         $groups = [];
         foreach ($search_terms as $term) {
-            $group = [];
-            foreach ($columns as $column) {
-                $group[] = "{$column} LIKE ?";
-                $params[] = '%' . $term . '%';
+            $variants = function_exists('app_search_term_variants') ? app_search_term_variants($term) : [$term];
+            $variant_groups = [];
+            foreach ($variants as $v_term) {
+                $group = [];
+                foreach ($columns as $column) {
+                    $group[] = "LOWER(COALESCE({$column}, '')) LIKE ?";
+                    $params[] = '%' . strtolower($v_term) . '%';
+                }
+                $variant_groups[] = '(' . implode(' OR ', $group) . ')';
             }
-            $groups[] = '(' . implode(' OR ', $group) . ')';
+            $groups[] = '(' . implode(' OR ', $variant_groups) . ')';
         }
 
         return '(' . implode(' AND ', $groups) . ')';
@@ -119,8 +124,8 @@ function search_suggestions_match_clause(array $columns, &$params, $like) {
 
     $fallback = [];
     foreach ($columns as $column) {
-        $fallback[] = "{$column} LIKE ?";
-        $params[] = $like;
+        $fallback[] = "LOWER(COALESCE({$column}, '')) LIKE ?";
+        $params[] = strtolower($like);
     }
 
     return '(' . implode(' OR ', $fallback) . ')';

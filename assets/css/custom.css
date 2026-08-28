@@ -23541,6 +23541,8 @@ button.customer-vehicle-status-pill.customer-status-action {
     order: 4 !important;
 }
 
+.customer-records-page .customer-date-scope-field,
+.customer-records-filter .customer-date-scope-field,
 .customer-records-page .records-date-filter label:first-child,
 .main-content .content .customer-records-filter-card > .records-date-filter label:first-child {
     display: flex !important;
@@ -23554,20 +23556,22 @@ button.customer-vehicle-status-pill.customer-status-action {
     order: 5 !important;
 }
 
-.customer-records-page .records-date-filter label[hidden],
-.customer-records-page .records-date-filter label[data-date-input][hidden],
-.customer-records-page .records-date-filter [hidden],
-.main-content .content .customer-records-filter-card > .records-date-filter label[hidden],
-.main-content .content .customer-records-filter-card > .records-date-filter label[data-date-input][hidden],
-.main-content .content .customer-records-filter-card > .records-date-filter [hidden],
-.main-content .content .records-date-filter label[hidden],
-.main-content .content .records-date-filter [hidden],
+.customer-records-page label[hidden],
+.customer-records-page label[data-date-input][hidden],
+.customer-records-page [hidden],
+.customer-records-filter label[hidden],
+.customer-records-filter label[data-date-input][hidden],
+.customer-records-filter [hidden],
+.main-content .content .customer-records-filter-card label[hidden],
+.main-content .content .customer-records-filter-card label[data-date-input][hidden],
+.main-content .content .customer-records-filter-card [hidden],
 .records-date-filter [hidden] {
     display: none !important;
 }
 
-.customer-records-page .records-date-filter label[data-date-input]:not([hidden]),
-.main-content .content .customer-records-filter-card > .records-date-filter label[data-date-input]:not([hidden]) {
+.customer-records-page label[data-date-input]:not([hidden]),
+.customer-records-filter label[data-date-input]:not([hidden]),
+.main-content .content .customer-records-filter-card label[data-date-input]:not([hidden]) {
     display: flex !important;
     flex-direction: column !important;
     gap: 4px !important;
@@ -23578,13 +23582,16 @@ button.customer-vehicle-status-pill.customer-status-action {
     order: 6 !important;
 }
 
-.customer-records-page .records-date-filter label[data-date-input="year"]:not([hidden]),
-.main-content .content .customer-records-filter-card > .records-date-filter label[data-date-input="year"]:not([hidden]) {
+.customer-records-page label[data-date-input="year"]:not([hidden]),
+.customer-records-filter label[data-date-input="year"]:not([hidden]),
+.main-content .content .customer-records-filter-card label[data-date-input="year"]:not([hidden]) {
     flex: 0 0 90px !important;
     min-width: 80px !important;
     max-width: 100px !important;
 }
 
+.customer-records-page .customer-records-submit,
+.customer-records-filter .customer-records-submit,
 .customer-records-page .records-date-filter button,
 .main-content .content .customer-records-filter-card > .records-date-filter button {
     display: inline-flex !important;
@@ -23608,6 +23615,8 @@ button.customer-vehicle-status-pill.customer-status-action {
     transition: background 0.15s ease-in-out;
 }
 
+.customer-records-page .customer-records-submit:hover,
+.customer-records-filter .customer-records-submit:hover,
 .customer-records-page .records-date-filter button:hover,
 .main-content .content .customer-records-filter-card > .records-date-filter button:hover {
     background: #007f9c !important;
@@ -23667,10 +23676,9 @@ button.customer-vehicle-status-pill.customer-status-action {
     font-size: 12.5px !important;
 }
 
-.customer-records-page .customer-records-submit,
-.customer-records-filter .customer-records-submit {
+.customer-records-page .customer-records-search-btn,
+.customer-records-filter .customer-records-search-btn {
     display: inline-flex !important;
-    position: static !important;
     align-items: center !important;
     justify-content: center !important;
     align-self: flex-end !important;
@@ -23678,9 +23686,9 @@ button.customer-vehicle-status-pill.customer-status-action {
     height: 38px !important;
     min-width: 68px !important;
     padding: 7px 16px !important;
-    color: #0f1f3d !important;
-    background: #ffffff !important;
-    border: 1px solid #cbd5e1 !important;
+    color: #ffffff !important;
+    background: #0f1f3d !important;
+    border: 1px solid #0f1f3d !important;
     border-radius: 6px !important;
     font-size: 13px !important;
     font-weight: 700 !important;
@@ -23691,10 +23699,39 @@ button.customer-vehicle-status-pill.customer-status-action {
     transition: all 0.15s ease-in-out;
 }
 
-.customer-records-page .customer-records-submit:hover,
-.customer-records-filter .customer-records-submit:hover {
-    background: #f1f5f9 !important;
-    border-color: #94a3b8 !important;
+.customer-records-page .customer-records-search-btn:hover,
+.customer-records-filter .customer-records-search-btn:hover {
+    background: #1e3a5f !important;
+    border-color: #1e3a5f !important;
+}
+
+.customer-records-page .customer-records-clear,
+.customer-records-filter .customer-records-clear {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    align-self: flex-end !important;
+    min-height: 38px !important;
+    height: 38px !important;
+    padding: 7px 12px !important;
+    color: #64748b !important;
+    background: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    text-decoration: none !important;
+    white-space: nowrap !important;
+    cursor: pointer !important;
+    order: 10 !important;
+    margin: 0 !important;
+    transition: all 0.15s ease-in-out;
+}
+
+.customer-records-page .customer-records-clear:hover,
+.customer-records-filter .customer-records-clear:hover {
+    background: #e2e8f0 !important;
+    color: #334155 !important;
 }
 
 .customer-records-page .customer-filter-field select,

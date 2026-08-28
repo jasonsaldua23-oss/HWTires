@@ -111,65 +111,77 @@ if ($record_filter === 'active') {
 }
 
 if ($branch_filter !== '') {
-    $where[] = "(v.branch_id = ? OR EXISTS (
-        SELECT 1 FROM service_history sh_branch
-        WHERE sh_branch.vehicle_id = v.id AND sh_branch.branch_id = ?
-    ) OR EXISTS (
-        SELECT 1 FROM job_orders jo_branch
-        WHERE jo_branch.vehicle_id = v.id
-          AND jo_branch.branch_id = ?
-          AND jo_branch.status NOT IN ('archived', 'cancelled')
-    ) OR EXISTS (
-        SELECT 1 FROM quotations q_branch
-        WHERE q_branch.vehicle_id = v.id
-          AND q_branch.branch_id = ?
-          AND q_branch.status <> 'archived'
-    ))";
-    $params = array_merge($params, [$branch_filter, $branch_filter, $branch_filter, $branch_filter]);
+    $where[] = "COALESCE(
+        (
+            SELECT sh_last.branch_id
+            FROM (
+                SELECT sh.branch_id, CAST(CONCAT(sh.service_date, ' ', COALESCE(TIME(sh.created_at), '00:00:00')) AS DATETIME) as act_date, 1 as rk, sh.id as sid
+                FROM service_history sh WHERE sh.vehicle_id = v.id AND sh.branch_id IS NOT NULL
+                UNION ALL
+                SELECT jo.branch_id, CAST(CONCAT(jo.job_date, ' ', COALESCE(TIME(jo.updated_at), TIME(jo.created_at), '00:00:00')) AS DATETIME) as act_date, 2 as rk, jo.id as sid
+                FROM job_orders jo WHERE jo.vehicle_id = v.id AND jo.branch_id IS NOT NULL AND jo.status NOT IN ('archived', 'cancelled')
+                UNION ALL
+                SELECT q.branch_id, CAST(CONCAT(q.quotation_date, ' ', COALESCE(TIME(q.updated_at), TIME(q.created_at), '00:00:00')) AS DATETIME) as act_date, 3 as rk, q.id as sid
+                FROM quotations q WHERE q.vehicle_id = v.id AND q.branch_id IS NOT NULL AND q.status <> 'archived'
+            ) sh_last
+            ORDER BY sh_last.act_date DESC, sh_last.rk ASC, sh_last.sid DESC
+            LIMIT 1
+        ),
+        v.branch_id,
+        c.branch_id,
+        1
+    ) = ?";
+    $params[] = $branch_filter;
 }
 
 if ($search !== '') {
     foreach (app_search_terms($search) as $term) {
-        $search_param = "%$term%";
-        $where[] = "(
-            c.name LIKE ?
-            OR c.email LIKE ?
-            OR c.contact LIKE ?
-            OR c.phone_mobile LIKE ?
-            OR v.make LIKE ?
-            OR v.model LIKE ?
-            OR v.plate_number LIKE ?
-            OR EXISTS (
-                SELECT 1
-                FROM branches b_search
-                WHERE b_search.id = v.branch_id
-                  AND b_search.name LIKE ?
-            )
-            OR EXISTS (
-                SELECT 1
-                FROM service_history sh_search
-                INNER JOIN branches b_sh_search ON b_sh_search.id = sh_search.branch_id
-                WHERE sh_search.vehicle_id = v.id
-                  AND b_sh_search.name LIKE ?
-            )
-            OR EXISTS (
-                SELECT 1
-                FROM job_orders jo_search
-                INNER JOIN branches b_jo_search ON b_jo_search.id = jo_search.branch_id
-                WHERE jo_search.vehicle_id = v.id
-                  AND jo_search.status NOT IN ('archived', 'cancelled')
-                  AND b_jo_search.name LIKE ?
-            )
-            OR EXISTS (
-                SELECT 1
-                FROM quotations q_search
-                INNER JOIN branches b_q_search ON b_q_search.id = q_search.branch_id
-                WHERE q_search.vehicle_id = v.id
-                  AND q_search.status <> 'archived'
-                  AND b_q_search.name LIKE ?
-            )
-        )";
-        $params = array_merge($params, array_fill(0, 11, $search_param));
+        $term_variants = app_search_term_variants($term);
+        $term_group_conditions = [];
+        foreach ($term_variants as $v_term) {
+            $search_param = "%" . strtolower($v_term) . "%";
+            $search_conditions = [
+                "LOWER(c.name) LIKE ?",
+                "LOWER(COALESCE(c.email, '')) LIKE ?",
+                "LOWER(COALESCE(c.contact, '')) LIKE ?",
+                "LOWER(COALESCE(c.phone_mobile, '')) LIKE ?",
+                "LOWER(COALESCE(v.make, '')) LIKE ?",
+                "LOWER(COALESCE(v.model, '')) LIKE ?",
+                "LOWER(COALESCE(v.plate_number, '')) LIKE ?",
+                "EXISTS (
+                    SELECT 1
+                    FROM branches b_search
+                    WHERE b_search.id = v.branch_id
+                      AND LOWER(b_search.name) LIKE ?
+                )",
+                "EXISTS (
+                    SELECT 1
+                    FROM service_history sh_search
+                    INNER JOIN branches b_sh_search ON b_sh_search.id = sh_search.branch_id
+                    WHERE sh_search.vehicle_id = v.id
+                      AND LOWER(b_sh_search.name) LIKE ?
+                )",
+                "EXISTS (
+                    SELECT 1
+                    FROM job_orders jo_search
+                    INNER JOIN branches b_jo_search ON b_jo_search.id = jo_search.branch_id
+                    WHERE jo_search.vehicle_id = v.id
+                      AND jo_search.status NOT IN ('archived', 'cancelled')
+                      AND LOWER(b_jo_search.name) LIKE ?
+                )",
+                "EXISTS (
+                    SELECT 1
+                    FROM quotations q_search
+                    INNER JOIN branches b_q_search ON b_q_search.id = q_search.branch_id
+                    WHERE q_search.vehicle_id = v.id
+                      AND q_search.status <> 'archived'
+                      AND LOWER(b_q_search.name) LIKE ?
+                )"
+            ];
+            $term_group_conditions[] = '(' . implode(' OR ', $search_conditions) . ')';
+            $params = array_merge($params, array_fill(0, count($search_conditions), $search_param));
+        }
+        $where[] = '(' . implode(' OR ', $term_group_conditions) . ')';
     }
 }
 
@@ -346,15 +358,10 @@ $pagination_params .= record_date_filter_query_string($date_filter);
     <?php endif; ?>
 
     <section class="customer-records-filter-card">
-        <form method="GET" action="./#customer-records" class="customer-records-filter">
-            <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
-            <label class="customer-search-field">
-                <i class="fas fa-search"></i>
-                <input id="customerSearchInput" type="text" name="search" placeholder="Search by vehicle, plate number, customer, or branch..." value="<?php echo esc_attr($search); ?>">
-            </label>
+        <form method="GET" action="./#customer-records" class="customer-records-filter" data-record-date-filter>
             <label class="customer-filter-field customer-branch-field">
                 <span>Branch</span>
-                <select name="branch" class="customer-branch-select" onchange="this.form.submit()">
+                <select name="branch" class="customer-branch-select">
                     <option value="">All Branches</option>
                     <?php foreach ($branches as $branch): ?>
                         <?php $branch_label = front_customer_branch_label($branch['name']); ?>
@@ -366,7 +373,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
             </label>
             <label class="customer-filter-field customer-operation-field">
                 <span>Service Operation</span>
-                <select name="operation_status" class="customer-operation-select" onchange="this.form.submit()">
+                <select name="operation_status" class="customer-operation-select">
                     <?php foreach (cv_records_operation_filter_options() as $operation_value => $operation_label): ?>
                         <option value="<?php echo esc_attr($operation_value); ?>" <?php echo $operation_status_filter === $operation_value ? 'selected' : ''; ?>>
                             <?php echo esc_html($operation_label); ?>
@@ -376,7 +383,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
             </label>
             <label class="customer-filter-field customer-status-field">
                 <span>Service Status</span>
-                <select name="status" class="customer-status-select" onchange="this.form.submit()">
+                <select name="status" class="customer-status-select">
                     <?php foreach (cv_records_status_filter_options() as $status_value => $status_label): ?>
                         <option value="<?php echo esc_attr($status_value); ?>" <?php echo $status_filter === $status_value ? 'selected' : ''; ?>>
                             <?php echo esc_html($status_label); ?>
@@ -385,8 +392,8 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                 </select>
             </label>
             <label class="customer-filter-field customer-record-field">
-                <span>Records</span>
-                <select name="records" class="customer-record-select" onchange="this.form.submit()">
+                <span>Status</span>
+                <select name="records" class="customer-record-select">
                     <?php foreach (record_archive_filter_options() as $record_value => $record_label): ?>
                         <option value="<?php echo esc_attr($record_value); ?>" <?php echo $record_filter === $record_value ? 'selected' : ''; ?>>
                             <?php echo esc_html($record_label); ?>
@@ -394,17 +401,52 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                     <?php endforeach; ?>
                 </select>
             </label>
-            <button type="submit" class="customer-records-submit">Search</button>
+            <label class="customer-filter-field customer-date-scope-field">
+                <span>Period</span>
+                <select name="date_scope" class="records-date-scope customer-date-select" aria-label="Select record period">
+                    <option value="all" <?php echo ($date_filter['scope'] ?? 'all') === 'all' ? 'selected' : ''; ?>>All Records</option>
+                    <option value="recent" <?php echo ($date_filter['scope'] ?? '') === 'recent' ? 'selected' : ''; ?>>Current Week</option>
+                    <option value="day" <?php echo ($date_filter['scope'] ?? '') === 'day' ? 'selected' : ''; ?>>Day</option>
+                    <option value="week" <?php echo ($date_filter['scope'] ?? '') === 'week' ? 'selected' : ''; ?>>Week</option>
+                    <option value="month" <?php echo ($date_filter['scope'] ?? '') === 'month' ? 'selected' : ''; ?>>Month</option>
+                    <option value="year" <?php echo ($date_filter['scope'] ?? '') === 'year' ? 'selected' : ''; ?>>Year</option>
+                    <option value="range" <?php echo ($date_filter['scope'] ?? '') === 'range' ? 'selected' : ''; ?>>Date Range</option>
+                </select>
+            </label>
+            <label class="customer-filter-field" data-date-input="day">
+                <span>Day</span>
+                <input type="date" name="date_day" value="<?php echo esc_attr($date_filter['day']); ?>">
+            </label>
+            <label class="customer-filter-field" data-date-input="week">
+                <span>Week</span>
+                <input type="week" name="date_week" value="<?php echo esc_attr($date_filter['week']); ?>">
+            </label>
+            <label class="customer-filter-field" data-date-input="month">
+                <span>Month</span>
+                <input type="month" name="date_month" value="<?php echo esc_attr($date_filter['month']); ?>">
+            </label>
+            <label class="customer-filter-field" data-date-input="year">
+                <span>Year</span>
+                <input type="number" name="date_year" min="2020" max="2100" value="<?php echo (int) $date_filter['year']; ?>">
+            </label>
+            <label class="customer-filter-field" data-date-input="range">
+                <span>From</span>
+                <input type="date" name="date_from" value="<?php echo esc_attr($date_filter['from']); ?>">
+            </label>
+            <label class="customer-filter-field" data-date-input="range">
+                <span>To</span>
+                <input type="date" name="date_to" value="<?php echo esc_attr($date_filter['to']); ?>">
+            </label>
+            <button type="submit" class="customer-records-submit">Apply</button>
+            <label class="customer-search-field">
+                <i class="fas fa-search"></i>
+                <input id="customerSearchInput" type="text" name="search" placeholder="Search by vehicle, plate number, customer, or branch..." value="<?php echo esc_attr($search); ?>">
+            </label>
+            <button type="submit" class="customer-records-search-btn btn btn-primary">Search</button>
+            <?php if ($search !== '' || $branch_filter !== '' || $status_filter !== 'all' || $operation_status_filter !== 'all' || $record_filter !== 'active' || ($date_filter['scope'] ?? 'all') !== 'all'): ?>
+                <a href="./#customer-records" class="btn btn-outline-secondary customer-records-clear">Clear</a>
+            <?php endif; ?>
         </form>
-        <?php
-        record_date_filter_controls($date_filter, [
-            'search' => $search,
-            'branch' => $branch_filter !== '' ? $branch_filter : '',
-            'operation_status' => $operation_status_filter !== 'all' ? $operation_status_filter : '',
-            'status' => $status_filter !== 'all' ? $status_filter : '',
-            'records' => $record_filter !== 'active' ? $record_filter : '',
-        ], 'customer-records');
-        ?>
     </section>
 
     <section class="customer-records-table-card" id="customer-records">
@@ -1033,4 +1075,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<?php record_date_filter_script(); ?>
 <?php require_once '../../includes/footer.php'; ?>

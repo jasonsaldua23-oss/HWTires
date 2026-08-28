@@ -854,6 +854,42 @@ if (!function_exists('app_search_terms')) {
     }
 }
 
+if (!function_exists('app_search_term_variants')) {
+    function app_search_term_variants($term) {
+        $term = trim((string) $term);
+        if ($term === '') {
+            return [];
+        }
+        $variants = [$term];
+
+        // 1. Collapse duplicate letters (e.g. 'montellbano' -> 'montelbano')
+        $dedup = preg_replace('/(.)\\1+/u', '$1', $term);
+        if ($dedup !== $term && $dedup !== '') {
+            $variants[] = $dedup;
+        }
+
+        // 2. Common Philippine surname & word spelling variations:
+        // 'montelibano' / 'montellibano' / 'montellbano' / 'montelbano'
+        if (preg_match('/^monte?ll?e?i?bano$/i', $term)) {
+            $variants[] = 'montelibano';
+        }
+        // 'javellana' / 'javelana'
+        if (preg_match('/^jave?ll?ana$/i', $term)) {
+            $variants[] = 'javellana';
+        }
+        // 'castillo' / 'castilo'
+        if (preg_match('/^casti?ll?o$/i', $term)) {
+            $variants[] = 'castillo';
+        }
+        // 'escalante' / 'escalate'
+        if (preg_match('/^escala?n?te$/i', $term)) {
+            $variants[] = 'escalante';
+        }
+
+        return array_values(array_unique($variants));
+    }
+}
+
 if (!function_exists('app_column_exists')) {
     function app_column_exists($table, $column, $refresh = false) {
         global $pdo;
