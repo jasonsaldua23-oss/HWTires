@@ -1397,7 +1397,21 @@ $vehicle_report_query = "
             c.name AS customer_name,
             COALESCE(NULLIF(c.phone_mobile, ''), NULLIF(c.contact, ''), '') AS customer_phone,
             b.name AS branch_name,
-            COALESCE(last_branch.name, b.name) AS last_visited_branch,
+            COALESCE((
+                SELECT b_recent.name
+                FROM (
+                    SELECT jo.vehicle_id, jo.branch_id, jo.job_date AS visited_at, jo.id AS row_id
+                    FROM job_orders jo
+                    WHERE jo.status <> 'cancelled'
+                    UNION ALL
+                    SELECT q.vehicle_id, q.branch_id, q.quotation_date AS visited_at, q.id AS row_id
+                    FROM quotations q
+                ) recent
+                INNER JOIN branches b_recent ON b_recent.id = recent.branch_id
+                WHERE recent.vehicle_id = v.id
+                ORDER BY recent.visited_at DESC, recent.row_id DESC
+                LIMIT 1
+            ), b.name) AS last_visited_branch,
             COALESCE(service_counts.service_count, 0) AS service_count,
             COALESCE(item_counts.items_given_count, 0) AS items_given_count,
             COALESCE(sales_counts.sales_value, 0) AS sales_value,
@@ -1436,20 +1450,6 @@ $vehicle_report_query = "
             WHERE quotation_date BETWEEN ? AND ?
             GROUP BY vehicle_id
         ) q_counts ON q_counts.vehicle_id = v.id
-        LEFT JOIN branches last_branch ON last_branch.id = (
-            SELECT recent.branch_id
-            FROM (
-                SELECT jo.vehicle_id, jo.branch_id, jo.job_date AS visited_at, jo.id AS row_id
-                FROM job_orders jo
-                WHERE jo.status <> 'cancelled'
-                UNION ALL
-                SELECT q.vehicle_id, q.branch_id, q.quotation_date AS visited_at, q.id AS row_id
-                FROM quotations q
-            ) recent
-            WHERE recent.vehicle_id = v.id
-            ORDER BY recent.visited_at DESC, recent.row_id DESC
-            LIMIT 1
-        )
         WHERE 1 = 1" . $vehicle_branch_condition . "
     ) vehicle_report
     WHERE last_visit_date <> '1000-01-01'" . $vehicle_filter_sql . "
@@ -1546,7 +1546,21 @@ if ($report_tab === 'vehicle_history') {
                 c.name AS customer_name,
                 COALESCE(NULLIF(c.phone_mobile, ''), NULLIF(c.contact, ''), '') AS customer_phone,
                 b.name AS branch_name,
-                COALESCE(last_branch.name, b.name) AS last_visited_branch,
+                COALESCE((
+                    SELECT b_recent.name
+                    FROM (
+                        SELECT jo.vehicle_id, jo.branch_id, jo.job_date AS visited_at, jo.id AS row_id
+                        FROM job_orders jo
+                        WHERE jo.status <> 'cancelled'
+                        UNION ALL
+                        SELECT q.vehicle_id, q.branch_id, q.quotation_date AS visited_at, q.id AS row_id
+                        FROM quotations q
+                    ) recent
+                    INNER JOIN branches b_recent ON b_recent.id = recent.branch_id
+                    WHERE recent.vehicle_id = v.id
+                    ORDER BY recent.visited_at DESC, recent.row_id DESC
+                    LIMIT 1
+                ), b.name) AS last_visited_branch,
                 COALESCE(service_counts.service_count, 0) AS service_count,
                 COALESCE(item_counts.items_given_count, 0) AS items_given_count,
                 COALESCE(sales_counts.sales_value, 0) AS sales_value,
@@ -1587,20 +1601,6 @@ if ($report_tab === 'vehicle_history') {
                 GROUP BY vehicle_id
             ) q_counts ON q_counts.vehicle_id = v.id
             " . $ownership_join . "
-            LEFT JOIN branches last_branch ON last_branch.id = (
-                SELECT recent.branch_id
-                FROM (
-                    SELECT jo.vehicle_id, jo.branch_id, jo.job_date AS visited_at, jo.id AS row_id
-                    FROM job_orders jo
-                    WHERE jo.status <> 'cancelled'
-                    UNION ALL
-                    SELECT q.vehicle_id, q.branch_id, q.quotation_date AS visited_at, q.id AS row_id
-                    FROM quotations q
-                ) recent
-                WHERE recent.vehicle_id = v.id
-                ORDER BY recent.visited_at DESC, recent.row_id DESC
-                LIMIT 1
-            )
             WHERE 1 = 1" . $vehicle_history_branch_condition . "
         ) vehicle_history
         WHERE last_visit_date <> '1000-01-01'" . $vehicle_history_filter_sql . "

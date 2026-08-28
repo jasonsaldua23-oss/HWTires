@@ -56,18 +56,10 @@ try {
     redirect("../");
 }
 
-$quote_items_total = 0;
-foreach ($items as $item) {
-    if (app_line_item_is_service($item)) {
-        continue;
-    }
-
-    $quantity = max(1, (int) ($item['quantity'] ?? 1));
-    $unit_price = (float) ($item['unit_price'] ?? 0);
-    $quote_items_total += (float) (($item['subtotal'] ?? 0) ?: ($quantity * $unit_price));
-}
-$quote_subtotal = (float) ($quotation['labor_cost'] ?? 0) + $quote_items_total;
-$quote_total_amount = $quote_subtotal;
+$labor_cost = (float) ($quotation['labor_cost'] ?? 0);
+$quote_totals = app_quotation_calculate_totals($items, $issued_inventory_items ?? [], $labor_cost);
+$quote_items_total = $quote_totals['parts_total'];
+$quote_total_amount = $quote_totals['grand_total'];
 $issued_inventory_total = app_inventory_transaction_rows_total($issued_inventory_items ?? []);
 
 $can_manage_quotation = ($user['role'] ?? '') === 'front-desk'

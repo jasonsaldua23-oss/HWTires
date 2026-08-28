@@ -108,17 +108,14 @@ try {
     $items_stmt->execute([$quotation_id]);
     $items = $items_stmt->fetchAll();
     $inventory_items_by_id = app_line_item_load_inventory_items($pdo, $items);
+    $issued_inventory_items = app_line_item_load_linked_inventory_transactions($pdo, [
+        'quotation_id' => $quotation_id,
+    ]);
 
-    $items_total = 0;
-    foreach ($items as $item) {
-        if (app_line_item_is_service($item)) {
-            continue;
-        }
-
-        $items_total += max(1, (int) ($item['quantity'] ?? 1)) * (float) ($item['unit_price'] ?? 0);
-    }
     $labor_cost = (float) ($quotation['labor_cost'] ?? 0);
-    $total_amount = $labor_cost + $items_total;
+    $quote_totals = app_quotation_calculate_totals($items, $issued_inventory_items ?? [], $labor_cost);
+    $items_total = $quote_totals['parts_total'];
+    $total_amount = $quote_totals['grand_total'];
 
     $notes_text = trim((string) ($quotation['notes'] ?? ''));
     $formatted_notes_text = function_exists('app_format_record_notes') ? app_format_record_notes($notes_text) : $notes_text;
