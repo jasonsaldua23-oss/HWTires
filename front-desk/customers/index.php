@@ -95,26 +95,7 @@ $vehicle_main_record_date_expr = record_business_datetime_expr('v.last_service_d
 $vehicle_job_record_date_expr = record_business_datetime_expr('jo_date.job_date', 'jo_date.created_at');
 $vehicle_quote_record_date_expr = record_business_datetime_expr('q_date.quotation_date', 'q_date.created_at');
 $vehicle_history_record_date_expr = record_business_datetime_expr('sh_date.service_date', 'sh_date.created_at');
-$vehicle_sort_expr = "GREATEST(
-    $vehicle_main_activity_expr,
-    COALESCE((
-        SELECT MAX(" . record_activity_datetime_expr('jo_sort.job_date', 'jo_sort.created_at', 'jo_sort.updated_at') . ")
-        FROM job_orders jo_sort
-        WHERE jo_sort.vehicle_id = v.id
-          AND jo_sort.status NOT IN ('archived', 'cancelled')
-    ), '1970-01-01 00:00:00'),
-    COALESCE((
-        SELECT MAX(" . record_activity_datetime_expr('q_sort.quotation_date', 'q_sort.created_at', 'q_sort.updated_at') . ")
-        FROM quotations q_sort
-        WHERE q_sort.vehicle_id = v.id
-          AND q_sort.status <> 'archived'
-    ), '1970-01-01 00:00:00'),
-    COALESCE((
-        SELECT MAX(" . record_activity_datetime_expr('sh_sort.service_date', 'sh_sort.created_at') . ")
-        FROM service_history sh_sort
-        WHERE sh_sort.vehicle_id = v.id
-    ), '1970-01-01 00:00:00')
-)";
+$vehicle_sort_expr = "COALESCE(v.updated_at, v.created_at, v.last_service_date, '1970-01-01 00:00:00')";
 
 $where = [
     "TRIM(CONCAT(COALESCE(v.make, ''), ' ', COALESCE(v.model, ''))) <> ''",

@@ -105,3 +105,4 @@ Desktop.ini
 node_modules/
 vendor/
 composer.phar
+database/schema.sql
