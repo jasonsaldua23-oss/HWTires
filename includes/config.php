@@ -56,16 +56,29 @@ define('RECORDS_PER_PAGE', 25);
 // Database connection (only once)
 if (!isset($pdo)) {
     try {
+        $pdo_options = [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+            PDO::ATTR_TIMEOUT => 10,
+            PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
+        ];
+
+        // Enable SSL/TLS encryption for remote cloud databases (TiDB Cloud, Aiven, etc.)
+        if (DB_HOST !== 'localhost' && DB_HOST !== '127.0.0.1') {
+            if (defined('PDO::MYSQL_ATTR_SSL_CA')) {
+                $pdo_options[PDO::MYSQL_ATTR_SSL_CA] = true;
+            }
+            if (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')) {
+                $pdo_options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+            }
+        }
+
         $pdo = new PDO(
             'mysql:host=' . DB_HOST . ';port=' . DB_PORT . ';dbname=' . DB_NAME . ';charset=utf8mb4',
             DB_USER,
             DB_PASS,
-            [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES => false,
-                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
-            ]
+            $pdo_options
         );
     } catch (PDOException $e) {
         // Log error (in production, log to file instead)
