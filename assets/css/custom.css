@@ -25887,6 +25887,27 @@ button.customer-vehicle-status-pill.customer-status-action {
     grid-template-columns: minmax(0, 1.4fr) minmax(260px, 340px);
 }
 
+/* Ensure visit grid and amounts grid are strictly hidden for inventory records */
+.vehicle-workspace-detail.is-inventory-record [data-detail-visit-grid],
+.vehicle-workspace-detail.is-inventory-record [data-detail-amounts-grid],
+.vehicle-workspace-detail.is-inventory-record [data-detail-items-card] {
+    display: none !important;
+}
+
+/* Ensure inventory grid is strictly hidden for visit records */
+.vehicle-workspace-detail:not(.is-inventory-record) [data-detail-inventory-grid] {
+    display: none !important;
+}
+
+.vehicle-workspace-detail.is-hidden,
+.vehicle-workspace-detail [data-detail-visit-grid].is-hidden,
+.vehicle-workspace-detail [data-detail-amounts-grid].is-hidden,
+.vehicle-workspace-detail [data-detail-inventory-grid].is-hidden,
+.vehicle-workspace-detail [data-detail-notes-box].is-hidden,
+.vehicle-workspace-detail [data-detail-items-card].is-hidden {
+    display: none !important;
+}
+
 .vehicle-workspace-detail-main {
     min-width: 0;
     display: flex;
@@ -26023,6 +26044,29 @@ button.customer-vehicle-status-pill.customer-status-action {
     font-size: 12.5px !important;
     font-weight: 650 !important;
     color: #1e293b !important;
+}
+
+.vehicle-workspace-field-full-row {
+    grid-column: 1 / -1 !important;
+}
+
+.vehicle-workspace-sku-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 3px;
+}
+
+.vehicle-workspace-sku-pill {
+    display: block;
+    padding: 3px 8px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #334155;
+    word-break: break-word;
 }
 
 .vehicle-workspace-notes {

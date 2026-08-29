@@ -251,12 +251,14 @@ if (!function_exists('vehicle_profile_inventory_detail_fields')) {
             ? 'Mixed prices'
             : (($quantity > 0 && $inventory_amount > 0) ? vehicle_profile_money($inventory_amount / $quantity) : '-');
 
-        $origin_branch = '';
-        $all_text = $summary . ' ' . $meta . ' ' . $notes . ' ' . implode(' ', $items);
-        if (preg_match('/\[Transferred:\s*([^\]]+)\]/i', $all_text, $m)) {
-            $origin_branch = 'Transferred from ' . trim($m[1]);
-        } elseif (preg_match('/received from\s+([^,;\.]+)/i', $all_text, $m)) {
-            $origin_branch = 'Transferred from ' . trim($m[1]);
+        $origin_branch = trim((string) ($record['origin_branch'] ?? ''));
+        if ($origin_branch === '') {
+            $all_text = $summary . ' ' . $meta . ' ' . $notes . ' ' . implode(' ', $items);
+            if (preg_match('/\[Transferred:\s*([^\]]+)\]/i', $all_text, $m)) {
+                $origin_branch = 'Transferred from ' . trim($m[1]);
+            } elseif (preg_match('/received from\s+([^,;\.]+)/i', $all_text, $m)) {
+                $origin_branch = 'Transferred from ' . trim($m[1]);
+            }
         }
 
         $fields = [
@@ -272,8 +274,21 @@ if (!function_exists('vehicle_profile_inventory_detail_fields')) {
             $fields[] = ['label' => 'Origin / Transfer', 'value' => $origin_branch];
         }
 
-        if ($meta !== '' && $meta !== '-') {
-            $fields[] = ['label' => 'Transaction SKU / Details', 'value' => $meta];
+        $sku_lines = [];
+        if (!empty($record['sku_lines']) && is_array($record['sku_lines'])) {
+            $sku_lines = $record['sku_lines'];
+        } elseif ($meta !== '' && $meta !== '-') {
+            $sku_lines = array_map('trim', explode(',', $meta));
+        }
+        $sku_lines = array_values(array_unique(array_filter($sku_lines)));
+
+        if (!empty($sku_lines)) {
+            $fields[] = [
+                'label' => count($sku_lines) > 1 ? 'Transaction SKUs & Details' : 'Transaction SKU / Details',
+                'value' => implode(' • ', $sku_lines),
+                'is_list' => count($sku_lines) > 1,
+                'items' => $sku_lines,
+            ];
         }
 
         return $fields;
@@ -379,7 +394,9 @@ if (!function_exists('vehicle_profile_unique_push_item')) {
             $exist_base = strtolower(trim(explode(' (', $clean_exist)[0]));
 
             if ($exist_base === $candidate_base || strpos($exist_base, $candidate_base) !== false || strpos($candidate_base, $exist_base) !== false) {
-                if (strlen($item_line) > strlen($existing)) {
+                if (strpos($item_line, '[Transferred:') !== false && strpos($existing, '[Transferred:') === false) {
+                    $items[$idx] = $item_line;
+                } elseif (strlen($item_line) > strlen($existing) && (strpos($existing, '[Transferred:') === false || strpos($item_line, '[Transferred:') !== false)) {
                     $items[$idx] = $item_line;
                 }
                 return;
@@ -550,6 +567,42 @@ if (!function_exists('vehicle_profile_load_item_summaries')) {
         }
 
         return $summaries;
+    }
+}
+
+if (!function_exists('vehicle_profile_load_transferred_items_map')) {
+    function vehicle_profile_load_transferred_items_map(PDO $pdo) {
+        $map = [];
+        if (app_table_exists('inter_branch_transfer_requests') && app_table_exists('branches')) {
+            try {
+                $stmt = $pdo->query("
+                    SELECT tr.quotation_id, tr.item_id, tr.item_name, db.name AS donor_branch
+                    FROM inter_branch_transfer_requests tr
+                    LEFT JOIN branches db ON db.id = tr.donor_branch_id
+                    WHERE tr.status IN ('approved', 'received', 'completed', 'in_transit')
+                ");
+                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                    $qid = (int) ($row['quotation_id'] ?? 0);
+                    $item_id = (int) ($row['item_id'] ?? 0);
+                    $name = strtolower(trim((string) ($row['item_name'] ?? '')));
+                    $donor = trim((string) ($row['donor_branch'] ?? ''));
+                    if ($donor !== '') {
+                        if ($qid > 0 && $item_id > 0) {
+                            $map["qid_{$qid}_item_{$item_id}"] = $donor;
+                        }
+                        if ($qid > 0 && $name !== '') {
+                            $map["qid_{$qid}_name_{$name}"] = $donor;
+                        }
+                        if ($item_id > 0) {
+                            $map["item_{$item_id}"] = $donor;
+                        }
+                    }
+                }
+            } catch (Exception $e) {
+                // Ignore query error if tables missing
+            }
+        }
+        return $map;
     }
 }
 
@@ -893,7 +946,12 @@ if (!function_exists('vehicle_profile_group_records')) {
                     if ($clean_seg === '' || $clean_seg === '-') continue;
                     if (preg_match('/Stock used for job order task/i', $clean_seg)) continue;
                     if (preg_match('/^Service notes:\s*Stock used/i', $clean_seg)) continue;
-                    $key = strtolower(preg_replace('/\s+/', ' ', $clean_seg));
+
+                    $normalized_content = preg_replace('/^(?:Service notes:\s*|Cross-branch service history\.\s*|Completed cross-branch job order\.\s*|Approved cross-branch service operation\.\s*|Completed yearly cross-branch service history\.\s*|Cross-branch service operation\.\s*|Service operation note:\s*|Job order note:\s*|Service history note:\s*|Quotation note:\s*)+/i', '', $clean_seg);
+                    $normalized_content = trim($normalized_content);
+                    if ($normalized_content === '') continue;
+
+                    $key = strtolower(preg_replace('/[^a-z0-9]/', '', $normalized_content));
                     if (!isset($seen_note_keys[$key])) {
                         $seen_note_keys[$key] = true;
                         $clean_notes[] = $clean_seg;
@@ -1168,6 +1226,7 @@ if (!function_exists('vehicle_profile_group_item_sales')) {
 
             $group['item_lines'] = implode(';;', $item_entries);
             $group['meta_text'] = vehicle_profile_compact_list($group['meta_entries'], '-');
+            $group['sku_lines'] = $group['meta_entries'];
             $group['notes'] = vehicle_profile_compact_list($group['note_entries'], '');
             $group['item_search_text'] = trim(implode(' ', array_merge(
                 $record_numbers,
@@ -1362,6 +1421,8 @@ try {
     $sources[] = "
         SELECT 'quotation' AS record_type,
                q.id AS record_id,
+               NULL AS item_id,
+               NULL AS item_name,
                q.quotation_number AS record_number,
                q.quotation_date AS record_date,
                q.created_at AS sort_created_at,
@@ -1390,6 +1451,8 @@ try {
     $sources[] = "
         SELECT 'job' AS record_type,
                jo.id AS record_id,
+               NULL AS item_id,
+               NULL AS item_name,
                jo.job_number AS record_number,
                jo.job_date AS record_date,
                jo.created_at AS sort_created_at,
@@ -1419,6 +1482,8 @@ try {
     $sources[] = "
         SELECT 'history' AS record_type,
                sh.id AS record_id,
+               NULL AS item_id,
+               NULL AS item_name,
                CONCAT('SH', LPAD(sh.id, 6, '0')) AS record_number,
                sh.service_date AS record_date,
                sh.created_at AS sort_created_at,
@@ -1500,6 +1565,8 @@ try {
         $sources[] = "
             SELECT 'item' AS record_type,
                    t.id AS record_id,
+                   t.item_id,
+                   i.item_name,
                    CONCAT('INV-', LPAD(t.id, 6, '0')) AS record_number,
                    DATE(t.created_at) AS record_date,
                    t.created_at AS sort_created_at,
@@ -1606,11 +1673,31 @@ try {
         }
 
         $item_summaries = vehicle_profile_load_item_summaries($pdo, $quotation_ids);
+        $transfer_map = vehicle_profile_load_transferred_items_map($pdo);
+
         foreach ($raw_activity_records as &$record) {
             $quotation_id = (int) ($record['quotation_id'] ?? 0);
             $summary = $quotation_id > 0 ? ($item_summaries[$quotation_id] ?? null) : null;
             $record_type = $record['record_type'] ?? '';
             $transaction_item_lines = trim((string) ($record['item_lines'] ?? ''));
+
+            if ($record_type === 'item') {
+                $item_id = (int) ($record['item_id'] ?? 0);
+                $raw_item_name = strtolower(trim((string) ($record['item_name'] ?? '')));
+                $donor_branch = $transfer_map["qid_{$quotation_id}_item_{$item_id}"]
+                    ?? ($transfer_map["qid_{$quotation_id}_name_{$raw_item_name}"]
+                    ?? ($transfer_map["item_{$item_id}"] ?? ''));
+
+                if ($donor_branch !== '') {
+                    $record['origin_branch'] = 'Transferred from ' . $donor_branch;
+                    if (strpos($transaction_item_lines, '[Transferred:') === false) {
+                        $transaction_item_lines = preg_replace('/\s*(\(\d+x\))/', ' [Transferred: ' . $donor_branch . '] $1', $transaction_item_lines);
+                    }
+                    if (strpos($record['summary'], '[Transferred:') === false) {
+                        $record['summary'] .= ' [Transferred: ' . $donor_branch . ']';
+                    }
+                }
+            }
 
             if ($summary !== null) {
                 $record['service_lines'] = implode(';;', $summary['services']);
@@ -2163,14 +2250,24 @@ foreach ($record_sections as $record_section) {
                                                  </div>
                                              </dl>
                                              <dl class="vehicle-workspace-detail-grid vehicle-workspace-inventory-grid <?php echo empty($section_first_payload['is_inventory']) ? 'is-hidden' : ''; ?>" data-detail-inventory-grid>
-                                                 <?php if (!empty($section_first_payload['inventory_fields'])): ?>
-                                                     <?php foreach ($section_first_payload['inventory_fields'] as $field): ?>
-                                                         <div>
-                                                             <dt><?php echo esc_html($field['label'] ?? 'Detail'); ?></dt>
-                                                             <dd><?php echo esc_html($field['value'] ?? '-'); ?></dd>
-                                                         </div>
-                                                     <?php endforeach; ?>
-                                                 <?php endif; ?>
+                                                  <?php if (!empty($section_first_payload['inventory_fields'])): ?>
+                                                      <?php foreach ($section_first_payload['inventory_fields'] as $field): ?>
+                                                          <div class="<?php echo !empty($field['is_list']) ? 'vehicle-workspace-field-full-row' : ''; ?>">
+                                                              <dt><?php echo esc_html($field['label'] ?? 'Detail'); ?></dt>
+                                                              <dd>
+                                                                  <?php if (!empty($field['is_list']) && !empty($field['items']) && is_array($field['items'])): ?>
+                                                                      <div class="vehicle-workspace-sku-stack">
+                                                                          <?php foreach ($field['items'] as $itemText): ?>
+                                                                              <div class="vehicle-workspace-sku-pill"><?php echo esc_html($itemText); ?></div>
+                                                                          <?php endforeach; ?>
+                                                                      </div>
+                                                                  <?php else: ?>
+                                                                      <?php echo esc_html($field['value'] ?? '-'); ?>
+                                                                  <?php endif; ?>
+                                                              </dd>
+                                                          </div>
+                                                      <?php endforeach; ?>
+                                                  <?php endif; ?>
                                              </dl>
                                             <div class="vehicle-workspace-notes <?php echo (empty($section_first_payload['notes']) || $section_first_payload['notes'] === '-') ? 'is-hidden' : ''; ?>" data-detail-notes-box>
                                                 <span>Notes</span>
@@ -2402,7 +2499,21 @@ document.addEventListener('DOMContentLoaded', function() {
         const value = document.createElement('dd');
 
         label.textContent = field && field.label ? String(field.label) : 'Detail';
-        value.textContent = field && field.value ? String(field.value) : '-';
+
+        if (field && field.is_list && Array.isArray(field.items) && field.items.length > 1) {
+            row.className = 'vehicle-workspace-field-full-row';
+            const stack = document.createElement('div');
+            stack.className = 'vehicle-workspace-sku-stack';
+            field.items.forEach(function(itemText) {
+                const pill = document.createElement('div');
+                pill.className = 'vehicle-workspace-sku-pill';
+                pill.textContent = itemText;
+                stack.appendChild(pill);
+            });
+            value.appendChild(stack);
+        } else {
+            value.textContent = field && field.value ? String(field.value) : '-';
+        }
 
         row.appendChild(label);
         row.appendChild(value);
