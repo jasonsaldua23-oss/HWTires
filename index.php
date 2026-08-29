@@ -101,19 +101,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - <?php echo htmlspecialchars($login_brand['company_name']); ?></title>
+    <title>Sign In - <?php echo htmlspecialchars($login_brand['company_name']); ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary: <?php echo htmlspecialchars($login_brand['primary_color']); ?>;
             --login-accent: #0f766e;
             --login-accent-hover: #115e59;
             --secondary: #263238;
-            --text-dark: #202936;
-            --text-muted: #667085;
-            --border: #d7dde5;
-            --page-bg: #f4f6f8;
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --page-bg: #0f172a;
         }
 
         * {
@@ -123,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
         body {
             margin: 0;
             background:
-                linear-gradient(135deg, rgba(15, 23, 42, 0.38) 0%, rgba(15, 23, 42, 0.52) 100%),
+                linear-gradient(135deg, rgba(15, 23, 42, 0.40) 0%, rgba(15, 23, 42, 0.55) 100%),
                 <?php if ($login_background !== ''): ?>
                     url('<?php echo htmlspecialchars($login_background); ?>') center / cover no-repeat fixed,
                 <?php endif; ?>
@@ -134,7 +137,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
             justify-content: center;
             padding: 32px 16px;
             color: var(--text-dark);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
         body::before {
@@ -142,133 +145,217 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
             position: fixed;
             inset: 0;
             pointer-events: none;
-            background: radial-gradient(circle at center, transparent 20%, rgba(0, 0, 0, 0.28) 100%);
+            background: radial-gradient(circle at center, transparent 30%, rgba(0, 0, 0, 0.35) 100%);
         }
 
         .login-card {
             position: relative;
             z-index: 1;
-            background: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 12px;
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35), 0 2px 10px rgba(0, 0, 0, 0.15);
-            max-width: 430px;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            border-radius: 20px;
+            box-shadow:
+                0 25px 50px -12px rgba(0, 0, 0, 0.45),
+                0 4px 16px rgba(0, 0, 0, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            max-width: 440px;
             width: 100%;
+            padding: 40px 36px 32px;
             overflow: hidden;
+            transition: transform 0.25s ease;
         }
 
         .login-header {
-            background: #ffffff;
-            min-height: auto;
-            padding: 34px 38px 26px;
-            text-align: left;
-            color: var(--text-dark);
-            border-bottom: 1px solid var(--border);
+            text-align: center;
+            margin-bottom: 28px;
         }
 
         .login-logo {
-            width: 54px;
-            height: 54px;
-            display: flex;
+            width: 68px;
+            height: 68px;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            margin: 0 0 18px;
+            margin-bottom: 16px;
             background: #ffffff;
-            border: 1px solid var(--border);
-            border-radius: 8px;
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            border-radius: 16px;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+            padding: 10px;
         }
 
         .login-logo img {
-            max-width: 42px;
-            max-height: 42px;
+            max-width: 100%;
+            max-height: 100%;
             object-fit: contain;
             display: block;
         }
 
         .login-header h1 {
-            font-size: 25px;
-            font-weight: 750;
-            line-height: 1.15;
-            margin: 0;
-            letter-spacing: 0;
-            color: var(--text-dark);
+            font-size: 24px;
+            font-weight: 800;
+            line-height: 1.2;
+            margin: 0 0 6px;
+            letter-spacing: -0.4px;
+            color: #0f172a;
         }
 
         .login-header p {
             font-size: 13px;
-            margin: 8px 0 0;
+            margin: 0;
             color: var(--text-muted);
-            opacity: 1;
-            font-weight: 600;
-        }
-
-        .login-body {
-            padding: 30px 38px 36px;
+            font-weight: 500;
+            line-height: 1.45;
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 18px;
         }
 
         .form-label {
             display: block;
-            font-weight: 750;
-            color: var(--text-dark);
-            margin-bottom: 8px;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 7px;
             font-size: 13px;
         }
 
+        .input-icon-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-icon-wrapper .input-icon {
+            position: absolute;
+            left: 15px;
+            color: #94a3b8;
+            font-size: 15px;
+            pointer-events: none;
+            transition: color 0.2s ease;
+            z-index: 2;
+        }
+
         .form-control {
-            height: 44px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 10px 15px;
+            height: 48px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 10px 14px 10px 44px;
             font-size: 14px;
-            color: var(--text-dark);
+            color: #0f172a;
+            background: #f8fafc;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .form-control::placeholder {
+            color: #94a3b8;
+            font-weight: 400;
         }
 
         .form-control:focus {
             border-color: var(--login-accent);
-            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+            background: #ffffff;
+            box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.12);
+        }
+
+        .form-control:focus + .input-icon,
+        .input-icon-wrapper:focus-within .input-icon {
+            color: var(--login-accent);
+        }
+
+        .btn-password-toggle {
+            position: absolute;
+            right: 12px;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            padding: 6px;
+            cursor: pointer;
+            font-size: 15px;
+            transition: color 0.2s ease;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-password-toggle:hover {
+            color: #334155;
         }
 
         .btn-login {
-            background: var(--login-accent);
-            color: white;
+            background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+            color: #ffffff;
             border: none;
-            border-radius: 6px;
-            min-height: 48px;
-            padding: 12px;
-            font-weight: 750;
+            border-radius: 10px;
+            height: 50px;
+            padding: 12px 24px;
+            font-weight: 700;
+            font-size: 15px;
             width: 100%;
-            margin-top: 6px;
+            margin-top: 8px;
+            box-shadow: 0 4px 16px rgba(15, 118, 110, 0.35);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            cursor: pointer;
         }
 
         .btn-login:hover {
-            background: var(--login-accent-hover);
-            color: white;
+            background: linear-gradient(135deg, #115e59 0%, #0f766e 100%);
+            color: #ffffff;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(15, 118, 110, 0.45);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 10px rgba(15, 118, 110, 0.3);
+        }
+
+        .login-footer-note {
+            text-align: center;
+            margin-top: 24px;
+            padding-top: 18px;
+            border-top: 1px solid #edf2f7;
+            font-size: 12px;
+            color: #94a3b8;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
 
         .alert {
-            border-radius: 8px;
+            border-radius: 10px;
             margin-bottom: 20px;
+            font-size: 13.5px;
+            padding: 12px 16px;
             border: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        @media (max-width: 520px) {
-            .login-header {
-                padding: 34px 28px;
+        @media (max-width: 480px) {
+            .login-card {
+                padding: 32px 24px 24px;
+                border-radius: 16px;
             }
 
-            .login-body {
-                padding: 34px 28px;
+            .login-header h1 {
+                font-size: 22px;
             }
 
             body {
-                background-position: center;
                 background-attachment: scroll;
             }
-
         }
     </style>
 </head>
@@ -285,36 +372,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
         <div class="login-body">
             <?php if (!empty($error)): ?>
                 <div class="alert alert-danger" role="alert">
-                    <i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error); ?>
+                    <i class="fas fa-exclamation-circle"></i> <span><?php echo htmlspecialchars($error); ?></span>
                 </div>
             <?php endif; ?>
 
-            <form method="POST">
+            <form method="POST" autocomplete="on">
                 <div class="form-group">
-                    <label class="form-label">Login ID</label>
-                    <input type="text"
-                           name="email"
-                           class="form-control"
-                           value="<?php echo htmlspecialchars($login_id); ?>"
-                           placeholder="Enter your login ID"
-                           required>
+                    <label class="form-label" for="loginEmail">Login ID / Email</label>
+                    <div class="input-icon-wrapper">
+                        <i class="fa-regular fa-user input-icon"></i>
+                        <input type="text"
+                               id="loginEmail"
+                               name="email"
+                               class="form-control"
+                               value="<?php echo htmlspecialchars($login_id); ?>"
+                               placeholder="Enter your login ID"
+                               autocomplete="username"
+                               required>
+                    </div>
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Password</label>
-                    <input type="password"
-                           name="password"
-                           class="form-control"
-                           placeholder="Enter your password"
-                           required>
+                    <label class="form-label" for="loginPassword">Password</label>
+                    <div class="input-icon-wrapper">
+                        <i class="fa-solid fa-lock input-icon"></i>
+                        <input type="password"
+                               id="loginPassword"
+                               name="password"
+                               class="form-control"
+                               placeholder="Enter your password"
+                               autocomplete="current-password"
+                               required>
+                        <button type="button" class="btn-password-toggle" id="togglePasswordBtn" title="Show/Hide Password" aria-label="Show/Hide Password">
+                            <i class="fa-regular fa-eye" id="togglePasswordIcon"></i>
+                        </button>
+                    </div>
                 </div>
 
-                <input type="submit" class="btn btn-login" value="Sign In">
+                <button type="submit" class="btn btn-login">
+                    <span>Sign In</span>
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                </button>
             </form>
 
+            <div class="login-footer-note">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span>Authorized Personnel Access Only</span>
+            </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const toggleBtn = document.getElementById('togglePasswordBtn');
+        const passwordInput = document.getElementById('loginPassword');
+        const toggleIcon = document.getElementById('togglePasswordIcon');
+
+        if (toggleBtn && passwordInput && toggleIcon) {
+            toggleBtn.addEventListener('click', function () {
+                const isPassword = passwordInput.getAttribute('type') === 'password';
+                passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+                toggleIcon.classList.toggle('fa-eye', !isPassword);
+                toggleIcon.classList.toggle('fa-eye-slash', isPassword);
+            });
+        }
+    </script>
 </body>
 </html>
