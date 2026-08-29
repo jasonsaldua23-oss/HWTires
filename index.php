@@ -123,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
         body {
             margin: 0;
             background:
-                linear-gradient(90deg, rgba(244, 246, 248, 0.96) 0%, rgba(244, 246, 248, 0.88) 48%, rgba(244, 246, 248, 0.76) 100%),
+                linear-gradient(135deg, rgba(15, 23, 42, 0.38) 0%, rgba(15, 23, 42, 0.52) 100%),
                 <?php if ($login_background !== ''): ?>
                     url('<?php echo htmlspecialchars($login_background); ?>') center / cover no-repeat fixed,
                 <?php endif; ?>
@@ -142,18 +142,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
             position: fixed;
             inset: 0;
             pointer-events: none;
-            background:
-                linear-gradient(135deg, rgba(15, 118, 110, 0.08), transparent 42%),
-                linear-gradient(315deg, rgba(183, 121, 31, 0.08), transparent 38%);
+            background: radial-gradient(circle at center, transparent 20%, rgba(0, 0, 0, 0.28) 100%);
         }
 
         .login-card {
             position: relative;
             z-index: 1;
-            background: white;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 18px 46px rgba(16, 24, 40, 0.16);
+            background: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35), 0 2px 10px rgba(0, 0, 0, 0.15);
             max-width: 430px;
             width: 100%;
             overflow: hidden;
