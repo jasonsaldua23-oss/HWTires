@@ -386,7 +386,16 @@ if (!function_exists('vehicle_profile_item_line')) {
         $unit_price = (float) ($item['unit_price'] ?? 0);
         $line_total = (float) ($item['subtotal'] ?? 0);
 
+        $meta = app_line_item_meta($item);
+        $inv_id = (int) ($meta['inventory_item_id'] ?? 0);
+        $inv = $inv_id > 0 ? ($inventory_items_by_id[$inv_id] ?? []) : [];
+        $donor_branch = trim((string) ($inv['branch_name'] ?? ''));
+        $source = trim((string) ($item['source'] ?? ''));
+
         $line = $name !== '' ? $name : 'Item';
+        if ($source === 'other_branch' || $donor_branch !== '') {
+            $line .= ' [Transferred: ' . ($donor_branch !== '' ? $donor_branch : 'Other Branch') . ']';
+        }
         $line .= ' (' . $quantity . 'x)';
 
         if ($line_total <= 0 && $unit_price > 0) {
@@ -2075,14 +2084,14 @@ foreach ($record_sections as $record_section) {
                                                         <td><span class="vehicle-workspace-status status-<?php echo esc_attr($status_class); ?>"><?php echo esc_html($payload['status']); ?></span></td>
                                                         <td class="text-end"><?php echo esc_html($payload['amount']); ?></td>
                                                         <td class="text-end">
-                                                            <?php if ($record_url !== ''): ?>
-                                                                <a class="vehicle-workspace-icon-btn" href="<?php echo esc_attr($record_url); ?>" aria-label="Open record">
-                                                                    <i class="fas fa-eye"></i>
-                                                                </a>
-                                                            <?php else: ?>
+                                                            <?php if (in_array($active_tab, ['overview', 'timeline'], true) || $record_url === ''): ?>
                                                                 <button type="button" class="vehicle-workspace-icon-btn" data-vehicle-record-action aria-label="<?php echo esc_attr($inline_action_label); ?>">
                                                                     <i class="fas fa-eye"></i>
                                                                 </button>
+                                                            <?php else: ?>
+                                                                <a class="vehicle-workspace-icon-btn" href="<?php echo esc_attr($record_url); ?>" aria-label="Open record">
+                                                                    <i class="fas fa-eye"></i>
+                                                                </a>
                                                             <?php endif; ?>
                                                         </td>
                                                     </tr>

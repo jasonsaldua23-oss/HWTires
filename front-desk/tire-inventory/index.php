@@ -23,7 +23,7 @@ if (!can_access_inventory($branch_id)) {
 
 if (!function_exists('front_inventory_money')) {
     function front_inventory_money($amount) {
-        return '&#8369;' . number_format((float) $amount, 0);
+        return '₱' . number_format((float) $amount, 0);
     }
 }
 

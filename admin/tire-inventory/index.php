@@ -16,7 +16,7 @@ $user = app_get_session_user();
 
 if (!function_exists('inventory_money')) {
     function inventory_money($amount) {
-        return '&#8369;' . number_format((float) $amount, 0);
+        return '₱' . number_format((float) $amount, 0);
     }
 }
 

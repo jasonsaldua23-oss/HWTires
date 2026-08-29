@@ -389,9 +389,24 @@ if (!function_exists('inventory_transaction_vehicle_label')) {
                                     </div>
                                 </td>
                                 <td>
+                                    <?php
+                                    $ref_type = strtolower((string) ($transaction['reference_type'] ?? ''));
+                                    $is_transfer = $ref_type === 'inter_branch_transfer' || $ref_type === 'transfer' || stripos((string) ($transaction['notes'] ?? ''), 'received from') !== false;
+                                    $transfer_donor = '';
+                                    if (preg_match('/received from\s+([^,;\.]+)/i', (string) ($transaction['notes'] ?? ''), $tm)) {
+                                        $transfer_donor = trim($tm[1]);
+                                    }
+                                    ?>
                                     <span class="inventory-type-pill <?php echo esc_attr(inventory_transaction_type_class($transaction['transaction_type'])); ?>">
                                         <?php echo esc_html(inventory_transaction_type_label($transaction['transaction_type'])); ?>
                                     </span>
+                                    <?php if ($is_transfer): ?>
+                                        <div style="margin-top: 4px;">
+                                            <span class="badge bg-info text-dark" style="font-size: 11px; font-weight: 600;">
+                                                <i class="fas fa-right-left me-1"></i> Transferred<?php echo $transfer_donor !== '' ? ': ' . esc_html($transfer_donor) : ''; ?>
+                                            </span>
+                                        </div>
+                                    <?php endif; ?>
                                 </td>
                                 <td><strong class="inventory-quantity"><?php echo (int) $transaction['quantity']; ?></strong></td>
                                 <td>

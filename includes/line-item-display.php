@@ -147,12 +147,12 @@ if (!function_exists('app_line_item_product_details')) {
             }
         }
 
-        if (!empty($inventory_item['manufacturing_date']) && $inventory_item['manufacturing_date'] !== '0000-00-00') {
-            $details[] = ['label' => 'Mfg Date', 'value' => date('M d, Y', strtotime($inventory_item['manufacturing_date']))];
-        }
-
-        if ($include_source) {
-            $source_label = app_line_item_source_label($item['source'] ?? '');
+        $donor_branch = trim((string) ($inventory_item['branch_name'] ?? ''));
+        $item_source = trim((string) ($item['source'] ?? ''));
+        if ($item_source === 'other_branch' || $donor_branch !== '') {
+            $details[] = ['label' => 'Source', 'value' => $donor_branch !== '' ? 'Transferred from ' . $donor_branch : 'Transferred from Other Branch'];
+        } elseif ($include_source) {
+            $source_label = app_line_item_source_label($item_source);
             if ($source_label !== '') {
                 $details[] = ['label' => 'Source', 'value' => $source_label];
             }
@@ -474,11 +474,24 @@ if (!function_exists('app_inventory_transaction_table_html')) {
             $qty = app_inventory_transaction_quantity_text($row['quantity'] ?? 0);
             $unit_price = format_currency((float) ($row['unit_price'] ?? 0));
             $line_total = format_currency((float) ($row['line_total'] ?? 0));
+            $row_notes = trim((string) ($row['notes'] ?? ''));
+
+            $transfer_donor = '';
+            if (preg_match('/received from\s+([^,;\.]+)/i', $row_notes, $matches)) {
+                $transfer_donor = trim($matches[1]);
+            }
 
             $html .= '<tr>';
             $html .= '<td><strong>' . esc_html($name) . '</strong>';
+            $meta_parts = [];
             if ($category !== '') {
-                $html .= '<div class="record-line-item-meta">' . esc_html(ucfirst($category)) . '</div>';
+                $meta_parts[] = ucfirst($category);
+            }
+            if ($transfer_donor !== '') {
+                $meta_parts[] = '<span class="text-primary font-weight-bold">Transferred from ' . esc_html($transfer_donor) . '</span>';
+            }
+            if (!empty($meta_parts)) {
+                $html .= '<div class="record-line-item-meta">' . implode(' &bull; ', $meta_parts) . '</div>';
             }
             $html .= '</td>';
             $html .= '<td>' . ($details !== '' ? esc_html($details) : '-') . '</td>';
