@@ -25,8 +25,14 @@ if ($action === 'add') {
         }
 
         $customer_id = intval($_POST['customer_id'] ?? 0);
-        $make = trim($_POST['make'] ?? '');
-        $model = trim($_POST['model'] ?? '');
+        $make = trim($_POST['make'] ?? $_POST['vehicle_make'] ?? '');
+        if (strcasecmp($make, 'Other') === 0 && !empty($_POST['make_custom'] ?? $_POST['vehicle_make_custom'] ?? '')) {
+            $make = trim($_POST['make_custom'] ?? $_POST['vehicle_make_custom'] ?? '');
+        }
+        $model = trim($_POST['model'] ?? $_POST['vehicle_model'] ?? '');
+        if (strcasecmp($model, 'Other') === 0 && !empty($_POST['model_custom'] ?? $_POST['vehicle_model_custom'] ?? '')) {
+            $model = trim($_POST['model_custom'] ?? $_POST['vehicle_model_custom'] ?? '');
+        }
         $year = intval($_POST['year'] ?? 0);
         $vin = trim($_POST['vin'] ?? '');
         $plate_number = app_normalize_plate_number($_POST['plate_number'] ?? $_POST['license_plate'] ?? '');

@@ -70,10 +70,15 @@ if ($action === 'add') {
         if (!in_array($customer_type, ['individual', 'corporate'], true)) {
             $customer_type = 'individual';
         }
-        $branch_id = intval($user['branch_id'] ?? 0);
         $vehicle_plate_number = app_normalize_plate_number($_POST['vehicle_plate_number'] ?? $_POST['plate_number'] ?? '');
         $vehicle_make = trim($_POST['vehicle_make'] ?? $_POST['make'] ?? '');
+        if (strcasecmp($vehicle_make, 'Other') === 0 && !empty($_POST['vehicle_make_custom'] ?? $_POST['make_custom'] ?? '')) {
+            $vehicle_make = trim($_POST['vehicle_make_custom'] ?? $_POST['make_custom'] ?? '');
+        }
         $vehicle_model = trim($_POST['vehicle_model'] ?? $_POST['model'] ?? '');
+        if (strcasecmp($vehicle_model, 'Other') === 0 && !empty($_POST['vehicle_model_custom'] ?? $_POST['model_custom'] ?? '')) {
+            $vehicle_model = trim($_POST['vehicle_model_custom'] ?? $_POST['model_custom'] ?? '');
+        }
         $vehicle_year = intval($_POST['vehicle_year'] ?? $_POST['year'] ?? 0);
         $vehicle_last_mileage = intval($_POST['vehicle_last_mileage'] ?? $_POST['last_mileage'] ?? 0);
         $vehicle_color = trim($_POST['vehicle_color'] ?? $_POST['color'] ?? '');
@@ -340,8 +345,14 @@ if ($action === 'add_vehicle') {
 
         // Validate input
         $plate_number = app_normalize_plate_number($_POST['plate_number'] ?? '');
-        $make = trim($_POST['make'] ?? '');
-        $model = trim($_POST['model'] ?? '');
+        $make = trim($_POST['make'] ?? $_POST['vehicle_make'] ?? '');
+        if (strcasecmp($make, 'Other') === 0 && !empty($_POST['make_custom'] ?? $_POST['vehicle_make_custom'] ?? '')) {
+            $make = trim($_POST['make_custom'] ?? $_POST['vehicle_make_custom'] ?? '');
+        }
+        $model = trim($_POST['model'] ?? $_POST['vehicle_model'] ?? '');
+        if (strcasecmp($model, 'Other') === 0 && !empty($_POST['model_custom'] ?? $_POST['vehicle_model_custom'] ?? '')) {
+            $model = trim($_POST['model_custom'] ?? $_POST['vehicle_model_custom'] ?? '');
+        }
         $year = intval($_POST['year'] ?? 0);
         $color = trim($_POST['color'] ?? '');
         $condition = trim($_POST['condition'] ?? 'good');

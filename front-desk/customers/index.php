@@ -727,11 +727,17 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                         <div class="customer-form-grid">
                             <div class="form-group">
                                 <label class="form-label required">Vehicle Make</label>
-                                <input type="text" class="form-control" name="vehicle_make" placeholder="Toyota, Honda, etc." required>
+                                <select class="form-select vehicle-make-select" name="vehicle_make" id="add_cust_vehicle_make" required>
+                                    <option value="" selected disabled>-- Select Car Brand --</option>
+                                </select>
+                                <input type="text" class="form-control vehicle-make-custom mt-2" name="vehicle_make_custom" id="add_cust_vehicle_make_custom" placeholder="Type custom car brand..." style="display: none;">
                             </div>
                             <div class="form-group">
                                 <label class="form-label required">Vehicle Model</label>
-                                <input type="text" class="form-control" name="vehicle_model" placeholder="Vios, Civic, etc." required>
+                                <select class="form-select vehicle-model-select" name="vehicle_model" id="add_cust_vehicle_model" required disabled>
+                                    <option value="" selected disabled>-- Select Brand First --</option>
+                                </select>
+                                <input type="text" class="form-control vehicle-model-custom mt-2" name="vehicle_model_custom" id="add_cust_vehicle_model_custom" placeholder="Type custom model..." style="display: none;">
                             </div>
                             <div class="form-group">
                                 <label class="form-label required">Plate Number</label>
@@ -836,11 +842,17 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                         <div class="customer-form-grid">
                             <div class="form-group">
                                 <label class="form-label required">Vehicle Make</label>
-                                <input type="text" class="form-control" name="make" placeholder="Toyota, Honda, etc." required>
+                                <select class="form-select vehicle-make-select" name="make" id="add_veh_make" required>
+                                    <option value="" selected disabled>-- Select Car Brand --</option>
+                                </select>
+                                <input type="text" class="form-control vehicle-make-custom mt-2" name="make_custom" id="add_veh_make_custom" placeholder="Type custom car brand..." style="display: none;">
                             </div>
                             <div class="form-group">
                                 <label class="form-label required">Vehicle Model</label>
-                                <input type="text" class="form-control" name="model" placeholder="Vios, Civic, etc." required>
+                                <select class="form-select vehicle-model-select" name="model" id="add_veh_model" required disabled>
+                                    <option value="" selected disabled>-- Select Brand First --</option>
+                                </select>
+                                <input type="text" class="form-control vehicle-model-custom mt-2" name="model_custom" id="add_veh_model_custom" placeholder="Type custom model..." style="display: none;">
                             </div>
                             <div class="form-group">
                                 <label class="form-label required">Plate Number</label>
