@@ -110,13 +110,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
     <style>
         :root {
             --primary: <?php echo htmlspecialchars($login_brand['primary_color']); ?>;
-            --login-accent: #0f766e;
-            --login-accent-hover: #115e59;
-            --secondary: #263238;
-            --text-dark: #1e293b;
+            --login-accent: #0f172a;
+            --login-accent-hover: #1e293b;
+            --secondary: #334155;
+            --text-dark: #0f172a;
             --text-muted: #64748b;
             --border: #e2e8f0;
-            --page-bg: #0f172a;
+            --page-bg: #0b1120;
         }
 
         * {
@@ -126,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
         body {
             margin: 0;
             background:
-                linear-gradient(135deg, rgba(15, 23, 42, 0.40) 0%, rgba(15, 23, 42, 0.55) 100%),
+                linear-gradient(135deg, rgba(15, 23, 42, 0.40) 0%, rgba(15, 23, 42, 0.58) 100%),
                 <?php if ($login_background !== ''): ?>
                     url('<?php echo htmlspecialchars($login_background); ?>') center / cover no-repeat fixed,
                 <?php endif; ?>
@@ -151,15 +151,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
         .login-card {
             position: relative;
             z-index: 1;
-            background: rgba(255, 255, 255, 0.96);
+            background: rgba(255, 255, 255, 0.97);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.9);
             border-radius: 20px;
             box-shadow:
                 0 25px 50px -12px rgba(0, 0, 0, 0.45),
                 0 4px 16px rgba(0, 0, 0, 0.12),
-                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+                inset 0 1px 0 rgba(255, 255, 255, 1);
             max-width: 440px;
             width: 100%;
             padding: 40px 36px 32px;
@@ -180,9 +180,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
             justify-content: center;
             margin-bottom: 16px;
             background: #ffffff;
-            border: 1px solid rgba(226, 232, 240, 0.8);
+            border: 1.5px solid #e2e8f0;
             border-radius: 16px;
-            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
             padding: 10px;
         }
 
@@ -256,14 +256,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
         }
 
         .form-control:focus {
-            border-color: var(--login-accent);
+            border-color: #0f172a;
             background: #ffffff;
-            box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.12);
+            box-shadow: 0 0 0 4px rgba(15, 23, 42, 0.08);
         }
 
         .form-control:focus + .input-icon,
         .input-icon-wrapper:focus-within .input-icon {
-            color: var(--login-accent);
+            color: #0f172a;
         }
 
         .btn-password-toggle {
@@ -283,11 +283,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
         }
 
         .btn-password-toggle:hover {
-            color: #334155;
+            color: #0f172a;
         }
 
         .btn-login {
-            background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
             color: #ffffff;
             border: none;
             border-radius: 10px;
@@ -297,7 +297,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
             font-size: 15px;
             width: 100%;
             margin-top: 8px;
-            box-shadow: 0 4px 16px rgba(15, 118, 110, 0.35);
+            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.30);
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -307,15 +307,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
         }
 
         .btn-login:hover {
-            background: linear-gradient(135deg, #115e59 0%, #0f766e 100%);
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
             color: #ffffff;
             transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(15, 118, 110, 0.45);
+            box-shadow: 0 6px 20px rgba(15, 23, 42, 0.40);
         }
 
         .btn-login:active {
             transform: translateY(0);
-            box-shadow: 0 2px 10px rgba(15, 118, 110, 0.3);
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.25);
         }
 
         .login-footer-note {
