@@ -25861,3 +25861,198 @@ button.customer-vehicle-status-pill.customer-status-action {
     overflow-wrap: anywhere !important;
 }
 
+/* Vehicle Workspace Detail Drawer Polish */
+.vehicle-workspace-detail {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr) !important;
+    gap: 24px !important;
+    padding: 24px !important;
+    background: #ffffff !important;
+    border-top: 2px solid #0c7069 !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    border-radius: 0 0 12px 12px !important;
+    box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.02) !important;
+}
+
+.vehicle-workspace-detail-head {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 16px !important;
+    padding-bottom: 16px !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    margin-bottom: 16px !important;
+}
+
+.vehicle-workspace-detail-head span[data-detail-type] {
+    display: inline-block !important;
+    padding: 3px 10px !important;
+    background: #e0f2fe !important;
+    color: #0369a1 !important;
+    font-size: 11px !important;
+    font-weight: 750 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    border-radius: 6px !important;
+    margin-bottom: 6px !important;
+}
+
+.vehicle-workspace-detail-head h3 {
+    margin: 0 0 6px !important;
+    color: #0f172a !important;
+    font-size: 20px !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.02em !important;
+}
+
+.vehicle-workspace-detail-head p {
+    margin: 0 !important;
+    color: #334155 !important;
+    font-size: 14.5px !important;
+    font-weight: 600 !important;
+    line-height: 1.4 !important;
+}
+
+.vehicle-workspace-detail-head > strong {
+    font-size: 22px !important;
+    font-weight: 800 !important;
+    color: #0c7069 !important;
+    background: #f0fdf4 !important;
+    border: 1px solid #bbf7d0 !important;
+    padding: 6px 14px !important;
+    border-radius: 8px !important;
+    white-space: nowrap !important;
+}
+
+.vehicle-workspace-detail-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+    margin: 0 0 16px 0 !important;
+    background: #f8fafc !important;
+    padding: 14px 16px !important;
+    border-radius: 10px !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+.vehicle-workspace-detail-grid dt {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.4px !important;
+    color: #64748b !important;
+    margin-bottom: 3px !important;
+}
+
+.vehicle-workspace-detail-grid dd {
+    margin: 0 !important;
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+    color: #1e293b !important;
+}
+
+.vehicle-workspace-detail-amounts {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+    background: #f0fdfa !important;
+    border: 1px solid #ccfbf1 !important;
+    border-radius: 10px !important;
+    padding: 14px 16px !important;
+    margin: 0 0 16px 0 !important;
+}
+
+.vehicle-workspace-detail-amounts dt {
+    color: #0f766e !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+}
+
+.vehicle-workspace-detail-amounts dd {
+    color: #134e4a !important;
+    font-size: 16px !important;
+    font-weight: 800 !important;
+}
+
+.vehicle-workspace-notes {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 10px !important;
+    padding: 14px 16px !important;
+}
+
+.vehicle-workspace-notes span {
+    display: block !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.4px !important;
+    color: #64748b !important;
+    margin-bottom: 6px !important;
+}
+
+.vehicle-workspace-notes p {
+    margin: 0 !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    line-height: 1.5 !important;
+    color: #334155 !important;
+}
+
+.vehicle-workspace-detail-box {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 10px !important;
+    padding: 16px !important;
+    margin-bottom: 12px !important;
+}
+
+.vehicle-workspace-detail-box h3 {
+    font-size: 12.5px !important;
+    font-weight: 750 !important;
+    color: #334155 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.4px !important;
+    margin: 0 0 12px 0 !important;
+}
+
+.vehicle-workspace-items li.vehicle-workspace-item-line {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 10px 14px !important;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    margin-bottom: 8px !important;
+}
+
+.vehicle-workspace-linked-records li {
+    display: inline-block !important;
+    margin-right: 6px !important;
+    margin-bottom: 6px !important;
+}
+
+.vehicle-workspace-linked-records a {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 6px 12px !important;
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    color: #0369a1 !important;
+    font-size: 12.5px !important;
+    font-weight: 700 !important;
+    text-decoration: none !important;
+    transition: all 0.15s ease !important;
+}
+
+.vehicle-workspace-linked-records a:hover {
+    background: #f0f9ff !important;
+    border-color: #0284c7 !important;
+    color: #0284c7 !important;
+}
+
+

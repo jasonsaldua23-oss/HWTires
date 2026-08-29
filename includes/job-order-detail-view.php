@@ -358,10 +358,13 @@ $notes = trim((string) ($job_order['notes'] ?? ''));
                             $quantity = max(1, (int) ($item['quantity'] ?? 1));
                             $unit_price = (float) ($item['unit_price'] ?? 0);
                             $line_total = $quantity * $unit_price;
+                            $inv_item_meta = app_line_item_meta($item);
+                            $inv_item_record = !empty($inv_item_meta['inventory_item_id']) ? ($inventory_items_by_id[$inv_item_meta['inventory_item_id']] ?? []) : [];
+                            $category_badge_text = app_line_item_type_label($item, $inv_item_record, $item['category'] ?? 'General');
                             ?>
                             <tr>
                                 <td><?php echo app_line_item_description_html($item, $inventory_items_by_id, ['include_type' => true]); ?></td>
-                                <td><span class="job-detail-chip"><?php echo esc_html($item['category'] ?? 'General'); ?></span></td>
+                                <td><span class="job-detail-chip"><?php echo esc_html($category_badge_text); ?></span></td>
                                 <td class="text-end"><?php echo $quantity; ?></td>
                                 <td class="text-end"><?php echo job_detail_money($unit_price); ?></td>
                                 <td class="text-end"><strong><?php echo job_detail_money($line_total); ?></strong></td>

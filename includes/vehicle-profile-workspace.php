@@ -475,16 +475,12 @@ if (!function_exists('vehicle_profile_item_line_html')) {
 
 if (!function_exists('vehicle_profile_compact_list')) {
     function vehicle_profile_compact_list(array $lines, $empty = '-') {
-        $lines = array_values(array_filter(array_map('trim', $lines)));
+        $lines = array_values(array_unique(array_filter(array_map('trim', $lines))));
         if (empty($lines)) {
             return $empty;
         }
 
-        if (count($lines) <= 2) {
-            return implode('; ', $lines);
-        }
-
-        return $lines[0] . '; ' . $lines[1] . ' +' . (count($lines) - 2) . ' more';
+        return implode(', ', $lines);
     }
 }
 
@@ -783,12 +779,20 @@ if (!function_exists('vehicle_profile_group_records')) {
             }
 
             foreach (vehicle_profile_split_lines($record['service_lines'] ?? '') as $service_line) {
-                vehicle_profile_unique_push($events[$key]['services_done'], $service_line);
+                $service_line = trim($service_line);
+                if ($service_line !== '' && !in_array($service_line, ['Service operation', 'Job order', 'Service history', 'Service event', 'Service Visit'], true)) {
+                    vehicle_profile_unique_push($events[$key]['services_done'], $service_line);
+                }
             }
 
             $summary = trim((string) ($record['summary'] ?? ''));
-            if ($summary !== '' && !in_array($summary, ['Service operation', 'Job order', 'Service history'], true)) {
-                vehicle_profile_unique_push($events[$key]['services_done'], $summary);
+            if ($summary !== '' && !in_array($summary, ['Service operation', 'Job order', 'Service history', 'Service event', 'Service Visit'], true)) {
+                $sub_services = array_map('trim', explode(',', $summary));
+                foreach ($sub_services as $ss) {
+                    if ($ss !== '' && !in_array($ss, ['Service operation', 'Job order', 'Service history', 'Service event', 'Service Visit'], true)) {
+                        vehicle_profile_unique_push($events[$key]['services_done'], $ss);
+                    }
+                }
             }
 
             foreach (vehicle_profile_split_lines($record['item_lines'] ?? '') as $item_line) {
@@ -796,8 +800,13 @@ if (!function_exists('vehicle_profile_group_records')) {
             }
 
             $notes = app_format_record_notes($record['notes'] ?? '');
-            vehicle_profile_unique_push($events[$key]['notes_collection'], $notes);
-            vehicle_profile_unique_push($events[$key]['meta_collection'], $record['meta_text'] ?? '');
+            if ($notes !== '' && $notes !== '-') {
+                vehicle_profile_unique_push($events[$key]['notes_collection'], $notes);
+            }
+            $meta_raw = trim((string) ($record['meta_text'] ?? ''));
+            if ($meta_raw !== '' && $meta_raw !== '-') {
+                vehicle_profile_unique_push($events[$key]['meta_collection'], $meta_raw);
+            }
 
             $record_amount = (float) ($record['amount'] ?? 0);
             if ($record_type === 'item') {
@@ -832,10 +841,42 @@ if (!function_exists('vehicle_profile_group_records')) {
         }
 
         foreach ($events as &$event) {
-            $event['summary'] = vehicle_profile_compact_list($event['services_done'], trim((string) ($event['summary'] ?? 'Service event')));
+            if (!empty($event['services_done'])) {
+                $event['summary'] = implode(', ', array_unique($event['services_done']));
+            } else {
+                $event['summary'] = trim((string) ($event['summary'] ?? 'Service event'));
+            }
+
             $event['item_lines'] = implode(';;', $event['items_used']);
-            $event['meta_text'] = vehicle_profile_compact_list($event['meta_collection'], '-');
-            $event['notes'] = vehicle_profile_compact_list($event['notes_collection'], '');
+
+            $clean_meta = [];
+            foreach ($event['meta_collection'] as $meta_line) {
+                $meta_line = trim((string) $meta_line);
+                if ($meta_line === '' || $meta_line === '-') continue;
+                if (preg_match('/\b\d+[\d,]*\s*km\b/i', $meta_line, $m)) {
+                    vehicle_profile_unique_push($clean_meta, $m[0]);
+                } elseif (!preg_match('/stock\s*out/i', $meta_line) && !preg_match('/HW-ACC/i', $meta_line) && !preg_match('/B\d-ACC/i', $meta_line)) {
+                    vehicle_profile_unique_push($clean_meta, $meta_line);
+                }
+            }
+            $event['meta_text'] = !empty($clean_meta) ? implode(' | ', $clean_meta) : '-';
+
+            $clean_notes = [];
+            foreach ($event['notes_collection'] as $note_line) {
+                $note_line = trim((string) $note_line);
+                if ($note_line === '' || $note_line === '-') continue;
+                $segments = preg_split('/[;\n]+/', $note_line);
+                foreach ($segments as $seg) {
+                    $seg = trim($seg);
+                    if ($seg === '' || $seg === '-') continue;
+                    if (preg_match('/^Stock used for job order task/i', $seg)) continue;
+                    if (!in_array($seg, $clean_notes, true)) {
+                        $clean_notes[] = $seg;
+                    }
+                }
+            }
+            $event['notes'] = !empty($clean_notes) ? implode(' • ', $clean_notes) : '';
+
             $event['linked_records'] = array_values($event['linked_records']);
             $event['record_count'] = count($event['linked_records']);
             $event['source_types'] = array_keys($event['source_type_keys']);
@@ -959,7 +1000,7 @@ if (!function_exists('vehicle_profile_apply_inventory_item_links')) {
                 }
 
                 foreach ($item_lines as $item_line) {
-                    vehicle_profile_unique_push($items_by_job[$linked_job_id], $item_line);
+                    vehicle_profile_unique_push_item($items_by_job[$linked_job_id], $item_line);
                 }
 
                 $item_amounts_by_job[$linked_job_id][$item_amount_key] = $item_amount;
@@ -974,7 +1015,7 @@ if (!function_exists('vehicle_profile_apply_inventory_item_links')) {
                 }
 
                 foreach ($item_lines as $item_line) {
-                    vehicle_profile_unique_push($items_by_quotation[$quotation_id], $item_line);
+                    vehicle_profile_unique_push_item($items_by_quotation[$quotation_id], $item_line);
                 }
 
                 $item_amounts_by_quotation[$quotation_id][$item_amount_key] = $item_amount;
@@ -996,7 +1037,7 @@ if (!function_exists('vehicle_profile_apply_inventory_item_links')) {
 
             if ($job_order_id > 0 && isset($items_by_job[$job_order_id])) {
                 foreach ($items_by_job[$job_order_id] as $item_line) {
-                    vehicle_profile_unique_push($linked_items, $item_line);
+                    vehicle_profile_unique_push_item($linked_items, $item_line);
                 }
             }
             if ($job_order_id > 0 && isset($item_amounts_by_job[$job_order_id])) {
@@ -1007,7 +1048,7 @@ if (!function_exists('vehicle_profile_apply_inventory_item_links')) {
 
             if ($quotation_id > 0 && isset($items_by_quotation[$quotation_id])) {
                 foreach ($items_by_quotation[$quotation_id] as $item_line) {
-                    vehicle_profile_unique_push($linked_items, $item_line);
+                    vehicle_profile_unique_push_item($linked_items, $item_line);
                 }
             }
             if ($quotation_id > 0 && isset($item_amounts_by_quotation[$quotation_id])) {
@@ -1022,7 +1063,7 @@ if (!function_exists('vehicle_profile_apply_inventory_item_links')) {
 
             $current_items = vehicle_profile_split_lines($record['item_lines'] ?? '');
             foreach ($linked_items as $item_line) {
-                vehicle_profile_unique_push($current_items, $item_line);
+                vehicle_profile_unique_push_item($current_items, $item_line);
             }
 
             $record['item_lines'] = implode(';;', $current_items);

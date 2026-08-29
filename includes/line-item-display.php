@@ -33,18 +33,25 @@ if (!function_exists('app_line_item_is_service')) {
 }
 
 if (!function_exists('app_line_item_type_label')) {
-    function app_line_item_type_label($item, $fallback = 'Service') {
+    function app_line_item_type_label($item, $inventory_item_or_fallback = 'Service') {
+        $inventory_item = is_array($inventory_item_or_fallback) ? $inventory_item_or_fallback : [];
+        $fallback = is_string($inventory_item_or_fallback) ? $inventory_item_or_fallback : 'Service';
+
+        $inv_cat = strtolower(trim((string) ($inventory_item['category'] ?? '')));
         $item_type = strtolower(trim((string) ($item['item_type'] ?? '')));
         $category = strtolower(trim((string) ($item['category'] ?? '')));
 
         if ($item_type === 'service') {
             return 'Service';
         }
-        if ($category === 'accessory' || $item_type === 'accessory') {
+        if ($inv_cat === 'accessory' || $category === 'accessory' || $item_type === 'accessory') {
             return 'Accessory';
         }
-        if ($category === 'tire' || $category === 'tires' || $item_type === 'tire' || $item_type === 'tires') {
+        if ($inv_cat === 'tire' || $inv_cat === 'tires' || $category === 'tire' || $category === 'tires' || $item_type === 'tire' || $item_type === 'tires') {
             return 'Tire';
+        }
+        if ($inv_cat === 'part' || $inv_cat === 'parts' || $category === 'part' || $category === 'parts' || $item_type === 'part' || $item_type === 'parts') {
+            return 'Part';
         }
         if ($item_type !== '') {
             return ucwords(str_replace(['-', '_'], ' ', $item_type));
@@ -122,7 +129,7 @@ if (!function_exists('app_line_item_product_details')) {
         $details = [];
 
         if ($include_type) {
-            $details[] = ['label' => 'Type', 'value' => app_line_item_type_label($item)];
+            $details[] = ['label' => 'Type', 'value' => app_line_item_type_label($item, $inventory_item)];
         }
 
         $fields = [
