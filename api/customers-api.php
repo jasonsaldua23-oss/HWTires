@@ -66,7 +66,10 @@ if ($action === 'add') {
         $phone_mobile = customers_normalize_phone($_POST['phone_mobile'] ?? '');
         $contact = customers_normalize_phone($_POST['contact'] ?? '');
         $address = trim($_POST['address'] ?? '');
-        $customer_type = $_POST['customer_type'] ?? 'individual';
+        $customer_type = strtolower(trim((string) ($_POST['customer_type'] ?? 'individual')));
+        if (!in_array($customer_type, ['individual', 'corporate'], true)) {
+            $customer_type = 'individual';
+        }
         $branch_id = intval($user['branch_id'] ?? 0);
         $vehicle_plate_number = app_normalize_plate_number($_POST['vehicle_plate_number'] ?? $_POST['plate_number'] ?? '');
         $vehicle_make = trim($_POST['vehicle_make'] ?? $_POST['make'] ?? '');
@@ -264,7 +267,10 @@ if ($action === 'update') {
         $phone_mobile = customers_normalize_phone($_POST['phone_mobile'] ?? $old_customer['phone_mobile']);
         $contact = customers_normalize_phone($_POST['contact'] ?? $old_customer['contact']);
         $address = trim($_POST['address'] ?? $old_customer['address']);
-        $customer_type = $_POST['customer_type'] ?? $old_customer['customer_type'];
+        $customer_type = strtolower(trim((string) ($_POST['customer_type'] ?? ($old_customer['customer_type'] ?? 'individual'))));
+        if (!in_array($customer_type, ['individual', 'corporate'], true)) {
+            $customer_type = 'individual';
+        }
         if ($contact === '') {
             $contact = $phone_mobile;
         }
