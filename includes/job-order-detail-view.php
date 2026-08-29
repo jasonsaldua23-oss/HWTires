@@ -253,10 +253,6 @@ $notes = trim((string) ($job_order['notes'] ?? ''));
                     <span>Plate Number</span>
                     <strong><?php echo esc_html($job_order['plate_number'] ?? '-'); ?></strong>
                 </div>
-                <div>
-                    <span>VIN</span>
-                    <strong><?php echo esc_html($job_order['vin'] ?? '-'); ?></strong>
-                </div>
             </div>
         </article>
 

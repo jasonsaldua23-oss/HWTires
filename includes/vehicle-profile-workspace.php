@@ -1840,9 +1840,11 @@ foreach ($record_sections as $record_section) {
             <section class="vehicle-workspace-panel">
                 <div class="vehicle-workspace-panel-head">
                     <h2><i class="fas fa-info-circle"></i> Vehicle Information</h2>
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editVehicleModal" style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; font-size: 12px; font-weight: 600; border-radius: 6px;">
-                        <i class="fas fa-pen-to-square"></i> Edit
-                    </button>
+                    <?php if ($role === 'front-desk'): ?>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editVehicleModal" style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; font-size: 12px; font-weight: 600; border-radius: 6px;">
+                            <i class="fas fa-pen-to-square"></i> Edit
+                        </button>
+                    <?php endif; ?>
                 </div>
                 <div class="vehicle-workspace-facts">
                     <div>
@@ -1869,10 +1871,6 @@ foreach ($record_sections as $record_section) {
                             echo $current_mileage_val > 0 ? number_format($current_mileage_val) . ' km' : '-';
                             ?>
                         </strong>
-                    </div>
-                    <div>
-                        <span>VIN</span>
-                        <strong><?php echo esc_html($vehicle['vin'] ?? '-'); ?></strong>
                     </div>
                     <div>
                         <span>Color</span>
@@ -2177,6 +2175,7 @@ foreach ($record_sections as $record_section) {
     </div>
 </div>
 
+<?php if ($role === 'front-desk'): ?>
 <!-- Edit Vehicle Modal -->
 <div class="modal fade" id="editVehicleModal" tabindex="-1" aria-labelledby="editVehicleModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -2232,12 +2231,7 @@ foreach ($record_sections as $record_section) {
                             <input type="text" name="color" class="form-control" value="<?php echo esc_attr($vehicle['color'] ?? ''); ?>" placeholder="e.g. White, Silver, Black">
                         </div>
 
-                        <div class="col-12 col-md-6">
-                            <label class="form-label font-weight-bold">VIN (Chassis Number)</label>
-                            <input type="text" name="vin" class="form-control" value="<?php echo esc_attr($vehicle['vin'] ?? ''); ?>" placeholder="Vehicle Identification Number">
-                        </div>
-
-                        <div class="col-12 col-md-6">
+                        <div class="col-12">
                             <label class="form-label font-weight-bold">Vehicle Condition</label>
                             <select name="condition" class="form-select">
                                 <?php foreach (['excellent' => 'Excellent', 'good' => 'Good', 'fair' => 'Fair', 'poor' => 'Poor'] as $cond_key => $cond_label): ?>
@@ -2256,6 +2250,7 @@ foreach ($record_sections as $record_section) {
         </div>
     </div>
 </div>
+<?php endif; ?>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {

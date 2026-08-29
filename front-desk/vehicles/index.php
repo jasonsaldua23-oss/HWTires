@@ -502,10 +502,6 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                                                 <input type="text" class="form-control" name="color" value="<?php echo esc_attr($vehicle['color'] ?? ''); ?>">
                                             </div>
                                             <div class="form-group">
-                                                <label class="form-label">VIN</label>
-                                                <input type="text" class="form-control" name="vin" value="<?php echo esc_attr($vehicle['vin'] ?? ''); ?>">
-                                            </div>
-                                            <div class="form-group">
                                                 <label class="form-label">Condition</label>
                                                 <select class="form-select" name="condition">
                                                     <?php foreach (['excellent' => 'Excellent', 'good' => 'Good', 'fair' => 'Fair', 'poor' => 'Poor'] as $value => $label): ?>
@@ -681,10 +677,6 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                                 <div class="form-group">
                                     <label class="form-label">Color</label>
                                     <input type="text" class="form-control" name="color" placeholder="White, Black, etc.">
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">VIN</label>
-                                    <input type="text" class="form-control" name="vin" placeholder="Optional">
                                 </div>
                                 <div class="form-group">
                                     <label class="form-label">Condition</label>

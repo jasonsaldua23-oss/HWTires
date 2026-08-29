@@ -670,10 +670,6 @@ $report_generated = date('M d, Y H:i');
                     <strong><?php echo esc_html($vehicle['plate_number'] ?? '-'); ?></strong>
                 </div>
                 <div>
-                    <span>VIN</span>
-                    <strong><?php echo esc_html($vehicle['vin'] ?? '-'); ?></strong>
-                </div>
-                <div>
                     <span>Year</span>
                     <strong><?php echo esc_html($vehicle['year'] ?? '-'); ?></strong>
                 </div>

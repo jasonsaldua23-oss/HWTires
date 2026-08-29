@@ -145,8 +145,7 @@ if ($flash_message && !$is_print):
                     <p class="mb-1"><strong><?php echo esc_html($quotation['make'] . ' ' . $quotation['model']); ?></strong></p>
                     <p class="text-muted mb-0 service-operation-detail-lines">
                         Year: <?php echo esc_html($quotation['year'] ?? 'N/A'); ?><br>
-                        License: <?php echo esc_html($quotation['plate_number'] ?? 'N/A'); ?><br>
-                        VIN: <?php echo esc_html($quotation['vin'] ?? 'N/A'); ?>
+                        License: <?php echo esc_html($quotation['plate_number'] ?? 'N/A'); ?>
                     </p>
                 <?php else: ?>
                     <p class="text-muted">No vehicle specified</p>

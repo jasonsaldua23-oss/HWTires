@@ -1664,10 +1664,6 @@ if (!function_exists('cv_records_render_history_modal')) {
                                                 <strong><?php echo esc_html(trim(($vehicle['year'] ?? '-') . ' / ' . (($vehicle['color'] ?? '') ?: '-'))); ?></strong>
                                             </div>
                                             <div>
-                                                <span>VIN</span>
-                                                <strong><?php echo esc_html(($vehicle['vin'] ?? '') ?: '-'); ?></strong>
-                                            </div>
-                                            <div>
                                                 <span>Last Mileage</span>
                                                 <strong><?php echo !empty($vehicle['last_mileage']) ? number_format((float) $vehicle['last_mileage']) . ' km' : '-'; ?></strong>
                                             </div>
