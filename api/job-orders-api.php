@@ -79,6 +79,14 @@ if ($action === 'create') {
                 throw new Exception('Only approved quotations can be converted to job orders');
             }
 
+            // Check if a job order has already been created for this quotation
+            $existing_job_stmt = $pdo->prepare("SELECT id, job_number FROM job_orders WHERE quotation_id = ? AND status <> 'cancelled' LIMIT 1");
+            $existing_job_stmt->execute([$quotation_id]);
+            $existing_job = $existing_job_stmt->fetch();
+            if ($existing_job) {
+                throw new Exception('A job order (' . ($existing_job['job_number'] ?? '#' . $existing_job['id']) . ') has already been created for this service operation.');
+            }
+
             // Check authorization (admin or branch manager)
             if (!has_branch_access($quotation['branch_id'])) {
                 throw new Exception('Unauthorized access to this quotation');

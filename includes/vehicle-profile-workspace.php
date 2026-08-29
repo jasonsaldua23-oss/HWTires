@@ -582,11 +582,15 @@ if (!function_exists('vehicle_profile_inventory_total_for_vehicle')) {
         }
 
         $price_expr = app_column_exists('inventory_items', 'unit_price') ? 'COALESCE(i.unit_price, 0)' : '0';
+        $ref_filter = app_column_exists('inventory_transactions', 'reference_type')
+            ? "AND (t.reference_type IS NULL OR LOWER(REPLACE(t.reference_type, ' ', '_')) NOT IN ('inter_branch_transfer', 'transfer'))"
+            : '';
         $stmt = $pdo->prepare("
             SELECT COALESCE(SUM(ABS(t.quantity) * $price_expr), 0)
             FROM inventory_transactions t
             INNER JOIN inventory_items i ON i.id = t.item_id
             WHERE LOWER(REPLACE(t.transaction_type, ' ', '_')) = 'stock_out'
+              $ref_filter
               AND (" . implode(' OR ', $conditions) . ")
         ");
         $stmt->execute($params);
@@ -1361,7 +1365,7 @@ try {
         }
 
         if (!empty($inventory_link_conditions)) {
-            $inventory_link_sql = '(' . implode(' OR ', $inventory_link_conditions) . ") AND LOWER(REPLACE(t.transaction_type, ' ', '_')) = 'stock_out'";
+            $inventory_link_sql = '(' . implode(' OR ', $inventory_link_conditions) . ") AND LOWER(REPLACE(t.transaction_type, ' ', '_')) = 'stock_out' AND (t.reference_type IS NULL OR LOWER(REPLACE(t.reference_type, ' ', '_')) NOT IN ('inter_branch_transfer', 'transfer'))";
 
         $sources[] = "
             SELECT 'item' AS record_type,

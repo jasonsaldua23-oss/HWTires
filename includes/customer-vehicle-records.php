@@ -1358,43 +1358,6 @@ if (!function_exists('cv_records_render_history_modal')) {
                                     </span>
                                 <?php endif; ?>
                             </div>
-
-                            <?php if ($allow_add_vehicle || $show_delete_vehicle_action): ?>
-                                <div class="customer-history-vehicle-actions">
-                                    <?php if ($allow_add_vehicle): ?>
-                                        <button type="button"
-                                                class="customer-add-vehicle-btn"
-                                                title="Add vehicle"
-                                                aria-label="Add vehicle"
-                                                data-customer-id="<?php echo $customer_id; ?>"
-                                                data-customer-name="<?php echo esc_attr($customer['name'] ?? ''); ?>">
-                                            <i class="fas fa-plus"></i>
-                                            <span>Add Vehicle</span>
-                                        </button>
-                                    <?php endif; ?>
-                                    <?php if ($show_delete_vehicle_action): ?>
-                                        <form method="POST"
-                                              action="<?php echo esc_attr($delete_vehicle_action); ?>"
-                                              class="customer-delete-vehicle-form"
-                                              data-history-delete-vehicle-form
-                                              data-branch-id="<?php echo $delete_vehicle_branch_id; ?>"
-                                              data-requires-branch-match="<?php echo $delete_vehicle_requires_branch_match ? '1' : '0'; ?>"
-                                              onsubmit="return confirm('Archive this vehicle record? The record will be hidden but kept in the database.');"
-                                              hidden>
-                                            <input type="hidden" name="action" value="archive">
-                                            <input type="hidden" name="csrf_token" value="<?php echo esc_attr($delete_vehicle_csrf); ?>">
-                                            <?php if ($delete_vehicle_redirect !== ''): ?>
-                                                <input type="hidden" name="redirect" value="<?php echo esc_attr($delete_vehicle_redirect); ?>">
-                                            <?php endif; ?>
-                                            <input type="hidden" name="id" value="" data-history-delete-vehicle-id>
-                                            <button type="submit" class="customer-delete-vehicle-btn" title="Archive vehicle" aria-label="Archive vehicle">
-                                                <i class="fas fa-box-archive"></i>
-                                                <span>Archive Vehicle</span>
-                                            </button>
-                                        </form>
-                                    <?php endif; ?>
-                                </div>
-                            <?php endif; ?>
                         </div>
 
                         <!-- Hidden select for data binding and JS compatibility -->

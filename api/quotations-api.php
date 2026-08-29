@@ -481,7 +481,10 @@ if ($action === 'create') {
             $allowed_sources = ['own_inventory', 'other_branch', 'external', 'customer_supplied'];
             foreach ($_POST['items'] as $item) {
                 if (empty($item['name'])) continue;
-                $item_type = in_array($item['type'] ?? '', ['service', 'part', 'tire'], true) ? $item['type'] : 'part';
+                $raw_cat = strtolower(trim((string) ($item['category'] ?? '')));
+                $item_type = in_array($item['type'] ?? '', ['service', 'part', 'tire', 'accessory'], true)
+                    ? $item['type']
+                    : ($raw_cat === 'accessory' ? 'accessory' : ($raw_cat === 'tire' ? 'tire' : 'part'));
                 $source = in_array($item['source'] ?? '', $allowed_sources, true) ? $item['source'] : 'own_inventory';
 
                 $item_stmt->execute([

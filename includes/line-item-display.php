@@ -34,12 +34,25 @@ if (!function_exists('app_line_item_is_service')) {
 
 if (!function_exists('app_line_item_type_label')) {
     function app_line_item_type_label($item, $fallback = 'Service') {
-        $item_type = trim((string) ($item['item_type'] ?? ''));
-        if ($item_type === '') {
-            return $fallback;
-        }
+        $item_type = strtolower(trim((string) ($item['item_type'] ?? '')));
+        $category = strtolower(trim((string) ($item['category'] ?? '')));
 
-        return ucwords(str_replace(['-', '_'], ' ', $item_type));
+        if ($item_type === 'service') {
+            return 'Service';
+        }
+        if ($category === 'accessory' || $item_type === 'accessory') {
+            return 'Accessory';
+        }
+        if ($category === 'tire' || $category === 'tires' || $item_type === 'tire' || $item_type === 'tires') {
+            return 'Tire';
+        }
+        if ($item_type !== '') {
+            return ucwords(str_replace(['-', '_'], ' ', $item_type));
+        }
+        if ($category !== '') {
+            return ucwords(str_replace(['-', '_'], ' ', $category));
+        }
+        return $fallback;
     }
 }
 

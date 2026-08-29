@@ -695,7 +695,7 @@ if ($view_filter === 'last_month_sales') {
 
     $top_item_stmt = $pdo->prepare("
         SELECT
-            i.item_name,
+            MAX(i.item_name) AS item_name,
             COALESCE(SUM(t.quantity), 0) AS total_qty,
             COALESCE(SUM(t.quantity * i.unit_price), 0) AS total_amount
         FROM inventory_transactions t
@@ -758,7 +758,7 @@ if ($view_filter === 'last_month_sales') {
 
     $top_item_stmt = $pdo->prepare("
         SELECT
-            i.item_name,
+            MAX(i.item_name) AS item_name,
             COALESCE(SUM(t.quantity), 0) AS total_qty,
             COALESCE(SUM(t.quantity * i.unit_price), 0) AS total_amount
         FROM inventory_transactions t
@@ -925,70 +925,52 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
     </section>
 
     <section class="inventory-filter-card front-inventory-filter-card">
-        <div class="inventory-filter-group">
-            <h2>Filter by Category</h2>
-            <form class="inventory-select-filter" method="get" action="./#inventory-records">
-                <?php if ($view_filter !== 'all'): ?>
-                    <input type="hidden" name="view" value="<?php echo esc_attr($view_filter); ?>">
-                <?php endif; ?>
-                <?php if ($search_filter !== ''): ?>
-                    <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
-                <?php endif; ?>
-                <input type="hidden" name="per_page" value="<?php echo (int) $per_page; ?>">
-                <select name="category" aria-label="Filter inventory category" onchange="this.form.submit()">
+        <form class="inventory-unified-filter-form" method="get" action="./#inventory-records" style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; width: 100%;">
+            <input type="hidden" name="per_page" value="<?php echo (int) $per_page; ?>">
+            <div class="inventory-filter-group" style="flex: 1; min-width: 180px;">
+                <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Filter by Category</h2>
+                <select name="category" aria-label="Filter inventory category" class="form-select" style="height: 42px; border-radius: 8px; border-color: #cbd5e1; font-weight: 500;">
                 <?php foreach (['all' => 'All Items', 'tire' => 'Tires', 'accessory' => 'Accessories', 'part' => 'Parts'] as $category_value => $category_label): ?>
                     <option value="<?php echo esc_attr($category_value); ?>" <?php echo $category_filter === $category_value ? 'selected' : ''; ?>>
                         <?php echo esc_html($category_label); ?>
                     </option>
                 <?php endforeach; ?>
                 </select>
-            </form>
-        </div>
-        <div class="inventory-filter-group inventory-view-group">
-            <h2>Record View</h2>
-            <form class="inventory-select-filter" method="get" action="./#inventory-records">
-                <?php if ($category_filter !== 'all'): ?>
-                    <input type="hidden" name="category" value="<?php echo esc_attr($category_filter); ?>">
-                <?php endif; ?>
-                <?php if ($search_filter !== ''): ?>
-                    <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
-                <?php endif; ?>
-                <input type="hidden" name="per_page" value="<?php echo (int) $per_page; ?>">
-                <select name="view" aria-label="Select inventory record view" onchange="this.form.submit()">
+            </div>
+            <div class="inventory-filter-group inventory-view-group" style="flex: 1; min-width: 180px;">
+                <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Record View</h2>
+                <select name="view" aria-label="Select inventory record view" class="form-select" style="height: 42px; border-radius: 8px; border-color: #cbd5e1; font-weight: 500;">
                 <?php foreach ($inventory_view_options as $view_value => $view_option): ?>
                     <option value="<?php echo esc_attr($view_value); ?>" <?php echo $view_filter === $view_value ? 'selected' : ''; ?>>
                         <?php echo esc_html($view_option['label']); ?>
                     </option>
                 <?php endforeach; ?>
                 </select>
-            </form>
-        </div>
-        <div class="inventory-filter-group inventory-search-group">
-            <h2>Search Inventory</h2>
-            <form class="inventory-search-form" method="get" action="./#inventory-records">
-                <?php if ($view_filter !== 'all'): ?>
-                    <input type="hidden" name="view" value="<?php echo esc_attr($view_filter); ?>">
-                <?php endif; ?>
-                <?php if ($category_filter !== 'all'): ?>
-                    <input type="hidden" name="category" value="<?php echo esc_attr($category_filter); ?>">
-                <?php endif; ?>
-                <input type="hidden" name="per_page" value="<?php echo (int) $per_page; ?>">
-                <label class="inventory-search-field">
+            </div>
+            <div class="inventory-filter-group inventory-search-group" style="flex: 2; min-width: 260px;">
+                <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Search Inventory</h2>
+                <label class="inventory-search-field" style="margin: 0; width: 100%;">
                     <i class="fas fa-search"></i>
                     <input type="search"
                            name="search"
                            value="<?php echo esc_attr($search_filter); ?>"
-                           placeholder="Search item, customer, vehicle, size, SKU...">
+                           placeholder="Search item, customer, vehicle, size, SKU..."
+                           style="height: 42px; border-radius: 8px; border-color: #cbd5e1;">
                 </label>
-                <button type="submit" class="inventory-search-btn">Search</button>
-                <?php if ($search_filter !== ''): ?>
-                    <a class="inventory-search-clear"
-                       href="<?php echo esc_attr(front_inventory_filter_url($category_filter, '', $per_page, null, $view_filter)); ?>#inventory-records">
-                        Clear
+            </div>
+            <div class="inventory-filter-actions-group" style="display: flex; gap: 8px; align-items: center;">
+                <button type="submit" class="btn btn-primary" style="height: 42px; padding: 0 20px; font-weight: 600; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-filter"></i> Apply
+                </button>
+                <?php if ($category_filter !== 'all' || $view_filter !== 'all' || $search_filter !== ''): ?>
+                    <a class="btn btn-outline-secondary"
+                       href="<?php echo esc_attr(front_inventory_filter_url('all', '', $per_page, null, 'all')); ?>#inventory-records"
+                       style="height: 42px; padding: 0 16px; font-weight: 600; border-radius: 8px; display: inline-flex; align-items: center;">
+                        Reset
                     </a>
                 <?php endif; ?>
-            </form>
-        </div>
+            </div>
+        </form>
     </section>
 
     <details class="inventory-support-details inventory-service-request-panel" id="requested-items">

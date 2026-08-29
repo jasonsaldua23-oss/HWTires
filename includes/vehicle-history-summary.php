@@ -142,14 +142,7 @@ if (!function_exists('vehicle_history_summary_item_line')) {
     function vehicle_history_summary_item_line(array $item, array $inventory_items_by_id) {
         $name = trim((string) ($item['item_name'] ?? 'Item'));
         $quantity = max(1, (int) ($item['quantity'] ?? 1));
-        $details = app_line_item_detail_text($item, $inventory_items_by_id, ['include_type' => false]);
-        $line = $name !== '' ? $name : 'Item';
-
-        if ($details !== '') {
-            $line .= ' - ' . $details;
-        }
-
-        return $line . ' (' . $quantity . 'x)';
+        return ($name !== '' ? $name : 'Item') . ' (' . $quantity . 'x)';
     }
 }
 
@@ -175,13 +168,15 @@ if (!function_exists('vehicle_history_summary_item_summaries')) {
                     continue;
                 }
 
-                $line = vehicle_history_summary_item_line($item, $inventory_items_by_id);
+                $quantity = max(1, (int) ($item['quantity'] ?? 1));
+                $details = app_line_item_detail_text($item, $inventory_items_by_id, ['include_type' => false]);
+                $line = $name . ' (' . $quantity . 'x)';
                 vehicle_history_summary_push_unique($summary['products'], $line);
                 $summary['product_rows'][] = [
                     'name' => $name,
-                    'details' => app_line_item_detail_text($item, $inventory_items_by_id, ['include_type' => false]),
+                    'details' => $details,
                     'category' => app_line_item_type_label($item),
-                    'quantity' => max(1, (int) ($item['quantity'] ?? 1)),
+                    'quantity' => $quantity,
                     'unit_price' => (float) ($item['unit_price'] ?? 0),
                     'line' => $line,
                 ];
@@ -201,37 +196,43 @@ if (!function_exists('vehicle_history_summary_merge_inventory_transactions')) {
         }
 
         foreach ($transactions as $transaction) {
-            $name = function_exists('app_inventory_transaction_display_name')
-                ? app_inventory_transaction_display_name($transaction)
-                : trim((string) ($transaction['item_name'] ?? 'Inventory Item'));
-            $name = $name !== '' ? $name : 'Inventory Item';
-
-            $quantity = max(1, (int) ($transaction['quantity'] ?? 1));
-            $quantity_label = function_exists('app_inventory_transaction_quantity_text')
-                ? app_inventory_transaction_quantity_text($quantity)
-                : (string) $quantity;
-            $line = $name . ' (' . $quantity_label . 'x)';
-
-            $already_listed = in_array($line, $summary['products'], true);
-            if (!$already_listed) {
-                foreach (($summary['product_rows'] ?? []) as $existing_row) {
-                    if (strtolower(trim((string) ($existing_row['name'] ?? ''))) === strtolower($name)) {
-                        $already_listed = true;
-                        break;
-                    }
-                }
-            }
-
-            if ($already_listed) {
+            // Exclude inter-branch transfers from customer vehicle history
+            $ref_type = strtolower(trim((string) ($transaction['reference_type'] ?? '')));
+            if (in_array($ref_type, ['inter_branch_transfer', 'transfer'], true)) {
                 continue;
             }
 
+            $name = trim((string) ($transaction['item_name'] ?? 'Inventory Item'));
+            $name = $name !== '' ? $name : 'Inventory Item';
+
+            $quantity = max(1, (int) ($transaction['quantity'] ?? 1));
+            $details = function_exists('app_inventory_transaction_detail_text')
+                ? app_inventory_transaction_detail_text($transaction)
+                : '';
+
+            // Check if this item is already recorded in product_rows
+            $matched_index = -1;
+            foreach (($summary['product_rows'] ?? []) as $idx => $existing_row) {
+                $exist_name = strtolower(trim((string) ($existing_row['name'] ?? '')));
+                $curr_name = strtolower(trim($name));
+                if ($exist_name === $curr_name || strpos($exist_name, $curr_name) !== false || strpos($curr_name, $exist_name) !== false) {
+                    $matched_index = $idx;
+                    break;
+                }
+            }
+
+            if ($matched_index >= 0) {
+                if (empty($summary['product_rows'][$matched_index]['details']) && $details !== '') {
+                    $summary['product_rows'][$matched_index]['details'] = $details;
+                }
+                continue;
+            }
+
+            $line = $name . ' (' . $quantity . 'x)';
             vehicle_history_summary_push_unique($summary['products'], $line);
             $summary['product_rows'][] = [
                 'name' => $name,
-                'details' => function_exists('app_inventory_transaction_detail_text')
-                    ? app_inventory_transaction_detail_text($transaction)
-                    : '',
+                'details' => $details,
                 'category' => trim((string) ($transaction['category'] ?? 'Inventory')),
                 'quantity' => $quantity,
                 'unit_price' => (float) ($transaction['unit_price'] ?? 0),
@@ -764,14 +765,42 @@ $report_generated = date('M d, Y H:i');
                                     </p>
                                 </td>
                                 <td>
-                                    <?php if (empty($row['products'])): ?>
+                                    <?php
+                                    $display_items = !empty($row['product_rows']) ? $row['product_rows'] : [];
+                                    if (empty($display_items) && !empty($row['products'])) {
+                                        foreach ($row['products'] as $p) {
+                                            $display_items[] = ['name' => $p, 'quantity' => 1, 'details' => ''];
+                                        }
+                                    }
+                                    ?>
+                                    <?php if (empty($display_items)): ?>
                                         <span class="vehicle-summary-muted">No inventory product used</span>
                                     <?php else: ?>
-                                        <ul class="vehicle-summary-lines">
-                                            <?php foreach ($row['products'] as $product): ?>
-                                                <li><?php echo esc_html($product); ?></li>
+                                        <div class="vehicle-summary-item-stack">
+                                            <?php foreach ($display_items as $prod):
+                                                $p_name = $prod['name'] ?? 'Product';
+                                                $p_qty = max(1, (int) ($prod['quantity'] ?? 1));
+                                                $p_details = trim((string) ($prod['details'] ?? ''));
+                                            ?>
+                                                <div class="vehicle-summary-item-badge-card">
+                                                    <div class="vehicle-summary-item-header">
+                                                        <strong class="vehicle-summary-item-title"><?php echo esc_html($p_name); ?></strong>
+                                                        <span class="vehicle-summary-item-qty"><?php echo $p_qty; ?>x</span>
+                                                    </div>
+                                                    <?php if ($p_details !== ''): ?>
+                                                        <div class="vehicle-summary-item-specs">
+                                                            <?php
+                                                            $spec_tokens = array_map('trim', explode('|', $p_details));
+                                                            foreach ($spec_tokens as $token):
+                                                                if ($token === '') continue;
+                                                            ?>
+                                                                <span class="vehicle-summary-spec-chip"><?php echo esc_html($token); ?></span>
+                                                            <?php endforeach; ?>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </div>
                                             <?php endforeach; ?>
-                                        </ul>
+                                        </div>
                                     <?php endif; ?>
                                 </td>
                                 <td>
