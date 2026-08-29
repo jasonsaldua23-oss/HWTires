@@ -242,22 +242,14 @@ if (!function_exists('vehicle_profile_inventory_detail_fields')) {
         $summary = trim((string) ($record['summary'] ?? ''));
         $meta = trim((string) ($record['meta_text'] ?? ''));
         $notes = trim((string) ($record['notes'] ?? ''));
+        $date = vehicle_profile_short_date($record['record_date'] ?? '');
+        $branch = vehicle_profile_branch_label($record['branch_name'] ?? '');
+        $status = vehicle_profile_status_label($record['record_status'] ?? '');
         $quantity = vehicle_profile_quantity_from_item_lines($items, $meta);
         $inventory_amount = max(0.0, (float) $inventory_amount);
         $unit_price = count($items) > 1
             ? 'Mixed prices'
             : (($quantity > 0 && $inventory_amount > 0) ? vehicle_profile_money($inventory_amount / $quantity) : '-');
-
-        $source_labels = [];
-        foreach ($linked_records as $linked_record) {
-            $label = trim((string) ($linked_record['label'] ?? ''));
-            if ($label !== '') {
-                $source_labels[] = $label;
-            }
-        }
-        $source_label = empty($source_labels)
-            ? 'No linked source record'
-            : implode(' / ', array_values(array_unique($source_labels)));
 
         $origin_branch = '';
         $all_text = $summary . ' ' . $meta . ' ' . $notes . ' ' . implode(' ', $items);
@@ -268,18 +260,21 @@ if (!function_exists('vehicle_profile_inventory_detail_fields')) {
         }
 
         $fields = [
-            ['label' => 'Product', 'value' => $summary !== '' ? $summary : ($items[0] ?? '-')],
+            ['label' => 'Date', 'value' => $date !== '' ? $date : '-'],
+            ['label' => 'Branch', 'value' => $branch !== '' ? $branch : '-'],
+            ['label' => 'Status', 'value' => $status !== '' ? $status : 'Tagged'],
             ['label' => 'Quantity', 'value' => vehicle_profile_quantity_label($quantity)],
             ['label' => 'Unit Price', 'value' => $unit_price],
             ['label' => 'Issued Value', 'value' => vehicle_profile_money($inventory_amount)],
         ];
 
         if ($origin_branch !== '') {
-            $fields[] = ['label' => 'Origin Branch', 'value' => $origin_branch];
+            $fields[] = ['label' => 'Origin / Transfer', 'value' => $origin_branch];
         }
 
-        $fields[] = ['label' => 'Source Record', 'value' => $source_label];
-        $fields[] = ['label' => 'Transaction Details', 'value' => $meta !== '' ? $meta : '-'];
+        if ($meta !== '' && $meta !== '-') {
+            $fields[] = ['label' => 'Transaction SKU / Details', 'value' => $meta];
+        }
 
         return $fields;
     }
@@ -2135,62 +2130,54 @@ foreach ($record_sections as $record_section) {
                                                 </div>
                                                 <strong data-detail-amount><?php echo esc_html($section_first_payload['amount']); ?></strong>
                                             </div>
-                                            <dl class="vehicle-workspace-detail-grid">
-                                                <div>
-                                                    <dt>Date</dt>
-                                                    <dd data-detail-date><?php echo esc_html($section_first_payload['date']); ?></dd>
-                                                </div>
-                                                <div>
-                                                    <dt>Branch</dt>
-                                                    <dd data-detail-branch><?php echo esc_html($section_first_payload['branch']); ?></dd>
-                                                </div>
-                                                <div>
-                                                    <dt>Status</dt>
-                                                    <dd data-detail-status><?php echo esc_html($section_first_payload['status']); ?></dd>
-                                                </div>
-                                                <div>
-                                                    <dt>Details</dt>
-                                                    <dd data-detail-meta><?php echo esc_html($section_first_payload['meta'] ?: '-'); ?></dd>
-                                                </div>
-                                            </dl>
-                                            <dl class="vehicle-workspace-detail-grid vehicle-workspace-detail-amounts <?php echo !empty($section_first_payload['is_inventory']) ? 'is-hidden' : ''; ?>" data-detail-amounts-grid>
-                                                <div>
-                                                    <dt>Service Amount</dt>
-                                                    <dd data-detail-service-amount><?php echo esc_html($section_first_payload['service_amount']); ?></dd>
-                                                </div>
-                                                <div>
-                                                    <dt>Inventory Issued</dt>
-                                                    <dd data-detail-inventory-amount><?php echo esc_html($section_first_payload['inventory_amount']); ?></dd>
-                                                </div>
-                                                <div>
-                                                    <dt>Visit Total</dt>
-                                                    <dd data-detail-visit-total><?php echo esc_html($section_first_payload['visit_total']); ?></dd>
-                                                </div>
-                                            </dl>
+                                            <dl class="vehicle-workspace-detail-grid <?php echo !empty($section_first_payload['is_inventory']) ? 'is-hidden' : ''; ?>" data-detail-visit-grid>
+                                                 <div>
+                                                     <dt>Date</dt>
+                                                     <dd data-detail-date><?php echo esc_html($section_first_payload['date']); ?></dd>
+                                                 </div>
+                                                 <div>
+                                                     <dt>Branch</dt>
+                                                     <dd data-detail-branch><?php echo esc_html($section_first_payload['branch']); ?></dd>
+                                                 </div>
+                                                 <div>
+                                                     <dt>Status</dt>
+                                                     <dd data-detail-status><?php echo esc_html($section_first_payload['status']); ?></dd>
+                                                 </div>
+                                                 <div>
+                                                     <dt>Mileage / Info</dt>
+                                                     <dd data-detail-meta><?php echo esc_html($section_first_payload['meta'] ?: '-'); ?></dd>
+                                                 </div>
+                                             </dl>
+                                             <dl class="vehicle-workspace-detail-grid vehicle-workspace-detail-amounts <?php echo !empty($section_first_payload['is_inventory']) ? 'is-hidden' : ''; ?>" data-detail-amounts-grid>
+                                                 <div>
+                                                     <dt>Service Labor</dt>
+                                                     <dd data-detail-service-amount><?php echo esc_html($section_first_payload['service_amount']); ?></dd>
+                                                 </div>
+                                                 <div>
+                                                     <dt>Inventory Issued</dt>
+                                                     <dd data-detail-inventory-amount><?php echo esc_html($section_first_payload['inventory_amount']); ?></dd>
+                                                 </div>
+                                                 <div>
+                                                     <dt>Visit Total</dt>
+                                                     <dd data-detail-visit-total><?php echo esc_html($section_first_payload['visit_total']); ?></dd>
+                                                 </div>
+                                             </dl>
+                                             <dl class="vehicle-workspace-detail-grid vehicle-workspace-inventory-grid <?php echo empty($section_first_payload['is_inventory']) ? 'is-hidden' : ''; ?>" data-detail-inventory-grid>
+                                                 <?php if (!empty($section_first_payload['inventory_fields'])): ?>
+                                                     <?php foreach ($section_first_payload['inventory_fields'] as $field): ?>
+                                                         <div>
+                                                             <dt><?php echo esc_html($field['label'] ?? 'Detail'); ?></dt>
+                                                             <dd><?php echo esc_html($field['value'] ?? '-'); ?></dd>
+                                                         </div>
+                                                     <?php endforeach; ?>
+                                                 <?php endif; ?>
+                                             </dl>
                                             <div class="vehicle-workspace-notes <?php echo (empty($section_first_payload['notes']) || $section_first_payload['notes'] === '-') ? 'is-hidden' : ''; ?>" data-detail-notes-box>
                                                 <span>Notes</span>
                                                 <p data-detail-notes><?php echo esc_html($section_first_payload['notes'] ?: '-'); ?></p>
                                             </div>
                                         </div>
                                         <aside class="vehicle-workspace-items">
-                                            <section class="vehicle-workspace-detail-box vehicle-workspace-inventory-detail <?php echo empty($section_first_payload['is_inventory']) ? 'is-hidden' : ''; ?>" data-detail-inventory-card>
-                                                <h3>Inventory Transaction</h3>
-                                                <dl class="vehicle-workspace-inventory-fields" data-detail-inventory-fields>
-                                                    <?php if (empty($section_first_payload['inventory_fields'])): ?>
-                                                        <div>
-                                                            <dt>Details</dt>
-                                                            <dd>-</dd>
-                                                        </div>
-                                                    <?php else: ?>
-                                                        <?php foreach ($section_first_payload['inventory_fields'] as $field): ?>
-                                                            <div>
-                                                                <dt><?php echo esc_html($field['label'] ?? 'Detail'); ?></dt>
-                                                                <dd><?php echo esc_html($field['value'] ?? '-'); ?></dd>
-                                                            </div>
-                                                        <?php endforeach; ?>
-                                                    <?php endif; ?>
-                                                </dl>
-                                            </section>
                                             <section class="vehicle-workspace-detail-box <?php echo !empty($section_first_payload['is_inventory']) ? 'is-hidden' : ''; ?>" data-detail-items-card>
                                                 <h3 data-detail-items-title><?php echo esc_html($section_first_payload['items_title']); ?></h3>
                                                 <ul data-detail-items>
@@ -2203,7 +2190,7 @@ foreach ($record_sections as $record_section) {
                                                     <?php endif; ?>
                                                 </ul>
                                             </section>
-                                            <section class="vehicle-workspace-detail-box">
+                                            <section class="vehicle-workspace-detail-box" data-detail-linked-card>
                                                 <h3>Included Records</h3>
                                                 <ul class="vehicle-workspace-linked-records" data-detail-linked-records>
                                                     <?php if (empty($section_first_payload['linked_records'])): ?>
@@ -2440,28 +2427,32 @@ document.addEventListener('DOMContentLoaded', function() {
         setText(detail, '[data-detail-notes]', payload.notes);
         setText(detail, '[data-detail-items-title]', payload.items_title || (isInventory ? 'Inventory Product' : 'Items Used'));
 
+        const visitGrid = detail.querySelector('[data-detail-visit-grid]');
+        if (visitGrid) {
+            visitGrid.classList.toggle('is-hidden', isInventory);
+        }
+
         const amountsCard = detail.querySelector('[data-detail-amounts-grid]');
         if (amountsCard) {
             amountsCard.classList.toggle('is-hidden', isInventory);
         }
 
+        const inventoryGrid = detail.querySelector('[data-detail-inventory-grid]');
+        if (inventoryGrid) {
+            inventoryGrid.innerHTML = '';
+            if (isInventory && Array.isArray(payload.inventory_fields) && payload.inventory_fields.length) {
+                payload.inventory_fields.forEach(function(field) {
+                    appendInventoryField(inventoryGrid, field);
+                });
+                inventoryGrid.classList.remove('is-hidden');
+            } else {
+                inventoryGrid.classList.add('is-hidden');
+            }
+        }
+
         const notesBox = detail.querySelector('[data-detail-notes-box]');
         if (notesBox) {
             notesBox.classList.toggle('is-hidden', !payload.notes || payload.notes === '-' || payload.notes.trim() === '');
-        }
-
-        const inventoryCard = detail.querySelector('[data-detail-inventory-card]');
-        const inventoryFields = detail.querySelector('[data-detail-inventory-fields]');
-        if (inventoryCard && inventoryFields) {
-            inventoryFields.innerHTML = '';
-            if (isInventory && Array.isArray(payload.inventory_fields) && payload.inventory_fields.length) {
-                payload.inventory_fields.forEach(function(field) {
-                    appendInventoryField(inventoryFields, field);
-                });
-                inventoryCard.classList.remove('is-hidden');
-            } else {
-                inventoryCard.classList.add('is-hidden');
-            }
         }
 
         const itemsCard = detail.querySelector('[data-detail-items-card]');
