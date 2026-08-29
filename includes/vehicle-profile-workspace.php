@@ -302,15 +302,13 @@ if (!function_exists('vehicle_profile_record_payload')) {
 
         $visit_total = max(0.0, (float) ($record['visit_total'] ?? 0));
         if ($visit_total <= 0) {
-            $visit_total = $service_amount + $inventory_amount;
+            $visit_total = $service_amount > 0 ? $service_amount : $inventory_amount;
         }
         if ($visit_total <= 0) {
             $visit_total = $record_amount;
         }
 
-        $display_amount = $record_type === 'item' || $inventory_amount > 0
-            ? $visit_total
-            : $record_amount;
+        $display_amount = $service_amount > 0 ? $service_amount : ($record_amount > 0 ? $record_amount : $inventory_amount);
         $record_count = (int) ($record['record_count'] ?? count($linked_records));
         $source_types = is_array($record['source_types'] ?? null) ? $record['source_types'] : [];
         $linked_records = $is_inventory_record
@@ -352,6 +350,32 @@ if (!function_exists('vehicle_profile_unique_push')) {
         if ($value !== '' && !in_array($value, $values, true)) {
             $values[] = $value;
         }
+    }
+}
+
+if (!function_exists('vehicle_profile_unique_push_item')) {
+    function vehicle_profile_unique_push_item(array &$items, $item_line) {
+        $item_line = trim((string) $item_line);
+        if ($item_line === '') {
+            return;
+        }
+
+        $clean_candidate = preg_replace('/\s*-\s*[^\(]+\s*\(/', ' (', $item_line);
+        $candidate_base = strtolower(trim(explode(' (', $clean_candidate)[0]));
+
+        foreach ($items as $idx => $existing) {
+            $clean_exist = preg_replace('/\s*-\s*[^\(]+\s*\(/', ' (', $existing);
+            $exist_base = strtolower(trim(explode(' (', $clean_exist)[0]));
+
+            if ($exist_base === $candidate_base || strpos($exist_base, $candidate_base) !== false || strpos($candidate_base, $exist_base) !== false) {
+                if (strlen($item_line) > strlen($existing)) {
+                    $items[$idx] = $item_line;
+                }
+                return;
+            }
+        }
+
+        $items[] = $item_line;
     }
 }
 
@@ -599,6 +623,43 @@ if (!function_exists('vehicle_profile_inventory_total_for_vehicle')) {
     }
 }
 
+if (!function_exists('vehicle_profile_standalone_inventory_total_for_vehicle')) {
+    function vehicle_profile_standalone_inventory_total_for_vehicle(PDO $pdo, $vehicle_id) {
+        $vehicle_id = (int) $vehicle_id;
+
+        if ($vehicle_id <= 0
+            || !app_table_exists('inventory_transactions')
+            || !app_table_exists('inventory_items')
+            || !app_column_exists('inventory_transactions', 'item_id')
+            || !app_column_exists('inventory_transactions', 'quantity')
+            || !app_column_exists('inventory_transactions', 'transaction_type')) {
+            return 0.0;
+        }
+
+        $price_expr = app_column_exists('inventory_items', 'unit_price') ? 'COALESCE(i.unit_price, 0)' : '0';
+        $ref_filter = app_column_exists('inventory_transactions', 'reference_type')
+            ? "AND (t.reference_type IS NULL OR LOWER(REPLACE(t.reference_type, ' ', '_')) NOT IN ('inter_branch_transfer', 'transfer', 'quotation', 'job_order', 'job_order_item'))"
+            : '';
+        $quote_filter = app_column_exists('inventory_transactions', 'quotation_id') ? "AND (t.quotation_id IS NULL OR t.quotation_id = 0)" : '';
+        $job_filter = app_column_exists('inventory_transactions', 'job_order_id') ? "AND (t.job_order_id IS NULL OR t.job_order_id = 0)" : '';
+        $veh_filter = app_column_exists('inventory_transactions', 'vehicle_id') ? "AND t.vehicle_id = ?" : "AND 1=0";
+
+        $stmt = $pdo->prepare("
+            SELECT COALESCE(SUM(ABS(t.quantity) * $price_expr), 0)
+            FROM inventory_transactions t
+            INNER JOIN inventory_items i ON i.id = t.item_id
+            WHERE LOWER(REPLACE(t.transaction_type, ' ', '_')) = 'stock_out'
+              $ref_filter
+              $quote_filter
+              $job_filter
+              $veh_filter
+        ");
+        $stmt->execute([$vehicle_id]);
+
+        return (float) $stmt->fetchColumn();
+    }
+}
+
 if (!function_exists('vehicle_profile_record_priority')) {
     function vehicle_profile_record_priority($type) {
         $priorities = [
@@ -731,7 +792,7 @@ if (!function_exists('vehicle_profile_group_records')) {
             }
 
             foreach (vehicle_profile_split_lines($record['item_lines'] ?? '') as $item_line) {
-                vehicle_profile_unique_push($events[$key]['items_used'], $item_line);
+                vehicle_profile_unique_push_item($events[$key]['items_used'], $item_line);
             }
 
             $notes = app_format_record_notes($record['notes'] ?? '');
@@ -792,7 +853,7 @@ if (!function_exists('vehicle_profile_group_records')) {
 
             $event['service_amount'] = $service_amount;
             $event['inventory_amount'] = $inventory_amount;
-            $event['amount'] = $service_amount + $inventory_amount;
+            $event['amount'] = $service_amount > 0 ? $service_amount : $inventory_amount;
 
             unset(
                 $event['services_done'],
@@ -1154,7 +1215,7 @@ try {
     $stats_stmt->execute([$vehicle_id, $vehicle_id, $vehicle_id, $vehicle_id, $vehicle_id, $vehicle_id]);
     $stats = $stats_stmt->fetch() ?: [];
     $service_spent = (float) ($stats['total_spent'] ?? 0);
-    $inventory_spent = vehicle_profile_inventory_total_for_vehicle($pdo, $vehicle_id);
+    $inventory_spent = vehicle_profile_standalone_inventory_total_for_vehicle($pdo, $vehicle_id);
     $stats['service_spent'] = $service_spent;
     $stats['inventory_spent'] = $inventory_spent;
     $stats['total_spent'] = $service_spent + $inventory_spent;
@@ -1779,6 +1840,9 @@ foreach ($record_sections as $record_section) {
             <section class="vehicle-workspace-panel">
                 <div class="vehicle-workspace-panel-head">
                     <h2><i class="fas fa-info-circle"></i> Vehicle Information</h2>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editVehicleModal" style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; font-size: 12px; font-weight: 600; border-radius: 6px;">
+                        <i class="fas fa-pen-to-square"></i> Edit
+                    </button>
                 </div>
                 <div class="vehicle-workspace-facts">
                     <div>
@@ -1796,6 +1860,15 @@ foreach ($record_sections as $record_section) {
                     <div>
                         <span>Year</span>
                         <strong><?php echo !empty($vehicle['year']) ? esc_html($vehicle['year']) : '-'; ?></strong>
+                    </div>
+                    <div>
+                        <span>Current Mileage</span>
+                        <strong>
+                            <?php
+                            $current_mileage_val = !empty($vehicle['last_mileage']) ? (int) $vehicle['last_mileage'] : (!empty($stats['last_service_mileage']) ? (int) $stats['last_service_mileage'] : 0);
+                            echo $current_mileage_val > 0 ? number_format($current_mileage_val) . ' km' : '-';
+                            ?>
+                        </strong>
                     </div>
                     <div>
                         <span>VIN</span>
@@ -2101,6 +2174,86 @@ foreach ($record_sections as $record_section) {
                 <?php endif; ?>
             <?php endif; ?>
         </section>
+    </div>
+</div>
+
+<!-- Edit Vehicle Modal -->
+<div class="modal fade" id="editVehicleModal" tabindex="-1" aria-labelledby="editVehicleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="/hwtires/api/vehicles-api.php">
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="id" value="<?php echo (int) $vehicle_id; ?>">
+                <input type="hidden" name="csrf_token" value="<?php echo esc_attr(generate_csrf_token()); ?>">
+                <input type="hidden" name="redirect" value="<?php echo esc_attr($_SERVER['REQUEST_URI'] ?? ''); ?>">
+
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title font-weight-bold" id="editVehicleModalLabel">
+                        <i class="fas fa-pen-to-square me-2"></i> Edit Vehicle Information
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label font-weight-bold">Brand / Make <span class="text-danger">*</span></label>
+                            <select name="make" class="form-select vehicle-make-select" data-initial-value="<?php echo esc_attr($vehicle['make'] ?? ''); ?>" required>
+                                <option value="<?php echo esc_attr($vehicle['make'] ?? ''); ?>" selected><?php echo esc_html($vehicle['make'] ?? 'Select Make'); ?></option>
+                            </select>
+                            <input type="text" name="make_custom" class="form-control vehicle-make-custom mt-2" placeholder="Enter custom brand..." style="display: none;">
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label font-weight-bold">Model <span class="text-danger">*</span></label>
+                            <select name="model" class="form-select vehicle-model-select" data-initial-value="<?php echo esc_attr($vehicle['model'] ?? ''); ?>" required>
+                                <option value="<?php echo esc_attr($vehicle['model'] ?? ''); ?>" selected><?php echo esc_html($vehicle['model'] ?? 'Select Model'); ?></option>
+                            </select>
+                            <input type="text" name="model_custom" class="form-control vehicle-model-custom mt-2" placeholder="Enter custom model..." style="display: none;">
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label font-weight-bold">Plate Number</label>
+                            <input type="text" name="plate_number" class="form-control" value="<?php echo esc_attr($vehicle['plate_number'] ?? ''); ?>" placeholder="ABC-1234">
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label font-weight-bold">Year</label>
+                            <input type="number" name="year" class="form-control" value="<?php echo esc_attr($vehicle['year'] ?? ''); ?>" min="1900" max="<?php echo date('Y') + 1; ?>" placeholder="e.g. 2024">
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label font-weight-bold">Current Mileage (km)</label>
+                            <input type="number" name="last_mileage" class="form-control" value="<?php echo esc_attr(!empty($vehicle['last_mileage']) ? $vehicle['last_mileage'] : (!empty($stats['last_service_mileage']) ? $stats['last_service_mileage'] : '')); ?>" min="0" placeholder="e.g. 15000">
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label font-weight-bold">Color</label>
+                            <input type="text" name="color" class="form-control" value="<?php echo esc_attr($vehicle['color'] ?? ''); ?>" placeholder="e.g. White, Silver, Black">
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label font-weight-bold">VIN (Chassis Number)</label>
+                            <input type="text" name="vin" class="form-control" value="<?php echo esc_attr($vehicle['vin'] ?? ''); ?>" placeholder="Vehicle Identification Number">
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label font-weight-bold">Vehicle Condition</label>
+                            <select name="condition" class="form-select">
+                                <?php foreach (['excellent' => 'Excellent', 'good' => 'Good', 'fair' => 'Fair', 'poor' => 'Poor'] as $cond_key => $cond_label): ?>
+                                    <option value="<?php echo $cond_key; ?>" <?php echo strtolower($vehicle['condition'] ?? 'good') === $cond_key ? 'selected' : ''; ?>><?php echo $cond_label; ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary px-4 font-weight-bold">Save Changes</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 

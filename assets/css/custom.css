@@ -25743,3 +25743,121 @@ button.customer-vehicle-status-pill.customer-status-action {
     border: 1px solid #bbf7d0;
 }
 
+/* Inventory Unified Filter Horizontal Alignment */
+.inventory-records-page > .inventory-filter-card,
+.inventory-records-page > .front-inventory-filter-card,
+.inventory-filter-card {
+    display: block !important;
+    width: 100% !important;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    padding: 16px 20px !important;
+    margin-bottom: 20px !important;
+    box-sizing: border-box !important;
+}
+
+.inventory-unified-filter-form {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 16px !important;
+    width: 100% !important;
+    margin: 0 !important;
+}
+
+.inventory-unified-filter-form .inventory-filter-group {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    margin: 0 !important;
+    flex: 1 1 170px !important;
+    min-width: 150px !important;
+}
+
+.inventory-unified-filter-form .inventory-search-group {
+    flex: 2 1 260px !important;
+    min-width: 220px !important;
+}
+
+.inventory-unified-filter-form .inventory-filter-actions-group {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex: 0 0 auto !important;
+    margin: 0 !important;
+}
+
+.inventory-unified-filter-form h2 {
+    font-size: 12.5px !important;
+    font-weight: 700 !important;
+    color: #475569 !important;
+    margin: 0 0 6px 0 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.4px !important;
+    white-space: nowrap !important;
+}
+
+.inventory-unified-filter-form select,
+.inventory-unified-filter-form input[type="search"] {
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 6px 12px !important;
+    border-radius: 8px !important;
+    border: 1px solid #cbd5e1 !important;
+    font-size: 13.5px !important;
+    background-color: #ffffff !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.inventory-unified-filter-form .inventory-search-field {
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+    margin: 0 !important;
+}
+
+.inventory-unified-filter-form .inventory-search-field i {
+    position: absolute !important;
+    left: 14px !important;
+    color: #94a3b8 !important;
+    pointer-events: none !important;
+    z-index: 2 !important;
+}
+
+.inventory-unified-filter-form .inventory-search-field input[type="search"] {
+    padding-left: 38px !important;
+    width: 100% !important;
+}
+
+/* Service Inspection Typography */
+.job-detail-inspection-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 16px 20px !important;
+    padding: 18px 20px !important;
+    background: #ffffff !important;
+}
+
+.job-detail-inspection-grid span {
+    display: block !important;
+    color: #64748b !important;
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    margin-bottom: 6px !important;
+}
+
+.job-detail-inspection-grid strong {
+    display: block !important;
+    color: #0f172a !important;
+    font-size: 14.5px !important;
+    font-weight: 600 !important;
+    line-height: 1.5 !important;
+    overflow-wrap: anywhere !important;
+}
+

@@ -168,13 +168,20 @@ if ($action === 'update') {
         }
 
         $vehicle_id = intval($_POST['id'] ?? 0);
-        $make = trim($_POST['make'] ?? '');
-        $model = trim($_POST['model'] ?? '');
+        $make = trim($_POST['make'] ?? $_POST['vehicle_make'] ?? '');
+        if (strcasecmp($make, 'Other') === 0 && !empty($_POST['make_custom'] ?? $_POST['vehicle_make_custom'] ?? '')) {
+            $make = trim($_POST['make_custom'] ?? $_POST['vehicle_make_custom'] ?? '');
+        }
+        $model = trim($_POST['model'] ?? $_POST['vehicle_model'] ?? '');
+        if (strcasecmp($model, 'Other') === 0 && !empty($_POST['model_custom'] ?? $_POST['vehicle_model_custom'] ?? '')) {
+            $model = trim($_POST['model_custom'] ?? $_POST['vehicle_model_custom'] ?? '');
+        }
         $year = intval($_POST['year'] ?? 0);
         $vin = trim($_POST['vin'] ?? '');
         $plate_number = app_normalize_plate_number($_POST['plate_number'] ?? $_POST['license_plate'] ?? '');
         $condition = trim($_POST['condition'] ?? 'good');
         $color = trim($_POST['color'] ?? '');
+        $last_mileage = intval($_POST['last_mileage'] ?? $_POST['mileage'] ?? $_POST['vehicle_last_mileage'] ?? 0);
         if (!in_array($condition, ['excellent', 'good', 'fair', 'poor'], true)) {
             $condition = 'good';
         }
@@ -203,7 +210,7 @@ if ($action === 'update') {
 
         $update_stmt = $pdo->prepare("
             UPDATE vehicles
-            SET make = ?, model = ?, year = ?, vin = ?, plate_number = ?, `condition` = ?, color = ?
+            SET make = ?, model = ?, year = ?, vin = ?, plate_number = ?, `condition` = ?, color = ?, last_mileage = ?
             WHERE id = ?
         ");
 
@@ -215,6 +222,7 @@ if ($action === 'update') {
             $plate_number !== '' ? $plate_number : null,
             $condition,
             $color,
+            $last_mileage > 0 ? $last_mileage : ($old_vehicle['last_mileage'] ?? 0),
             $vehicle_id
         ]);
 
