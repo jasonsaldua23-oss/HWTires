@@ -252,10 +252,24 @@ if (!function_exists('log_audit')) {
 }
 
 /**
+ * Prevent caching of sensitive pages in browser bfcache
+ */
+if (!function_exists('app_send_no_cache_headers')) {
+    function app_send_no_cache_headers() {
+        if (!headers_sent()) {
+            header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0");
+            header("Pragma: no-cache");
+            header("Expires: Sat, 26 Jul 1997 05:00:00 GMT");
+        }
+    }
+}
+
+/**
  * Redirect to a page
  */
 if (!function_exists('redirect')) {
     function redirect($url) {
+        app_send_no_cache_headers();
         if (defined('APP_URL') && APP_URL !== '/hwtires' && strpos($url, '/hwtires/') === 0) {
             $url = APP_URL . substr($url, strlen('/hwtires'));
         }

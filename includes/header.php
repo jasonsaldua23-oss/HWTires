@@ -1,4 +1,6 @@
 <?php
+app_send_no_cache_headers();
+
 $app_primary_color = null;
 $custom_css_file = __DIR__ . '/../assets/css/custom.css';
 $custom_css_version = is_file($custom_css_file) ? filemtime($custom_css_file) : time();
@@ -22,6 +24,9 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title><?php echo esc_html($page_title ?? 'HW Tires Management'); ?></title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -39,5 +44,13 @@ try {
     <?php endif; ?>
     <!-- Icon -->
     <link rel="icon" type="image/x-icon" href="<?php echo APP_URL; ?>/assets/images/favicon.ico">
+    <script>
+        // Force reload if page is restored from browser back-forward cache (bfcache) after logout
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted || (window.performance && window.performance.navigation && window.performance.navigation.type === 2)) {
+                window.location.reload();
+            }
+        });
+    </script>
 </head>
 <body>
