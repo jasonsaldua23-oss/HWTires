@@ -110,12 +110,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
     <style>
         :root {
             --primary: <?php echo htmlspecialchars($login_brand['primary_color']); ?>;
-            --login-accent: #0f172a;
-            --login-accent-hover: #1e293b;
+            --login-accent: #06b6d4;
+            --login-accent-hover: #0284c7;
             --secondary: #334155;
-            --text-dark: #0f172a;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
+            --text-dark: #ffffff;
+            --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.16);
             --page-bg: #0b1120;
         }
 
@@ -126,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
         body {
             margin: 0;
             background:
-                linear-gradient(135deg, rgba(15, 23, 42, 0.40) 0%, rgba(15, 23, 42, 0.58) 100%),
+                linear-gradient(135deg, rgba(15, 23, 42, 0.35) 0%, rgba(15, 23, 42, 0.50) 100%),
                 <?php if ($login_background !== ''): ?>
                     url('<?php echo htmlspecialchars($login_background); ?>') center / cover no-repeat fixed,
                 <?php endif; ?>
@@ -145,24 +145,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
             position: fixed;
             inset: 0;
             pointer-events: none;
-            background: radial-gradient(circle at center, transparent 30%, rgba(0, 0, 0, 0.35) 100%);
+            background: radial-gradient(circle at center, transparent 35%, rgba(0, 0, 0, 0.40) 100%);
         }
 
         .login-card {
             position: relative;
             z-index: 1;
-            background: rgba(255, 255, 255, 0.97);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.9);
-            border-radius: 20px;
+            background: rgba(15, 23, 42, 0.72);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 24px;
             box-shadow:
-                0 25px 50px -12px rgba(0, 0, 0, 0.45),
-                0 4px 16px rgba(0, 0, 0, 0.12),
-                inset 0 1px 0 rgba(255, 255, 255, 1);
+                0 30px 60px -12px rgba(0, 0, 0, 0.65),
+                0 4px 20px rgba(0, 0, 0, 0.35),
+                inset 0 1px 0 rgba(255, 255, 255, 0.25);
             max-width: 440px;
             width: 100%;
-            padding: 40px 36px 32px;
+            padding: 42px 38px 34px;
             overflow: hidden;
             transition: transform 0.25s ease;
         }
@@ -173,17 +173,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
         }
 
         .login-logo {
-            width: 68px;
-            height: 68px;
+            width: 70px;
+            height: 70px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             margin-bottom: 16px;
             background: #ffffff;
-            border: 1.5px solid #e2e8f0;
-            border-radius: 16px;
-            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
-            padding: 10px;
+            border: 1.5px solid rgba(255, 255, 255, 0.9);
+            border-radius: 18px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            padding: 11px;
         }
 
         .login-logo img {
@@ -199,13 +199,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
             line-height: 1.2;
             margin: 0 0 6px;
             letter-spacing: -0.4px;
-            color: #0f172a;
+            color: #ffffff;
         }
 
         .login-header p {
             font-size: 13px;
             margin: 0;
-            color: var(--text-muted);
+            color: #94a3b8;
             font-weight: 500;
             line-height: 1.45;
         }
@@ -217,7 +217,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
         .form-label {
             display: block;
             font-weight: 600;
-            color: #334155;
+            color: #cbd5e1;
             margin-bottom: 7px;
             font-size: 13px;
         }
@@ -231,7 +231,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
         .input-icon-wrapper .input-icon {
             position: absolute;
             left: 15px;
-            color: #94a3b8;
+            color: rgba(255, 255, 255, 0.5);
             font-size: 15px;
             pointer-events: none;
             transition: color 0.2s ease;
@@ -240,30 +240,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
 
         .form-control {
             height: 48px;
-            border: 1.5px solid #e2e8f0;
+            border: 1.5px solid rgba(255, 255, 255, 0.16);
             border-radius: 10px;
             padding: 10px 14px 10px 44px;
             font-size: 14px;
-            color: #0f172a;
-            background: #f8fafc;
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.07);
             transition: all 0.2s ease;
             font-weight: 500;
         }
 
         .form-control::placeholder {
-            color: #94a3b8;
+            color: rgba(255, 255, 255, 0.35);
             font-weight: 400;
         }
 
         .form-control:focus {
-            border-color: #0f172a;
-            background: #ffffff;
-            box-shadow: 0 0 0 4px rgba(15, 23, 42, 0.08);
+            border-color: rgba(6, 182, 212, 0.8);
+            background: rgba(255, 255, 255, 0.12);
+            color: #ffffff;
+            box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.22);
         }
 
         .form-control:focus + .input-icon,
         .input-icon-wrapper:focus-within .input-icon {
-            color: #0f172a;
+            color: #06b6d4;
         }
 
         .btn-password-toggle {
@@ -271,7 +272,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
             right: 12px;
             background: none;
             border: none;
-            color: #94a3b8;
+            color: rgba(255, 255, 255, 0.5);
             padding: 6px;
             cursor: pointer;
             font-size: 15px;
@@ -283,11 +284,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
         }
 
         .btn-password-toggle:hover {
-            color: #0f172a;
+            color: #ffffff;
         }
 
         .btn-login {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            background: linear-gradient(135deg, #06b6d4 0%, #0284c7 100%);
             color: #ffffff;
             border: none;
             border-radius: 10px;
@@ -297,7 +298,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
             font-size: 15px;
             width: 100%;
             margin-top: 8px;
-            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.30);
+            box-shadow: 0 4px 18px rgba(6, 182, 212, 0.38);
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -307,24 +308,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
         }
 
         .btn-login:hover {
-            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            background: linear-gradient(135deg, #0891b2 0%, #0369a1 100%);
             color: #ffffff;
             transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(15, 23, 42, 0.40);
+            box-shadow: 0 6px 24px rgba(6, 182, 212, 0.48);
         }
 
         .btn-login:active {
             transform: translateY(0);
-            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.25);
+            box-shadow: 0 2px 10px rgba(6, 182, 212, 0.3);
         }
 
         .login-footer-note {
             text-align: center;
             margin-top: 24px;
             padding-top: 18px;
-            border-top: 1px solid #edf2f7;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
             font-size: 12px;
-            color: #94a3b8;
+            color: #64748b;
             font-weight: 500;
             display: flex;
             align-items: center;
