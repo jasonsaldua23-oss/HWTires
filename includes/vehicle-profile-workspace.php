@@ -241,6 +241,7 @@ if (!function_exists('vehicle_profile_inventory_detail_fields')) {
     function vehicle_profile_inventory_detail_fields(array $record, array $items, $inventory_amount, array $linked_records) {
         $summary = trim((string) ($record['summary'] ?? ''));
         $meta = trim((string) ($record['meta_text'] ?? ''));
+        $notes = trim((string) ($record['notes'] ?? ''));
         $quantity = vehicle_profile_quantity_from_item_lines($items, $meta);
         $inventory_amount = max(0.0, (float) $inventory_amount);
         $unit_price = count($items) > 1
@@ -258,14 +259,29 @@ if (!function_exists('vehicle_profile_inventory_detail_fields')) {
             ? 'No linked source record'
             : implode(' / ', array_values(array_unique($source_labels)));
 
-        return [
+        $origin_branch = '';
+        $all_text = $summary . ' ' . $meta . ' ' . $notes . ' ' . implode(' ', $items);
+        if (preg_match('/\[Transferred:\s*([^\]]+)\]/i', $all_text, $m)) {
+            $origin_branch = 'Transferred from ' . trim($m[1]);
+        } elseif (preg_match('/received from\s+([^,;\.]+)/i', $all_text, $m)) {
+            $origin_branch = 'Transferred from ' . trim($m[1]);
+        }
+
+        $fields = [
             ['label' => 'Product', 'value' => $summary !== '' ? $summary : ($items[0] ?? '-')],
             ['label' => 'Quantity', 'value' => vehicle_profile_quantity_label($quantity)],
             ['label' => 'Unit Price', 'value' => $unit_price],
             ['label' => 'Issued Value', 'value' => vehicle_profile_money($inventory_amount)],
-            ['label' => 'Source Record', 'value' => $source_label],
-            ['label' => 'Transaction Details', 'value' => $meta !== '' ? $meta : '-'],
         ];
+
+        if ($origin_branch !== '') {
+            $fields[] = ['label' => 'Origin Branch', 'value' => $origin_branch];
+        }
+
+        $fields[] = ['label' => 'Source Record', 'value' => $source_label];
+        $fields[] = ['label' => 'Transaction Details', 'value' => $meta !== '' ? $meta : '-'];
+
+        return $fields;
     }
 }
 
@@ -871,20 +887,29 @@ if (!function_exists('vehicle_profile_group_records')) {
             $event['meta_text'] = !empty($clean_meta) ? implode(' | ', $clean_meta) : '-';
 
             $clean_notes = [];
+            $seen_note_keys = [];
             foreach ($event['notes_collection'] as $note_line) {
                 $note_line = trim((string) $note_line);
                 if ($note_line === '' || $note_line === '-') continue;
-                $segments = preg_split('/[;\n]+/', $note_line);
+                $segments = preg_split('/[;\n•]+/', $note_line);
                 foreach ($segments as $seg) {
                     $seg = trim($seg);
-                    if ($seg === '' || $seg === '-') continue;
-                    if (preg_match('/^Stock used for job order task/i', $seg)) continue;
-                    if (!in_array($seg, $clean_notes, true)) {
-                        $clean_notes[] = $seg;
+                    $clean_seg = rtrim($seg, '.');
+                    if ($clean_seg === '' || $clean_seg === '-') continue;
+                    if (preg_match('/Stock used for job order task/i', $clean_seg)) continue;
+                    if (preg_match('/^Service notes:\s*Stock used/i', $clean_seg)) continue;
+                    $key = strtolower(preg_replace('/\s+/', ' ', $clean_seg));
+                    if (!isset($seen_note_keys[$key])) {
+                        $seen_note_keys[$key] = true;
+                        $clean_notes[] = $clean_seg;
                     }
                 }
             }
             $event['notes'] = !empty($clean_notes) ? implode(' • ', $clean_notes) : '';
+
+            if (!empty($event['source_type_keys']['job']) || !empty($event['source_type_keys']['history'])) {
+                $event['record_status'] = 'completed';
+            }
 
             $event['linked_records'] = array_values($event['linked_records']);
             $event['record_count'] = count($event['linked_records']);
@@ -1177,7 +1202,6 @@ if (!function_exists('vehicle_profile_group_item_sales')) {
 
 $allowed_tabs = [
     'overview' => 'Service Visits',
-    'timeline' => 'Visit Timeline',
     'jobs' => 'Job Orders',
     'items' => 'Items Used/Sold',
     'ownership' => 'Ownership',
@@ -2129,7 +2153,7 @@ foreach ($record_sections as $record_section) {
                                                     <dd data-detail-meta><?php echo esc_html($section_first_payload['meta'] ?: '-'); ?></dd>
                                                 </div>
                                             </dl>
-                                            <dl class="vehicle-workspace-detail-grid vehicle-workspace-detail-amounts">
+                                            <dl class="vehicle-workspace-detail-grid vehicle-workspace-detail-amounts <?php echo !empty($section_first_payload['is_inventory']) ? 'is-hidden' : ''; ?>" data-detail-amounts-grid>
                                                 <div>
                                                     <dt>Service Amount</dt>
                                                     <dd data-detail-service-amount><?php echo esc_html($section_first_payload['service_amount']); ?></dd>
@@ -2143,7 +2167,7 @@ foreach ($record_sections as $record_section) {
                                                     <dd data-detail-visit-total><?php echo esc_html($section_first_payload['visit_total']); ?></dd>
                                                 </div>
                                             </dl>
-                                            <div class="vehicle-workspace-notes">
+                                            <div class="vehicle-workspace-notes <?php echo (empty($section_first_payload['notes']) || $section_first_payload['notes'] === '-') ? 'is-hidden' : ''; ?>" data-detail-notes-box>
                                                 <span>Notes</span>
                                                 <p data-detail-notes><?php echo esc_html($section_first_payload['notes'] ?: '-'); ?></p>
                                             </div>
@@ -2167,7 +2191,7 @@ foreach ($record_sections as $record_section) {
                                                     <?php endif; ?>
                                                 </dl>
                                             </section>
-                                            <section class="vehicle-workspace-detail-box">
+                                            <section class="vehicle-workspace-detail-box <?php echo !empty($section_first_payload['is_inventory']) ? 'is-hidden' : ''; ?>" data-detail-items-card>
                                                 <h3 data-detail-items-title><?php echo esc_html($section_first_payload['items_title']); ?></h3>
                                                 <ul data-detail-items>
                                                     <?php if (empty($section_first_payload['items'])): ?>
@@ -2416,6 +2440,16 @@ document.addEventListener('DOMContentLoaded', function() {
         setText(detail, '[data-detail-notes]', payload.notes);
         setText(detail, '[data-detail-items-title]', payload.items_title || (isInventory ? 'Inventory Product' : 'Items Used'));
 
+        const amountsCard = detail.querySelector('[data-detail-amounts-grid]');
+        if (amountsCard) {
+            amountsCard.classList.toggle('is-hidden', isInventory);
+        }
+
+        const notesBox = detail.querySelector('[data-detail-notes-box]');
+        if (notesBox) {
+            notesBox.classList.toggle('is-hidden', !payload.notes || payload.notes === '-' || payload.notes.trim() === '');
+        }
+
         const inventoryCard = detail.querySelector('[data-detail-inventory-card]');
         const inventoryFields = detail.querySelector('[data-detail-inventory-fields]');
         if (inventoryCard && inventoryFields) {
@@ -2430,8 +2464,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
+        const itemsCard = detail.querySelector('[data-detail-items-card]');
         const itemList = detail.querySelector('[data-detail-items]');
-        if (itemList) {
+        if (itemsCard) {
+            itemsCard.classList.toggle('is-hidden', isInventory);
+        }
+        if (itemList && !isInventory) {
             itemList.innerHTML = '';
             if (Array.isArray(payload.items) && payload.items.length) {
                 payload.items.forEach(function(item) {

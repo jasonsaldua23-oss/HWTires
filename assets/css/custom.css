@@ -25861,12 +25861,12 @@ button.customer-vehicle-status-pill.customer-status-action {
     overflow-wrap: anywhere !important;
 }
 
-/* Vehicle Workspace Detail Drawer - Compact, Clean & Properly Hidden */
+/* Vehicle Workspace Detail Drawer - Compact, Clean & Sleek */
 .vehicle-workspace-detail {
     display: grid;
-    grid-template-columns: minmax(0, 1.25fr) minmax(280px, 340px);
-    gap: 14px;
-    padding: 14px 16px;
+    grid-template-columns: minmax(0, 1.2fr) minmax(260px, 320px);
+    gap: 10px;
+    padding: 10px 14px;
     background: #f8fafc;
     border-top: 1px solid #e2e8f0;
     border-bottom: 1px solid #e2e8f0;
@@ -25887,42 +25887,42 @@ button.customer-vehicle-status-pill.customer-status-action {
 .vehicle-workspace-items {
     min-width: 0;
     display: grid;
-    gap: 10px;
+    gap: 8px;
 }
 
 .vehicle-workspace-detail-head {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 10px;
+    gap: 8px;
 }
 
 .vehicle-workspace-detail-head span[data-detail-type] {
     display: block;
     color: #64748b;
-    font-size: 11.5px;
+    font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
 }
 
 .vehicle-workspace-detail-head h3,
 .vehicle-workspace-items h3 {
-    margin: 2px 0 0;
+    margin: 1px 0 0;
     color: #0f172a;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 750;
 }
 
 .vehicle-workspace-detail-head p {
-    margin: 3px 0 0;
+    margin: 2px 0 0;
     color: #475569;
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 600;
 }
 
 .vehicle-workspace-detail-head > strong {
     color: #0c7069;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 750;
     white-space: nowrap;
 }
@@ -25930,25 +25930,25 @@ button.customer-vehicle-status-pill.customer-status-action {
 .vehicle-workspace-detail-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px 12px;
+    gap: 6px 10px;
     margin: 0;
-    padding: 10px 12px;
+    padding: 8px 10px;
     background: #ffffff;
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    border-radius: 6px;
 }
 
 .vehicle-workspace-detail-grid dt {
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 700;
     color: #64748b;
-    margin: 0 0 2px 0;
+    margin: 0 0 1px 0;
     text-transform: uppercase;
 }
 
 .vehicle-workspace-detail-grid dd {
     margin: 0;
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 650;
     color: #1e293b;
 }
@@ -25956,78 +25956,100 @@ button.customer-vehicle-status-pill.customer-status-action {
 .vehicle-workspace-detail-amounts {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px 12px;
+    gap: 6px 10px;
     margin: 0;
-    padding: 10px 12px;
+    padding: 8px 10px;
     background: #f0fdfa;
     border: 1px solid #ccfbf1;
-    border-radius: 8px;
+    border-radius: 6px;
 }
 
 .vehicle-workspace-detail-amounts dt {
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 700;
     color: #0f766e;
-    margin: 0 0 2px 0;
+    margin: 0 0 1px 0;
     text-transform: uppercase;
 }
 
 .vehicle-workspace-detail-amounts dd {
     margin: 0;
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 750;
     color: #115e59;
 }
 
 .vehicle-workspace-notes {
-    padding: 10px 12px;
+    padding: 8px 10px;
     background: #ffffff;
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    border-radius: 6px;
 }
 
 .vehicle-workspace-notes span {
     display: block;
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 700;
     color: #64748b;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
     text-transform: uppercase;
 }
 
 .vehicle-workspace-notes p {
     margin: 0;
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 600;
     color: #334155;
-    line-height: 1.45;
+    line-height: 1.4;
 }
 
 .vehicle-workspace-detail-box {
     background: #ffffff;
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 10px 12px;
+    border-radius: 6px;
+    padding: 8px 10px;
 }
 
 .vehicle-workspace-detail-box h3 {
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 750;
     color: #475569;
     text-transform: uppercase;
-    margin: 0 0 8px 0;
+    margin: 0 0 6px 0;
+}
+
+.vehicle-workspace-inventory-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px 8px;
+    margin: 0;
+}
+
+.vehicle-workspace-inventory-fields dt {
+    font-size: 10px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-bottom: 1px;
+}
+
+.vehicle-workspace-inventory-fields dd {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 650;
+    color: #1e293b;
 }
 
 .vehicle-workspace-items li.vehicle-workspace-item-line {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 6px 8px;
+    padding: 4px 6px;
     background: #f8fafc;
     border: 1px solid #f1f5f9;
-    border-radius: 6px;
-    margin-bottom: 4px;
-    font-size: 12.5px;
+    border-radius: 4px;
+    margin-bottom: 3px;
+    font-size: 12px;
 }
 
 .vehicle-workspace-linked-records li {
@@ -26040,12 +26062,12 @@ button.customer-vehicle-status-pill.customer-status-action {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 4px 10px;
+    padding: 3px 8px;
     background: #f0f9ff;
     border: 1px solid #bae6fd;
-    border-radius: 6px;
+    border-radius: 5px;
     color: #0369a1;
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 650;
     text-decoration: none;
 }
