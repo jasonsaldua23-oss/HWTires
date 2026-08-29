@@ -242,11 +242,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
         .input-icon-wrapper .input-icon {
             position: absolute;
             left: 15px;
-            color: rgba(255, 255, 255, 0.5);
+            color: rgba(255, 255, 255, 0.6);
             font-size: 15px;
             pointer-events: none;
             transition: color 0.2s ease;
-            z-index: 2;
+            z-index: 5;
         }
 
         .form-control {
@@ -278,17 +278,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
             color: #06b6d4;
         }
 
+        /* Prevent browser autofill from washing out background and icons */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus,
+        input:-webkit-autofill:active {
+            -webkit-box-shadow: 0 0 0 1000px #182234 inset !important;
+            box-shadow: 0 0 0 1000px #182234 inset !important;
+            -webkit-text-fill-color: #ffffff !important;
+            caret-color: #ffffff !important;
+            border-color: rgba(6, 182, 212, 0.6) !important;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+
         .btn-password-toggle {
             position: absolute;
             right: 12px;
             background: none;
             border: none;
-            color: rgba(255, 255, 255, 0.5);
+            color: rgba(255, 255, 255, 0.6);
             padding: 6px;
             cursor: pointer;
             font-size: 15px;
             transition: color 0.2s ease;
-            z-index: 2;
+            z-index: 5;
             display: flex;
             align-items: center;
             justify-content: center;
