@@ -94,8 +94,27 @@ $vehicle_main_activity_expr = record_activity_datetime_expr('v.last_service_date
 $vehicle_main_record_date_expr = record_business_datetime_expr('v.last_service_date', 'v.created_at');
 $vehicle_job_record_date_expr = record_business_datetime_expr('jo_date.job_date', 'jo_date.created_at');
 $vehicle_quote_record_date_expr = record_business_datetime_expr('q_date.quotation_date', 'q_date.created_at');
-$vehicle_history_record_date_expr = record_business_datetime_expr('sh_date.service_date', 'sh_date.created_at');
-$vehicle_sort_expr = "COALESCE(v.updated_at, v.created_at, v.last_service_date, '1970-01-01 00:00:00')";
+$vehicle_sort_expr = "GREATEST(
+    COALESCE((
+        SELECT MAX(sh.service_date)
+        FROM service_history sh
+        WHERE sh.vehicle_id = v.id
+    ), '1000-01-01'),
+    COALESCE((
+        SELECT MAX(jo.job_date)
+        FROM job_orders jo
+        WHERE jo.vehicle_id = v.id
+          AND jo.status <> 'cancelled'
+    ), '1000-01-01'),
+    COALESCE((
+        SELECT MAX(q.quotation_date)
+        FROM quotations q
+        WHERE q.vehicle_id = v.id
+          AND q.status <> 'archived'
+    ), '1000-01-01'),
+    COALESCE(v.last_service_date, '1000-01-01'),
+    COALESCE(DATE(v.created_at), '1000-01-01')
+)";
 
 $where = [
     "TRIM(CONCAT(COALESCE(v.make, ''), ' ', COALESCE(v.model, ''))) <> ''",
@@ -240,11 +259,18 @@ $query = "SELECT v.id AS vehicle_id,
                  c.phone_mobile,
                  c.email,
                  c.address,
-                 c.customer_type
+                 c.customer_type,
+                 GREATEST(
+                     COALESCE((SELECT MAX(sh.service_date) FROM service_history sh WHERE sh.vehicle_id = v.id), '1000-01-01'),
+                     COALESCE((SELECT MAX(jo.job_date) FROM job_orders jo WHERE jo.vehicle_id = v.id AND jo.status <> 'cancelled'), '1000-01-01'),
+                     COALESCE((SELECT MAX(q.quotation_date) FROM quotations q WHERE q.vehicle_id = v.id AND q.status <> 'archived'), '1000-01-01'),
+                     COALESCE(v.last_service_date, '1000-01-01'),
+                     COALESCE(DATE(v.created_at), '1000-01-01')
+                 ) AS latest_activity_date
           FROM vehicles v
           INNER JOIN customers c ON c.id = v.customer_id
           WHERE $where_sql
-          ORDER BY $vehicle_sort_expr DESC, v.id DESC";
+          ORDER BY latest_activity_date DESC, v.id DESC";
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $all_vehicle_records = $stmt->fetchAll();
