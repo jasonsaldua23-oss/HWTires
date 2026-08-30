@@ -345,21 +345,6 @@ if (!empty($primary_vehicle['id'])) {
             <p>Customer Profile &amp; Complete Records</p>
         </div>
         <div class="customer-profile-actions">
-            <a href="<?php echo esc_attr($create_quote_url); ?>" class="profile-create-btn quote">
-                <i class="far fa-file-lines"></i>
-                <span>Start Service Operation</span>
-            </a>
-            <?php if ($approved_quotation_id > 0): ?>
-                <a href="/hwtires/front-desk/job-orders/create.php?quotation_id=<?php echo $approved_quotation_id; ?>" class="profile-create-btn job">
-                    <i class="far fa-clipboard"></i>
-                    <span>Create Job Order</span>
-                </a>
-            <?php else: ?>
-                <button type="button" class="profile-create-btn job disabled" disabled title="An approved quotation is required before creating a job order.">
-                    <i class="far fa-clipboard"></i>
-                    <span>Create Job Order</span>
-                </button>
-            <?php endif; ?>
             <form method="POST" action="/hwtires/api/customers-api.php" style="display:inline-block; margin:0;" onsubmit="return confirm('Archive this customer record? The record will be moved to archived records.');">
                 <input type="hidden" name="csrf_token" value="<?php echo generate_csrf_token(); ?>">
                 <input type="hidden" name="action" value="archive">
@@ -384,11 +369,12 @@ if (!empty($primary_vehicle['id'])) {
     <?php endif; ?>
 
     <section class="customer-profile-filter-card" style="padding: 10px 16px; margin-bottom: 14px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px;">
-        <form method="GET" class="records-date-filter" data-record-date-filter style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0; min-height: auto;">
+        <form method="GET" class="customer-profile-inline-filter" data-record-date-filter style="display: flex; align-items: center; gap: 12px; margin: 0; flex-wrap: wrap;">
             <input type="hidden" name="id" value="<?php echo (int) $customer_id; ?>">
-            <label style="display: inline-flex; align-items: center; gap: 6px; margin: 0; font-weight: 600; color: #334155; font-size: 0.875rem;">
-                <span><i class="fas fa-filter text-muted"></i> Branch:</span>
-                <select name="branch" class="form-select form-select-sm" style="width: auto; min-width: 150px; font-size: 0.85rem;" onchange="this.form.submit()">
+            
+            <div style="display: inline-flex; align-items: center; gap: 8px;">
+                <label for="filter_branch" style="font-weight: 700; color: #1e293b; font-size: 0.875rem; margin: 0; white-space: nowrap;">Branch:</label>
+                <select id="filter_branch" name="branch" class="form-select form-select-sm" style="width: auto; min-width: 160px; height: 36px; font-size: 0.875rem; border-radius: 8px; border: 1px solid #cbd5e1;" onchange="this.form.submit()">
                     <option value="">All Branches</option>
                     <?php foreach ($branches as $branch): ?>
                         <option value="<?php echo (int) $branch['id']; ?>" <?php echo $branch_filter === (int) $branch['id'] ? 'selected' : ''; ?>>
@@ -396,11 +382,11 @@ if (!empty($primary_vehicle['id'])) {
                         </option>
                     <?php endforeach; ?>
                 </select>
-            </label>
+            </div>
 
-            <label style="display: inline-flex; align-items: center; gap: 6px; margin: 0; font-weight: 600; color: #334155; font-size: 0.875rem;">
-                <span>Period:</span>
-                <select name="date_scope" class="records-date-scope form-select form-select-sm" style="width: auto; min-width: 140px; font-size: 0.85rem;" aria-label="Select record period">
+            <div style="display: inline-flex; align-items: center; gap: 8px;">
+                <label for="filter_period" style="font-weight: 700; color: #1e293b; font-size: 0.875rem; margin: 0; white-space: nowrap;">Period:</label>
+                <select id="filter_period" name="date_scope" class="records-date-scope form-select form-select-sm" style="width: auto; min-width: 140px; height: 36px; font-size: 0.875rem; border-radius: 8px; border: 1px solid #cbd5e1;" aria-label="Select record period">
                     <option value="all" <?php echo ($date_filter['scope'] ?? '') === 'all' ? 'selected' : ''; ?>>All Records</option>
                     <option value="recent" <?php echo ($date_filter['scope'] ?? '') === 'recent' ? 'selected' : ''; ?>>Current Week</option>
                     <option value="day" <?php echo ($date_filter['scope'] ?? '') === 'day' ? 'selected' : ''; ?>>Day</option>
@@ -409,34 +395,30 @@ if (!empty($primary_vehicle['id'])) {
                     <option value="year" <?php echo ($date_filter['scope'] ?? '') === 'year' ? 'selected' : ''; ?>>Year</option>
                     <option value="range" <?php echo ($date_filter['scope'] ?? '') === 'range' ? 'selected' : ''; ?>>Date Range</option>
                 </select>
-            </label>
-            <label data-date-input="day" style="display: inline-flex; align-items: center; gap: 4px; margin: 0;">
-                <span class="text-muted" style="font-size: 0.8rem;">Day</span>
-                <input type="date" name="date_day" class="form-control form-control-sm" style="width: auto; font-size: 0.85rem;" value="<?php echo esc_attr($date_filter['day']); ?>">
-            </label>
-            <label data-date-input="week" style="display: inline-flex; align-items: center; gap: 4px; margin: 0;">
-                <span class="text-muted" style="font-size: 0.8rem;">Week</span>
-                <input type="week" name="date_week" class="form-control form-control-sm" style="width: auto; font-size: 0.85rem;" value="<?php echo esc_attr($date_filter['week']); ?>">
-            </label>
-            <label data-date-input="month" style="display: inline-flex; align-items: center; gap: 4px; margin: 0;">
-                <span class="text-muted" style="font-size: 0.8rem;">Month</span>
-                <input type="month" name="date_month" class="form-control form-control-sm" style="width: auto; font-size: 0.85rem;" value="<?php echo esc_attr($date_filter['month']); ?>">
-            </label>
-            <label data-date-input="year" style="display: inline-flex; align-items: center; gap: 4px; margin: 0;">
-                <span class="text-muted" style="font-size: 0.8rem;">Year</span>
-                <input type="number" name="date_year" class="form-control form-control-sm" style="width: 80px; font-size: 0.85rem;" min="2020" max="2100" value="<?php echo (int) $date_filter['year']; ?>">
-            </label>
-            <label data-date-input="range" style="display: inline-flex; align-items: center; gap: 4px; margin: 0;">
-                <span class="text-muted" style="font-size: 0.8rem;">From</span>
-                <input type="date" name="date_from" class="form-control form-control-sm" style="width: auto; font-size: 0.85rem;" value="<?php echo esc_attr($date_filter['from']); ?>">
-            </label>
-            <label data-date-input="range" style="display: inline-flex; align-items: center; gap: 4px; margin: 0;">
-                <span class="text-muted" style="font-size: 0.8rem;">To</span>
-                <input type="date" name="date_to" class="form-control form-control-sm" style="width: auto; font-size: 0.85rem;" value="<?php echo esc_attr($date_filter['to']); ?>">
-            </label>
-            <button type="submit" class="btn btn-sm btn-primary" style="padding: 4px 14px; font-size: 0.85rem;">Apply</button>
+            </div>
+
+            <div data-date-input="day" style="display: inline-flex; align-items: center; gap: 6px;">
+                <input type="date" name="date_day" class="form-control form-control-sm" style="width: auto; height: 36px; font-size: 0.875rem; border-radius: 8px; border: 1px solid #cbd5e1;" value="<?php echo esc_attr($date_filter['day']); ?>">
+            </div>
+            <div data-date-input="week" style="display: inline-flex; align-items: center; gap: 6px;">
+                <input type="week" name="date_week" class="form-control form-control-sm" style="width: auto; height: 36px; font-size: 0.875rem; border-radius: 8px; border: 1px solid #cbd5e1;" value="<?php echo esc_attr($date_filter['week']); ?>">
+            </div>
+            <div data-date-input="month" style="display: inline-flex; align-items: center; gap: 6px;">
+                <input type="month" name="date_month" class="form-control form-control-sm" style="width: auto; height: 36px; font-size: 0.875rem; border-radius: 8px; border: 1px solid #cbd5e1;" value="<?php echo esc_attr($date_filter['month']); ?>">
+            </div>
+            <div data-date-input="year" style="display: inline-flex; align-items: center; gap: 6px;">
+                <input type="number" name="date_year" class="form-control form-control-sm" style="width: 90px; height: 36px; font-size: 0.875rem; border-radius: 8px; border: 1px solid #cbd5e1;" min="2020" max="2100" value="<?php echo (int) $date_filter['year']; ?>">
+            </div>
+            <div data-date-input="range" style="display: inline-flex; align-items: center; gap: 6px;">
+                <span style="font-size: 0.85rem; color: #64748b;">From:</span>
+                <input type="date" name="date_from" class="form-control form-control-sm" style="width: auto; height: 36px; font-size: 0.875rem; border-radius: 8px; border: 1px solid #cbd5e1;" value="<?php echo esc_attr($date_filter['from']); ?>">
+                <span style="font-size: 0.85rem; color: #64748b;">To:</span>
+                <input type="date" name="date_to" class="form-control form-control-sm" style="width: auto; height: 36px; font-size: 0.875rem; border-radius: 8px; border: 1px solid #cbd5e1;" value="<?php echo esc_attr($date_filter['to']); ?>">
+            </div>
+
+            <button type="submit" class="btn btn-sm btn-primary" style="height: 36px; padding: 0 18px; font-weight: 700; font-size: 0.875rem; border-radius: 8px; background: #0096b6; border: none; white-space: nowrap;">Apply</button>
             <?php if ($branch_filter !== '' || ($date_filter['scope'] ?? 'all') !== 'all'): ?>
-                <a href="profile.php?id=<?php echo (int) $customer_id; ?>" class="btn btn-sm btn-outline-secondary" style="padding: 4px 10px; font-size: 0.85rem;">Clear</a>
+                <a href="profile.php?id=<?php echo (int) $customer_id; ?>" class="btn btn-sm btn-outline-secondary" style="height: 36px; display: inline-flex; align-items: center; padding: 0 12px; font-size: 0.85rem; border-radius: 8px; white-space: nowrap;">Clear</a>
             <?php endif; ?>
         </form>
     </section>
