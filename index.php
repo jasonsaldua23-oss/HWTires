@@ -395,6 +395,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
         </div>
 
         <div class="login-body">
+            <?php if (isset($_GET['timeout'])): ?>
+                <div class="alert alert-warning" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;" role="alert">
+                    <i class="fas fa-clock"></i> <span>Your session has expired due to inactivity. Please log in again.</span>
+                </div>
+            <?php endif; ?>
             <?php if (!empty($error)): ?>
                 <div class="alert alert-danger" role="alert">
                     <i class="fas fa-exclamation-circle"></i> <span><?php echo htmlspecialchars($error); ?></span>

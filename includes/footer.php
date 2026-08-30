@@ -308,7 +308,111 @@
             input.addEventListener('blur', syncPlateInput);
         });
     });
+
+    // Session Inactivity Timeout Handler (15 minutes limit with 60s countdown modal)
+    (function() {
+        <?php if (is_logged_in()): ?>
+        const INACTIVITY_TIMEOUT_MS = 14 * 60 * 1000; // 14 minutes before warning
+        const COUNTDOWN_SECONDS = 60; // 60 seconds countdown
+        const LOGOUT_URL = <?php echo json_encode(APP_URL . '/auth/logout.php?timeout=1'); ?>;
+        const PING_URL = <?php echo json_encode(APP_URL . '/api/notifications-api.php?action=ping'); ?>;
+
+        let warningTimer = null;
+        let countdownTimer = null;
+        let remainingSeconds = COUNTDOWN_SECONDS;
+        let modalInstance = null;
+
+        const modalEl = document.getElementById('sessionTimeoutModal');
+        const countdownEl = document.getElementById('sessionTimeoutCountdown');
+        const stayBtn = document.getElementById('sessionStayLoggedInBtn');
+
+        function startWarningTimer() {
+            clearTimeout(warningTimer);
+            clearInterval(countdownTimer);
+            warningTimer = setTimeout(showTimeoutWarning, INACTIVITY_TIMEOUT_MS);
+        }
+
+        function showTimeoutWarning() {
+            remainingSeconds = COUNTDOWN_SECONDS;
+            if (countdownEl) countdownEl.textContent = remainingSeconds + 's';
+            if (modalEl && typeof bootstrap !== 'undefined') {
+                if (!modalInstance) {
+                    modalInstance = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
+                }
+                modalInstance.show();
+            }
+
+            countdownTimer = setInterval(function() {
+                remainingSeconds--;
+                if (countdownEl) countdownEl.textContent = remainingSeconds + 's';
+                if (remainingSeconds <= 0) {
+                    clearInterval(countdownTimer);
+                    window.location.href = LOGOUT_URL;
+                }
+            }, 1000);
+        }
+
+        function resetInactivity() {
+            if (modalEl && modalEl.classList.contains('show')) {
+                // If warning is already showing, wait for user to explicitly click Stay Logged In
+                return;
+            }
+            startWarningTimer();
+        }
+
+        if (stayBtn) {
+            stayBtn.addEventListener('click', function() {
+                clearInterval(countdownTimer);
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+                startWarningTimer();
+                // Send heartbeat ping
+                fetch(PING_URL).catch(function() {});
+            });
+        }
+
+        ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'].forEach(function(evt) {
+            window.addEventListener(evt, resetInactivity, { passive: true });
+        });
+
+        startWarningTimer();
+        <?php endif; ?>
+    })();
 </script>
+
+<?php if (is_logged_in()): ?>
+<!-- Session Timeout Warning Modal -->
+<div class="modal fade" id="sessionTimeoutModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+        <div class="modal-content" style="border: 0; border-radius: 14px; box-shadow: 0 24px 60px rgba(0,0,0,0.3);">
+            <div class="modal-header" style="background: #fff8eb; border-bottom: 1px solid #fed7aa; border-radius: 14px 14px 0 0; padding: 14px 20px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; background: #fef3c7; color: #d97706; font-size: 16px;">
+                        <i class="fas fa-clock"></i>
+                    </span>
+                    <h5 class="modal-title" style="color: #92400e; font-weight: 750; font-size: 1.05rem; margin: 0;">Session Timeout Warning</h5>
+                </div>
+            </div>
+            <div class="modal-body" style="padding: 20px 24px; text-align: center;">
+                <p style="color: #334155; font-size: 0.95rem; margin-bottom: 8px;">
+                    You have been inactive for a while. For your security, your session will expire in:
+                </p>
+                <div style="font-size: 2.2rem; font-weight: 800; color: #dc2626; margin: 10px 0 12px; font-variant-numeric: tabular-nums;" id="sessionTimeoutCountdown">
+                    60s
+                </div>
+                <p style="color: #64748b; font-size: 0.85rem; margin: 0;">
+                    Click "Stay Logged In" to continue working.
+                </p>
+            </div>
+            <div class="modal-footer" style="border-top: 1px solid #f1f5f9; padding: 12px 20px; display: flex; justify-content: space-between; gap: 10px;">
+                <a href="<?php echo esc_url(APP_URL . '/auth/logout.php?timeout=1'); ?>" class="btn btn-outline-secondary btn-sm" style="padding: 6px 14px; font-size: 0.875rem;">Log Out</a>
+                <button type="button" class="btn btn-primary btn-sm" id="sessionStayLoggedInBtn" style="padding: 6px 18px; font-size: 0.875rem;">Stay Logged In</button>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 </body>
 </html>

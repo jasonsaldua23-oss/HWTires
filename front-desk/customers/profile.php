@@ -360,6 +360,16 @@ if (!empty($primary_vehicle['id'])) {
                     <span>Create Job Order</span>
                 </button>
             <?php endif; ?>
+            <form method="POST" action="/hwtires/api/customers-api.php" style="display:inline-block; margin:0;" onsubmit="return confirm('Archive this customer record? The record will be moved to archived records.');">
+                <input type="hidden" name="csrf_token" value="<?php echo generate_csrf_token(); ?>">
+                <input type="hidden" name="action" value="archive">
+                <input type="hidden" name="id" value="<?php echo $customer_id; ?>">
+                <input type="hidden" name="redirect" value="/hwtires/front-desk/customers/">
+                <button type="submit" class="profile-create-btn" style="background:#fff1f2; border:1px solid #fecdd3; color:#e11d48;" title="Archive customer record">
+                    <i class="fas fa-box-archive"></i>
+                    <span>Archive Record</span>
+                </button>
+            </form>
         </div>
     </section>
 
@@ -373,15 +383,14 @@ if (!empty($primary_vehicle['id'])) {
         </div>
     <?php endif; ?>
 
-    <section class="customer-profile-filter-card">
-        <form method="GET" class="customer-profile-filter">
+    <section class="customer-profile-filter-card" style="padding: 12px 18px; margin-bottom: 18px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px;">
+        <form method="GET" class="customer-profile-filter" style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0;">
             <input type="hidden" name="id" value="<?php echo (int) $customer_id; ?>">
-            <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
-            <div class="customer-profile-filter-label">
-                <i class="fas fa-filter"></i>
-                <strong>Filter by Branch:</strong>
+            <div style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #334155; font-size: 0.9rem;">
+                <i class="fas fa-filter text-muted"></i>
+                <span>Filter by Branch:</span>
             </div>
-            <select name="branch" class="customer-profile-branch-select" onchange="this.form.submit()">
+            <select name="branch" class="form-select form-select-sm" style="width: auto; min-width: 170px; font-size: 0.875rem;" onchange="this.form.submit()">
                 <option value="">All Branches</option>
                 <?php foreach ($branches as $branch): ?>
                     <?php $branch_label = front_profile_branch_label($branch['name']); ?>
@@ -390,25 +399,19 @@ if (!empty($primary_vehicle['id'])) {
                     </option>
                 <?php endforeach; ?>
             </select>
-            <button type="submit" class="customer-profile-submit">Apply</button>
-            <div class="customer-profile-branch-chips">
-                <?php if (empty($display_customer_branches)): ?>
-                    <span class="customer-branch-pill customer-branch-empty">No branch records</span>
-                <?php else: ?>
-                    <?php foreach ($display_customer_branches as $branch): ?>
-                        <span class="customer-branch-pill <?php echo esc_attr(front_profile_branch_class($branch['id'])); ?>">
-                            <?php echo esc_html(front_profile_branch_label($branch['name'])); ?>
-                        </span>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+
+            <div style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #334155; font-size: 0.9rem; margin-left: 8px;">
+                <span>Records:</span>
             </div>
+            <select name="records" class="form-select form-select-sm" style="width: auto; min-width: 150px; font-size: 0.875rem;" onchange="this.form.submit()">
+                <?php foreach (record_date_filter_options() as $record_val => $record_lbl): ?>
+                    <option value="<?php echo esc_attr($record_val); ?>" <?php echo $date_filter === $record_val ? 'selected' : ''; ?>>
+                        <?php echo esc_html($record_lbl); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <button type="submit" class="btn btn-sm btn-primary" style="padding: 4px 14px; font-size: 0.875rem;">Apply</button>
         </form>
-        <?php
-        record_date_filter_controls($date_filter, [
-            'id' => $customer_id,
-            'branch' => $branch_filter
-        ], 'customer-profile-records');
-        ?>
     </section>
 
     <section class="customer-profile-summary-grid" id="customer-profile-records">

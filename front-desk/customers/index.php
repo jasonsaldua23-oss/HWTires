@@ -720,6 +720,10 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                             <label class="form-label required">Contact Number</label>
                             <input type="tel" class="form-control" name="phone_mobile" inputmode="numeric" minlength="11" maxlength="11" pattern="09[0-9]{9}" placeholder="e.g., 09171234567" autocomplete="tel" data-phone-input required>
                         </div>
+                        <div class="form-group">
+                            <label class="form-label">Address</label>
+                            <textarea class="form-control" name="address" rows="2" placeholder="e.g., 852 Rosario Street, Bacolod City"></textarea>
+                        </div>
                     </section>
 
                     <section class="customer-modal-section vehicle-section">
@@ -785,16 +789,12 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                         <input type="text" class="form-control" name="name" id="edit_customer_name" required>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Mobile Phone</label>
-                        <input type="tel" class="form-control" name="phone_mobile" id="edit_customer_phone_mobile" inputmode="numeric" minlength="11" maxlength="11" pattern="09[0-9]{9}" placeholder="e.g., 09171234567" autocomplete="tel" data-phone-input>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Contact Number</label>
-                        <input type="tel" class="form-control" name="contact" id="edit_customer_contact" inputmode="numeric" minlength="11" maxlength="11" pattern="09[0-9]{9}" placeholder="e.g., 09171234567" autocomplete="tel" data-phone-input>
+                        <label class="form-label required">Contact Number</label>
+                        <input type="tel" class="form-control" name="contact" id="edit_customer_contact" inputmode="numeric" minlength="11" maxlength="11" pattern="09[0-9]{9}" placeholder="e.g., 09171234567" autocomplete="tel" data-phone-input required>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Address</label>
-                        <textarea class="form-control" name="address" id="edit_customer_address" rows="2"></textarea>
+                        <textarea class="form-control" name="address" id="edit_customer_address" rows="2" placeholder="e.g., 852 Rosario Street, Bacolod City"></textarea>
                     </div>
                     <div class="form-group">
                         <label class="form-label required">Customer Type</label>
@@ -914,8 +914,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             document.getElementById('edit_customer_id').value = button.dataset.id || '';
             document.getElementById('edit_customer_name').value = button.dataset.name || '';
-            document.getElementById('edit_customer_phone_mobile').value = normalizePhone(button.dataset.phoneMobile || '');
-            document.getElementById('edit_customer_contact').value = normalizePhone(button.dataset.contact || '');
+            const phoneVal = button.dataset.contact || button.dataset.phoneMobile || '';
+            document.getElementById('edit_customer_contact').value = normalizePhone(phoneVal);
             document.getElementById('edit_customer_address').value = button.dataset.address || '';
             document.getElementById('edit_customer_type').value = button.dataset.customerType || 'individual';
         });

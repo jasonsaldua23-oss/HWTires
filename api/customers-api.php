@@ -63,8 +63,14 @@ if ($action === 'add') {
         // Validate input
         $name = trim($_POST['name'] ?? '');
         $email = trim($_POST['email'] ?? '');
-        $phone_mobile = customers_normalize_phone($_POST['phone_mobile'] ?? '');
-        $contact = customers_normalize_phone($_POST['contact'] ?? '');
+        $phone_mobile = customers_normalize_phone($_POST['phone_mobile'] ?? $_POST['contact'] ?? '');
+        $contact = customers_normalize_phone($_POST['contact'] ?? $_POST['phone_mobile'] ?? '');
+        if ($phone_mobile === '' && $contact !== '') {
+            $phone_mobile = $contact;
+        }
+        if ($contact === '' && $phone_mobile !== '') {
+            $contact = $phone_mobile;
+        }
         $address = trim($_POST['address'] ?? '');
         $customer_type = strtolower(trim((string) ($_POST['customer_type'] ?? 'individual')));
         if (!in_array($customer_type, ['individual', 'corporate'], true)) {
@@ -94,9 +100,6 @@ if ($action === 'add') {
             || $vehicle_last_mileage > 0
             || $vehicle_color !== ''
             || $vehicle_vin !== '';
-        if ($contact === '') {
-            $contact = $phone_mobile;
-        }
 
         // Validate required fields
         if (empty($name)) {
@@ -273,20 +276,15 @@ if ($action === 'update') {
         // Update customer
         $name = trim($_POST['name'] ?? $old_customer['name']);
         $email = trim($_POST['email'] ?? $old_customer['email']);
-        $phone_mobile = customers_normalize_phone($_POST['phone_mobile'] ?? $old_customer['phone_mobile']);
-        $contact = customers_normalize_phone($_POST['contact'] ?? $old_customer['contact']);
+        $incoming_phone = customers_normalize_phone($_POST['contact'] ?? $_POST['phone_mobile'] ?? ($old_customer['contact'] ?? $old_customer['phone_mobile'] ?? ''));
+        $phone_mobile = $incoming_phone;
+        $contact = $incoming_phone;
         $address = trim($_POST['address'] ?? $old_customer['address']);
         $customer_type = strtolower(trim((string) ($_POST['customer_type'] ?? ($old_customer['customer_type'] ?? 'individual'))));
         if (!in_array($customer_type, ['individual', 'corporate'], true)) {
             $customer_type = 'individual';
         }
-        if ($contact === '') {
-            $contact = $phone_mobile;
-        }
         if ($phone_mobile === '' || !customers_is_valid_ph_mobile($phone_mobile)) {
-            throw new Exception('Contact number must be an 11-digit Philippine mobile number, e.g. 09171234567');
-        }
-        if ($contact !== '' && !customers_is_valid_ph_mobile($contact)) {
             throw new Exception('Contact number must be an 11-digit Philippine mobile number, e.g. 09171234567');
         }
 

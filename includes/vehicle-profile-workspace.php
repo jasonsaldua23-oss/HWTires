@@ -337,7 +337,16 @@ if (!function_exists('vehicle_profile_record_payload')) {
             }
         }
 
-        $display_amount = $visit_total > 0 ? $visit_total : ($service_amount > 0 ? $service_amount : $inventory_amount);
+        $is_job_record = ($record_type === 'job');
+        if ($is_job_record) {
+            $display_amount = '-';
+            $service_amount = '-';
+            $inventory_amount = '-';
+            $visit_total = '-';
+        } else {
+            $display_amount = $visit_total > 0 ? $visit_total : ($service_amount > 0 ? $service_amount : $inventory_amount);
+        }
+
         $record_count = (int) ($record['record_count'] ?? count($linked_records));
         $source_types = is_array($record['source_types'] ?? null) ? $record['source_types'] : [];
         $linked_records = $is_inventory_record
@@ -347,22 +356,25 @@ if (!function_exists('vehicle_profile_record_payload')) {
             ? vehicle_profile_inventory_detail_fields($record, $items, $inventory_amount, $linked_records)
             : [];
 
+        $type_display_label = vehicle_profile_type_label($record_type);
+
         return [
-            'type' => vehicle_profile_type_label($record_type),
+            'type' => $type_display_label,
             'title' => trim((string) ($record['record_number'] ?? 'Record')),
             'summary' => trim((string) ($record['summary'] ?? '')),
             'date' => vehicle_profile_short_date($record['record_date'] ?? ''),
             'branch' => vehicle_profile_branch_label($record['branch_name'] ?? ''),
             'status' => vehicle_profile_status_label($record['record_status'] ?? ''),
-            'amount' => vehicle_profile_money($display_amount),
-            'service_amount' => vehicle_profile_money($service_amount),
-            'inventory_amount' => vehicle_profile_money($inventory_amount),
-            'visit_total' => vehicle_profile_money($visit_total),
+            'amount' => is_numeric($display_amount) ? vehicle_profile_money($display_amount) : '-',
+            'service_amount' => is_numeric($service_amount) ? vehicle_profile_money($service_amount) : '-',
+            'inventory_amount' => is_numeric($inventory_amount) ? vehicle_profile_money($inventory_amount) : '-',
+            'visit_total' => is_numeric($visit_total) ? vehicle_profile_money($visit_total) : '-',
             'meta' => trim((string) ($record['meta_text'] ?? '')),
             'notes' => $notes,
             'items' => $items,
             'is_inventory' => $is_inventory_record,
-            'items_title' => $is_inventory_record ? 'Inventory Product' : 'Items Used',
+            'is_job_order' => $is_job_record,
+            'items_title' => $is_inventory_record ? 'Inventory Product' : ($is_job_record ? 'Materials Required' : 'Items Used'),
             'inventory_fields' => $inventory_fields,
             'empty_items_label' => $empty_items_label,
             'linked_records' => $linked_records,
@@ -2450,7 +2462,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return parts;
     }
 
-    function appendDetailItem(itemList, value, muted) {
+    function appendDetailItem(itemList, value, muted, hidePrice) {
         const parts = splitItemDisplay(value);
         const li = document.createElement('li');
         const label = document.createElement('span');
@@ -2459,7 +2471,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (muted) {
             li.classList.add('is-muted');
         }
-        if (parts.price) {
+        if (parts.price && !hidePrice) {
             li.classList.add('has-price');
         }
 
@@ -2467,7 +2479,7 @@ document.addEventListener('DOMContentLoaded', function() {
         label.textContent = parts.label || '-';
         li.appendChild(label);
 
-        if (parts.price) {
+        if (parts.price && !hidePrice) {
             const price = document.createElement('strong');
             price.className = 'vehicle-workspace-item-price';
             price.textContent = parts.price;
@@ -2525,12 +2537,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function syncDetail(detail, payload) {
         const isInventory = Boolean(payload.is_inventory);
+        const isJob = Boolean(payload.is_job_order);
 
         detail.classList.toggle('is-inventory-record', isInventory);
         setText(detail, '[data-detail-type]', payload.type);
         setText(detail, '[data-detail-title]', payload.title);
         setText(detail, '[data-detail-summary]', payload.summary);
-        setText(detail, '[data-detail-amount]', payload.amount);
+        setText(detail, '[data-detail-amount]', isJob ? '-' : payload.amount);
         setText(detail, '[data-detail-service-amount]', payload.service_amount);
         setText(detail, '[data-detail-inventory-amount]', payload.inventory_amount);
         setText(detail, '[data-detail-visit-total]', payload.visit_total || payload.amount);
@@ -2539,7 +2552,12 @@ document.addEventListener('DOMContentLoaded', function() {
         setText(detail, '[data-detail-status]', payload.status);
         setText(detail, '[data-detail-meta]', payload.meta);
         setText(detail, '[data-detail-notes]', payload.notes);
-        setText(detail, '[data-detail-items-title]', payload.items_title || (isInventory ? 'Inventory Product' : 'Items Used'));
+        setText(detail, '[data-detail-items-title]', payload.items_title || (isInventory ? 'Inventory Product' : (isJob ? 'Materials Required' : 'Items Used')));
+
+        const amountElement = detail.querySelector('[data-detail-amount]');
+        if (amountElement) {
+            amountElement.classList.toggle('is-hidden', isJob);
+        }
 
         const visitGrid = detail.querySelector('[data-detail-visit-grid]');
         if (visitGrid) {
@@ -2548,7 +2566,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const amountsCard = detail.querySelector('[data-detail-amounts-grid]');
         if (amountsCard) {
-            amountsCard.classList.toggle('is-hidden', isInventory);
+            amountsCard.classList.toggle('is-hidden', isInventory || isJob);
         }
 
         const inventoryGrid = detail.querySelector('[data-detail-inventory-grid]');
@@ -2578,10 +2596,10 @@ document.addEventListener('DOMContentLoaded', function() {
             itemList.innerHTML = '';
             if (Array.isArray(payload.items) && payload.items.length) {
                 payload.items.forEach(function(item) {
-                    appendDetailItem(itemList, item, false);
+                    appendDetailItem(itemList, item, false, isJob);
                 });
             } else {
-                appendDetailItem(itemList, payload.empty_items_label || 'No product item recorded for this record', true);
+                appendDetailItem(itemList, payload.empty_items_label || 'No product item recorded for this record', true, isJob);
             }
         }
 

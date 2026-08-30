@@ -437,6 +437,18 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                             <strong><?php echo front_quote_money(front_quote_total_amount($quotation, $items)); ?></strong>
                         </div>
                         <div class="quotation-record-cell quotation-record-action">
+                            <?php if (($quotation['status'] ?? '') === 'archived'): ?>
+                                <form method="POST" action="/hwtires/api/quotations-api.php" style="display:inline-block; margin-right:4px;" onsubmit="return confirm('Restore this service operation to active status?');">
+                                    <input type="hidden" name="csrf_token" value="<?php echo esc_attr(generate_csrf_token()); ?>">
+                                    <input type="hidden" name="action" value="restore">
+                                    <input type="hidden" name="id" value="<?php echo $quotation_id; ?>">
+                                    <input type="hidden" name="redirect" value="<?php echo esc_attr($current_url); ?>">
+                                    <button type="submit" class="quotation-details-button" style="background:#e7f6ec; border-color:#8ce1a4; color:#1e7e34;" title="Restore / Unarchive record">
+                                        <i class="fas fa-rotate-left"></i>
+                                        <span>Restore</span>
+                                    </button>
+                                </form>
+                            <?php endif; ?>
                             <button type="button" class="quotation-details-button" data-bs-toggle="modal" data-bs-target="#<?php echo esc_attr($modal_id); ?>">
                                 <i class="fas fa-eye"></i>
                                 <span>View</span>
@@ -610,6 +622,18 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                                                 <i class="fas fa-edit"></i>
                                                 <span>Edit Services</span>
                                             </button>
+                                        <?php endif; ?>
+                                        <?php if (($quotation['status'] ?? '') === 'archived'): ?>
+                                            <form method="POST" action="/hwtires/api/quotations-api.php" class="quotation-modal-action-form" onsubmit="return confirm('Restore this service operation to active status?');">
+                                                <input type="hidden" name="csrf_token" value="<?php echo esc_attr(generate_csrf_token()); ?>">
+                                                <input type="hidden" name="action" value="restore">
+                                                <input type="hidden" name="id" value="<?php echo $quotation_id; ?>">
+                                                <input type="hidden" name="redirect" value="<?php echo esc_attr($current_url); ?>">
+                                                <button type="submit" class="quotation-modal-approve" style="background:#0f766e; border-color:#0f766e; color:#ffffff;">
+                                                    <i class="fas fa-rotate-left"></i>
+                                                    <span>Restore / Unarchive</span>
+                                                </button>
+                                            </form>
                                         <?php endif; ?>
                                         <?php if ($can_delete): ?>
                                             <form method="POST" action="/hwtires/api/quotations-api.php" class="quotation-modal-action-form" onsubmit="return confirm('Archive this service operation? The record will be hidden but kept in the database.');">

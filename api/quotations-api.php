@@ -715,6 +715,78 @@ if ($action === 'delete' || $action === 'archive') {
     }
 }
 
+// Handle Restore / Unarchive Quotation
+if ($action === 'restore') {
+    try {
+        enforce_modify_permission();
+
+        if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+            throw new Exception('Invalid security token');
+        }
+
+        $quotation_id = intval($_POST['id'] ?? 0);
+        if ($quotation_id <= 0) throw new Exception('Invalid quotation ID');
+
+        $quotation_stmt = $pdo->prepare("SELECT * FROM quotations WHERE id = ?");
+        $quotation_stmt->execute([$quotation_id]);
+        $quotation = $quotation_stmt->fetch();
+        if (!$quotation) {
+            throw new Exception('Service operation not found');
+        }
+        enforce_branch_record_ownership($quotation['branch_id'] ?? 0);
+
+        $pdo->beginTransaction();
+
+        $restore_set = ["status = 'draft'"];
+        $restore_values = [];
+        if (app_column_exists('quotations', 'is_archived')) {
+            $restore_set[] = 'is_archived = 0';
+        }
+        if (app_column_exists('quotations', 'archived_at')) {
+            $restore_set[] = 'archived_at = NULL';
+        }
+        if (app_column_exists('quotations', 'archived_by')) {
+            $restore_set[] = 'archived_by = NULL';
+        }
+        if (app_column_exists('quotations', 'updated_at')) {
+            $restore_set[] = 'updated_at = NOW()';
+        }
+        $restore_values[] = $quotation_id;
+
+        $restore_stmt = $pdo->prepare('UPDATE quotations SET ' . implode(', ', $restore_set) . ' WHERE id = ?');
+        $restore_stmt->execute($restore_values);
+
+        $pdo->commit();
+
+        log_audit('quotations', 'restore', $quotation_id, [
+            'status' => 'archived'
+        ], [
+            'status' => 'draft',
+            'restored' => true
+        ]);
+
+        set_flash_message('Service operation unarchived successfully', 'success');
+
+        if (!empty($_POST['redirect'])) {
+            redirect($_POST['redirect']);
+        }
+
+        die(json_encode(['success' => true, 'message' => 'Service operation unarchived successfully']));
+
+    } catch (Exception $e) {
+        if ($pdo instanceof PDO && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log('Restore quotation error: ' . $e->getMessage());
+        set_flash_message($e->getMessage(), 'error');
+        if (!empty($_POST['redirect'])) {
+            redirect($_POST['redirect']);
+        }
+        http_response_code(400);
+        die(json_encode(['success' => false, 'message' => $e->getMessage()]));
+    }
+}
+
 http_response_code(400);
 die(json_encode(['success' => false, 'message' => 'Invalid action']));
 ?>
