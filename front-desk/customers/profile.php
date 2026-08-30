@@ -384,7 +384,7 @@ if (!empty($primary_vehicle['id'])) {
     <?php endif; ?>
 
     <section class="customer-profile-filter-card" style="padding: 10px 16px; margin-bottom: 14px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px;">
-        <form method="GET" class="records-date-filter" style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0; min-height: auto;">
+        <form method="GET" class="records-date-filter" data-record-date-filter style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0; min-height: auto;">
             <input type="hidden" name="id" value="<?php echo (int) $customer_id; ?>">
             <label style="display: inline-flex; align-items: center; gap: 6px; margin: 0; font-weight: 600; color: #334155; font-size: 0.875rem;">
                 <span><i class="fas fa-filter text-muted"></i> Branch:</span>
@@ -440,6 +440,7 @@ if (!empty($primary_vehicle['id'])) {
             <?php endif; ?>
         </form>
     </section>
+    <?php record_date_filter_script(); ?>
 
     <section class="customer-profile-summary-grid" id="customer-profile-records" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-bottom: 16px;">
         <article class="customer-profile-card customer-info-card" style="padding: 12px 16px; margin: 0; border-radius: 10px;">

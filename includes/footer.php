@@ -319,7 +319,7 @@
         // =========================================================================
         const INACTIVITY_TIMEOUT_MS = 45 * 1000; // 45 seconds before warning modal appears
         const COUNTDOWN_SECONDS = 15;            // 15 seconds countdown on warning modal
-        const LOGOUT_URL = <?php echo json_encode(APP_URL . '/auth/logout.php?timeout=1'); ?>;
+        const LOGOUT_URL = <?php echo json_encode(APP_URL . '/logout.php?timeout=1'); ?>;
         const PING_URL = <?php echo json_encode(APP_URL . '/api/notifications-api.php?action=ping'); ?>;
 
         let warningTimer = null;
@@ -381,6 +381,14 @@
             window.addEventListener(evt, resetInactivity, { passive: true });
         });
 
+        // Ensure timer restarts on page show (even when restoring from browser cache / back button)
+        window.addEventListener('pageshow', function() {
+            if (modalInstance) {
+                try { modalInstance.hide(); } catch(e) {}
+            }
+            startWarningTimer();
+        });
+
         startWarningTimer();
         <?php endif; ?>
     })();
@@ -404,14 +412,14 @@
                     You have been inactive for a while. For your security, your session will expire in:
                 </p>
                 <div style="font-size: 2.2rem; font-weight: 800; color: #dc2626; margin: 10px 0 12px; font-variant-numeric: tabular-nums;" id="sessionTimeoutCountdown">
-                    60s
+                    15s
                 </div>
                 <p style="color: #64748b; font-size: 0.85rem; margin: 0;">
                     Click "Stay Logged In" to continue working.
                 </p>
             </div>
             <div class="modal-footer" style="border-top: 1px solid #f1f5f9; padding: 12px 20px; display: flex; justify-content: space-between; gap: 10px;">
-                <a href="<?php echo esc_url(APP_URL . '/auth/logout.php?timeout=1'); ?>" class="btn btn-outline-secondary btn-sm" style="padding: 6px 14px; font-size: 0.875rem;">Log Out</a>
+                <a href="<?php echo esc_url(APP_URL . '/logout.php?timeout=1'); ?>" class="btn btn-outline-secondary btn-sm" style="padding: 6px 14px; font-size: 0.875rem;">Log Out</a>
                 <button type="button" class="btn btn-primary btn-sm" id="sessionStayLoggedInBtn" style="padding: 6px 18px; font-size: 0.875rem;">Stay Logged In</button>
             </div>
         </div>

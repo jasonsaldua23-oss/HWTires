@@ -39,4 +39,5 @@ session_destroy();
 app_send_no_cache_headers();
 
 // Redirect to login page
-redirect(APP_URL . '/index.php');
+$redirect_url = APP_URL . '/index.php' . (isset($_GET['timeout']) ? '?timeout=1' : '');
+redirect($redirect_url);
