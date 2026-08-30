@@ -309,11 +309,16 @@
         });
     });
 
-    // Session Inactivity Timeout Handler (15 minutes limit with 60s countdown modal)
+    // Session Inactivity Timeout Handler (Configured for testing: 1 min total = 45s idle + 15s modal countdown)
     (function() {
         <?php if (is_logged_in()): ?>
-        const INACTIVITY_TIMEOUT_MS = 14 * 60 * 1000; // 14 minutes before warning
-        const COUNTDOWN_SECONDS = 60; // 60 seconds countdown
+        // =========================================================================
+        // TIMEOUT SETTINGS:
+        // Current Test Setting: 45 seconds idle + 15 seconds modal countdown (1 min total)
+        // To restore to 15 minutes: change to (14 * 60 * 1000) and 60
+        // =========================================================================
+        const INACTIVITY_TIMEOUT_MS = 45 * 1000; // 45 seconds before warning modal appears
+        const COUNTDOWN_SECONDS = 15;            // 15 seconds countdown on warning modal
         const LOGOUT_URL = <?php echo json_encode(APP_URL . '/auth/logout.php?timeout=1'); ?>;
         const PING_URL = <?php echo json_encode(APP_URL . '/api/notifications-api.php?action=ping'); ?>;
 
