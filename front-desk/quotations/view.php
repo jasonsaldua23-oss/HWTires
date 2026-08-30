@@ -255,11 +255,6 @@ if ($flash_message && !$is_print):
             </tbody>
         </table>
 
-        <?php echo app_inventory_transaction_table_html($issued_inventory_items ?? [], [
-            'title' => 'Products / Inventory Issued',
-            'subtitle' => 'Stock-out products linked to this service operation.',
-        ]); ?>
-
         <!-- Totals Section -->
         <div class="row mt-4">
             <div class="col-md-6 offset-md-6">

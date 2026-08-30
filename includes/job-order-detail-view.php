@@ -339,25 +339,21 @@ $notes = trim((string) ($job_order['notes'] ?? ''));
     <?php if (!empty($quotation_items)): ?>
         <section class="job-detail-panel">
             <div class="job-detail-panel-head">
-                <h2><i class="fas fa-list"></i> Service Items</h2>
+                <h2><i class="fas fa-clipboard-list"></i> Scope of Work &amp; Materials</h2>
             </div>
             <div class="table-responsive">
                 <table class="table table-sm mb-0 job-detail-items-table">
                     <thead>
                         <tr>
-                            <th>Item Description</th>
-                            <th>Category</th>
-                            <th class="text-end">Qty</th>
-                            <th class="text-end">Unit Price</th>
-                            <th class="text-end">Total</th>
+                            <th>Item Description &amp; Details</th>
+                            <th style="width: 20%;">Category</th>
+                            <th class="text-end" style="width: 15%;">Quantity</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($quotation_items as $item): ?>
                             <?php
                             $quantity = max(1, (int) ($item['quantity'] ?? 1));
-                            $unit_price = (float) ($item['unit_price'] ?? 0);
-                            $line_total = $quantity * $unit_price;
                             $inv_item_meta = app_line_item_meta($item);
                             $inv_item_record = !empty($inv_item_meta['inventory_item_id']) ? ($inventory_items_by_id[$inv_item_meta['inventory_item_id']] ?? []) : [];
                             $category_badge_text = app_line_item_type_label($item, $inv_item_record, $item['category'] ?? 'General');
@@ -365,9 +361,7 @@ $notes = trim((string) ($job_order['notes'] ?? ''));
                             <tr>
                                 <td><?php echo app_line_item_description_html($item, $inventory_items_by_id, ['include_type' => true]); ?></td>
                                 <td><span class="job-detail-chip"><?php echo esc_html($category_badge_text); ?></span></td>
-                                <td class="text-end"><?php echo $quantity; ?></td>
-                                <td class="text-end"><?php echo job_detail_money($unit_price); ?></td>
-                                <td class="text-end"><strong><?php echo job_detail_money($line_total); ?></strong></td>
+                                <td class="text-end"><strong><?php echo $quantity; ?></strong></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -375,12 +369,6 @@ $notes = trim((string) ($job_order['notes'] ?? ''));
             </div>
         </section>
     <?php endif; ?>
-
-    <?php echo app_inventory_transaction_table_html($issued_inventory_items ?? [], [
-        'title' => 'Products / Inventory Used',
-        'subtitle' => 'Stock-out products issued for this job order.',
-        'container' => 'section',
-    ]); ?>
 
     <?php if ($notes !== ''): ?>
         <section class="job-detail-panel">

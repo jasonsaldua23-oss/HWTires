@@ -81,15 +81,20 @@ if (!function_exists('app_line_item_load_inventory_items')) {
         }
 
         $inventory_item_ids = [];
+        $inventory_item_names = [];
         foreach ($items as $item) {
             $meta = app_line_item_meta($item);
             $inventory_item_id = (int) ($meta['inventory_item_id'] ?? 0);
             if ($inventory_item_id > 0) {
                 $inventory_item_ids[$inventory_item_id] = $inventory_item_id;
             }
+            $name = trim((string) ($item['item_name'] ?? ''));
+            if ($name !== '' && !app_line_item_is_service($item)) {
+                $inventory_item_names[$name] = $name;
+            }
         }
 
-        if (empty($inventory_item_ids)) {
+        if (empty($inventory_item_ids) && empty($inventory_item_names)) {
             return [];
         }
 
@@ -100,18 +105,38 @@ if (!function_exists('app_line_item_load_inventory_items')) {
             }
         }
 
-        $placeholders = implode(',', array_fill(0, count($inventory_item_ids), '?'));
-        $stmt = $pdo->prepare("
-            SELECT " . implode(', ', $inventory_columns) . "
-            FROM inventory_items i
-            LEFT JOIN branches b ON b.id = i.branch_id
-            WHERE i.id IN ($placeholders)
-        ");
-        $stmt->execute(array_values($inventory_item_ids));
-
         $inventory_items_by_id = [];
-        foreach ($stmt->fetchAll() as $inventory_item) {
-            $inventory_items_by_id[(int) $inventory_item['id']] = $inventory_item;
+
+        if (!empty($inventory_item_ids)) {
+            $placeholders = implode(',', array_fill(0, count($inventory_item_ids), '?'));
+            $stmt = $pdo->prepare("
+                SELECT " . implode(', ', $inventory_columns) . "
+                FROM inventory_items i
+                LEFT JOIN branches b ON b.id = i.branch_id
+                WHERE i.id IN ($placeholders)
+            ");
+            $stmt->execute(array_values($inventory_item_ids));
+            foreach ($stmt->fetchAll() as $inv) {
+                $inventory_items_by_id[(int) $inv['id']] = $inv;
+                $inventory_items_by_id['name:' . strtolower(trim($inv['item_name']))] = $inv;
+            }
+        }
+
+        if (!empty($inventory_item_names)) {
+            $n_placeholders = implode(',', array_fill(0, count($inventory_item_names), '?'));
+            $n_stmt = $pdo->prepare("
+                SELECT " . implode(', ', $inventory_columns) . "
+                FROM inventory_items i
+                LEFT JOIN branches b ON b.id = i.branch_id
+                WHERE i.item_name IN ($n_placeholders)
+            ");
+            $n_stmt->execute(array_values($inventory_item_names));
+            foreach ($n_stmt->fetchAll() as $inv) {
+                if (!isset($inventory_items_by_id[(int) $inv['id']])) {
+                    $inventory_items_by_id[(int) $inv['id']] = $inv;
+                }
+                $inventory_items_by_id['name:' . strtolower(trim($inv['item_name']))] = $inv;
+            }
         }
 
         return $inventory_items_by_id;
@@ -123,6 +148,10 @@ if (!function_exists('app_line_item_product_details')) {
         $meta = app_line_item_meta($item);
         $inventory_item_id = (int) ($meta['inventory_item_id'] ?? 0);
         $inventory_item = $inventory_item_id > 0 ? ($inventory_items_by_id[$inventory_item_id] ?? []) : [];
+        if (empty($inventory_item)) {
+            $name_key = 'name:' . strtolower(trim((string) ($item['item_name'] ?? '')));
+            $inventory_item = $inventory_items_by_id[$name_key] ?? [];
+        }
         $item_type = strtolower(trim((string) ($item['item_type'] ?? '')));
         $include_type = (bool) ($options['include_type'] ?? false);
         $include_source = (bool) ($options['include_source'] ?? false);
