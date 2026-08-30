@@ -309,32 +309,35 @@ if (!function_exists('vehicle_profile_record_payload')) {
         $linked_inventory_amount = max(0.0, (float) ($record['linked_inventory_amount'] ?? 0));
 
         if ($is_inventory_record) {
-            $service_amount = max(0.0, (float) ($record['service_amount'] ?? 0));
+            $service_amount = 0.0;
             $inventory_amount = max(0.0, (float) ($record['inventory_amount'] ?? 0));
             if ($inventory_amount <= 0) {
                 $inventory_amount = $record_amount;
             }
+            $visit_total = $inventory_amount;
         } else {
-            $service_amount = max(0.0, (float) ($record['service_amount'] ?? 0));
-            if ($service_amount <= 0) {
-                $service_amount = $record_amount;
-            }
-
+            $visit_total = max(0.0, (float) ($record['amount'] ?? ($record['visit_total'] ?? 0)));
             $inventory_amount = max(0.0, (float) ($record['inventory_amount'] ?? 0));
             if ($inventory_amount <= 0 && $linked_inventory_amount > 0) {
                 $inventory_amount = $linked_inventory_amount;
             }
+
+            if (isset($record['labor_cost']) && (float) $record['labor_cost'] > 0) {
+                $service_amount = (float) $record['labor_cost'];
+            } elseif ($visit_total > 0 && $inventory_amount > 0 && $visit_total >= $inventory_amount) {
+                $service_amount = max(0.0, $visit_total - $inventory_amount);
+            } elseif ($inventory_amount <= 0) {
+                $service_amount = $visit_total;
+            } else {
+                $service_amount = max(0.0, (float) ($record['service_amount'] ?? 0));
+            }
+
+            if ($visit_total <= 0) {
+                $visit_total = $service_amount + $inventory_amount;
+            }
         }
 
-        $visit_total = max(0.0, (float) ($record['visit_total'] ?? 0));
-        if ($visit_total <= 0) {
-            $visit_total = $service_amount > 0 ? $service_amount : $inventory_amount;
-        }
-        if ($visit_total <= 0) {
-            $visit_total = $record_amount;
-        }
-
-        $display_amount = $service_amount > 0 ? $service_amount : ($record_amount > 0 ? $record_amount : $inventory_amount);
+        $display_amount = $visit_total > 0 ? $visit_total : ($service_amount > 0 ? $service_amount : $inventory_amount);
         $record_count = (int) ($record['record_count'] ?? count($linked_records));
         $source_types = is_array($record['source_types'] ?? null) ? $record['source_types'] : [];
         $linked_records = $is_inventory_record

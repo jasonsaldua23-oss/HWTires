@@ -37,21 +37,26 @@ if ($action === 'add') {
         $vin = trim($_POST['vin'] ?? '');
         $plate_number = app_normalize_plate_number($_POST['plate_number'] ?? $_POST['license_plate'] ?? '');
         $condition = trim($_POST['condition'] ?? 'good');
-        $color = trim($_POST['color'] ?? '');
-        $last_mileage = intval($_POST['last_mileage'] ?? $_POST['vehicle_last_mileage'] ?? 0);
-        $branch_id = intval($user['branch_id'] ?? 0);
         if (!in_array($condition, ['excellent', 'good', 'fair', 'poor'], true)) {
             $condition = 'good';
         }
 
-        $customer_stmt = $pdo->prepare("SELECT id FROM customers WHERE id = ? AND status = 'active'");
+        if ($customer_id <= 0) {
+            throw new Exception('Customer is required');
+        }
+
+        $customer_stmt = $pdo->prepare("SELECT id, branch_id FROM customers WHERE id = ? AND status = 'active'");
         $customer_stmt->execute([$customer_id]);
         $customer = $customer_stmt->fetch();
         if (!$customer) {
             throw new Exception('Customer not found');
         }
 
-        if ($customer_id <= 0) throw new Exception('Customer is required');
+        $branch_id = intval($_POST['branch_id'] ?? $user['branch_id'] ?? ($customer['branch_id'] ?? 0));
+        if ($branch_id <= 0 && ($user['role'] ?? '') === 'admin') {
+            $branch_id = 1;
+        }
+
         if ($branch_id <= 0) throw new Exception('Invalid branch context for user');
         if (empty($make)) throw new Exception('Make is required');
         if (empty($model)) throw new Exception('Model is required');

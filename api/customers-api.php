@@ -111,6 +111,10 @@ if ($action === 'add') {
         if ($contact !== '' && !customers_is_valid_ph_mobile($contact)) {
             throw new Exception('Contact number must be an 11-digit Philippine mobile number, e.g. 09171234567');
         }
+        $branch_id = intval($_POST['branch_id'] ?? $user['branch_id'] ?? 0);
+        if ($branch_id <= 0 && ($user['role'] ?? '') === 'admin') {
+            $branch_id = 1;
+        }
         if ($branch_id <= 0) {
             throw new Exception('Invalid branch context for user');
         }
@@ -338,7 +342,10 @@ if ($action === 'add_vehicle') {
             throw new Exception('Customer not found');
         }
 
-        $branch_id = intval($user['branch_id'] ?? 0);
+        $branch_id = intval($_POST['branch_id'] ?? $user['branch_id'] ?? $customer['branch_id'] ?? 0);
+        if ($branch_id <= 0 && ($user['role'] ?? '') === 'admin') {
+            $branch_id = 1;
+        }
         if ($branch_id <= 0) {
             throw new Exception('Invalid branch context for user');
         }

@@ -534,33 +534,22 @@ if (!function_exists('app_quotation_calculate_totals')) {
             $quoted_parts_total += (float) (($item['subtotal'] ?? 0) ?: ($quantity * $unit_price));
         }
 
-        $additional_issued_parts_total = 0.0;
+        $issued_inventory_total = 0.0;
         foreach ($issued_inventory_items as $trans) {
-            $qid = (int) ($trans['quotation_item_id'] ?? 0);
-            $ref_type = strtolower((string) ($trans['reference_type'] ?? ''));
-            $ref_id = (int) ($trans['reference_id'] ?? 0);
-
-            // Skip if this stock-out was already counted as part of $items (quotation_items)
-            if ($qid > 0 && isset($quoted_item_ids[$qid])) {
-                continue;
-            }
-            if ($ref_type === 'job_order_item' && $ref_id > 0 && isset($quoted_item_ids[$ref_id])) {
-                continue;
-            }
-
             $line_total = isset($trans['line_total'])
                 ? (float) $trans['line_total']
                 : ((float) ($trans['quantity'] ?? 0) * (float) ($trans['unit_price'] ?? 0));
-
-            $additional_issued_parts_total += $line_total;
+            $issued_inventory_total += $line_total;
         }
 
-        $parts_total = $quoted_parts_total + $additional_issued_parts_total;
+        // The parts total billed is the quoted parts total (or issued inventory total if quote items were not stored)
+        $parts_total = $quoted_parts_total > 0 ? $quoted_parts_total : $issued_inventory_total;
         $grand_total = $parts_total + $labor_cost;
 
         return [
             'quoted_parts_total' => $quoted_parts_total,
-            'additional_issued_parts_total' => $additional_issued_parts_total,
+            'additional_issued_parts_total' => 0.0,
+            'issued_inventory_total' => $issued_inventory_total,
             'parts_total' => $parts_total,
             'labor_cost' => $labor_cost,
             'grand_total' => $grand_total,
