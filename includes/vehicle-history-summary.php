@@ -159,6 +159,9 @@ if (!function_exists('vehicle_history_summary_item_summaries')) {
 
             foreach ($items as $item) {
                 $name = trim((string) ($item['item_name'] ?? ''));
+                if (function_exists('app_display_item_name')) {
+                    $name = app_display_item_name($name);
+                }
                 if ($name === '') {
                     $name = 'Item';
                 }
@@ -846,9 +849,14 @@ $report_generated = date('M d, Y H:i');
                                 <tr>
                                     <td><?php echo esc_html(vehicle_history_summary_date($product['date'] ?? '')); ?></td>
                                     <td>
-                                        <strong><?php echo esc_html($product['name'] ?? '-'); ?></strong>
+                                        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
+                                            <?php if (!empty($product['category'])): ?>
+                                                <span class="badge bg-light text-dark border" style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 2px 5px; border-radius: 4px;"><?php echo esc_html($product['category']); ?></span>
+                                            <?php endif; ?>
+                                            <strong style="color: #0f172a; font-size: 13.5px;"><?php echo esc_html(app_display_item_name($product['name'] ?? '-')); ?></strong>
+                                        </div>
                                         <?php if (!empty($product['details'])): ?>
-                                            <span><?php echo esc_html($product['details']); ?></span>
+                                            <span style="display: block; font-size: 12px; color: #64748b; line-height: 1.35;"><?php echo esc_html($product['details']); ?></span>
                                         <?php endif; ?>
                                     </td>
                                     <td><?php echo esc_html($product['branch'] ?? '-'); ?></td>

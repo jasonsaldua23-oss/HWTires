@@ -219,13 +219,14 @@ if (!in_array($category_filter, $valid_categories, true)) {
 $brand_filter = trim((string) ($_GET['brand'] ?? ''));
 $size_filter = trim((string) ($_GET['size'] ?? ''));
 
-// Fetch distinct categories, brands, and sizes for dropdowns
-$filter_meta_stmt = $pdo->query("
+// Fetch distinct categories, brands, and sizes for dropdowns (scoped to this branch)
+$filter_meta_stmt = $pdo->prepare("
     SELECT DISTINCT category, brand, size 
     FROM inventory_items 
-    WHERE status = 'active'
+    WHERE status = 'active' AND branch_id = ?
     ORDER BY category ASC, brand ASC, size ASC
 ");
+$filter_meta_stmt->execute([(int) $branch_id]);
 $raw_filter_meta = $filter_meta_stmt ? $filter_meta_stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 
 $brands_by_category = [];
