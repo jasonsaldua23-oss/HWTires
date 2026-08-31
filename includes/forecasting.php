@@ -92,18 +92,28 @@ if (!function_exists('forecast_duration_human_months')) {
 }
 
 if (!function_exists('forecast_filter_url')) {
-    function forecast_filter_url($category, $branch, $status, $search = '', $per_page = null, $page = null, $year = 'latest', $view = 'weekly', $sort = 'urgency') {
+    function forecast_filter_url($category, $branch, $status, $search = '', $per_page = null, $page = null, $year = 'latest', $view = 'weekly', $sort = 'urgency', $brand = '', $size = '') {
         $query = [];
 
-        if ($category !== 'all') {
+        if ($category !== 'all' && $category !== '') {
             $query['category'] = $category;
         }
 
-        if ($branch !== 'all') {
+        $brand = trim((string) $brand);
+        if ($brand !== '') {
+            $query['brand'] = $brand;
+        }
+
+        $size = trim((string) $size);
+        if ($size !== '') {
+            $query['size'] = $size;
+        }
+
+        if ($branch !== 'all' && $branch !== '') {
             $query['branch'] = $branch;
         }
 
-        if ($status !== 'all') {
+        if ($status !== 'all' && $status !== '') {
             $query['status'] = $status;
         }
 
@@ -197,6 +207,8 @@ if (!function_exists('forecast_normalized_key')) {
 if (!function_exists('forecast_build_inventory_dss')) {
     function forecast_build_inventory_dss(PDO $pdo, array $options = []) {
         $category_filter = strtolower(trim($options['category'] ?? 'all'));
+        $brand_filter = trim((string) ($options['brand'] ?? ''));
+        $size_filter = trim((string) ($options['size'] ?? ''));
         $branch_filter = trim((string) ($options['branch'] ?? 'all'));
         $status_filter = strtolower(trim($options['status'] ?? 'all'));
         $search_filter = trim((string) ($options['search'] ?? ''));
@@ -261,6 +273,17 @@ if (!function_exists('forecast_build_inventory_dss')) {
         if ($category_filter !== 'all') {
             $where[] = 'i.category = ?';
             $params[] = $category_filter;
+        }
+
+        if ($brand_filter !== '') {
+            $where[] = 'i.brand = ?';
+            $params[] = $brand_filter;
+        }
+
+        if ($size_filter !== '') {
+            $where[] = '(i.size = ? OR i.item_name LIKE ?)';
+            $params[] = $size_filter;
+            $params[] = '%' . $size_filter . '%';
         }
 
         if ($search_filter !== '') {

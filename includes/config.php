@@ -675,6 +675,23 @@ if (!function_exists('app_format_record_notes')) {
     }
 }
 
+if (!function_exists('app_display_item_name')) {
+    function app_display_item_name($name, $category = null) {
+        $name = trim((string) $name);
+        if ($name === '') {
+            return '';
+        }
+        $cat = strtolower(trim((string) $category));
+        if ($cat === '' || $cat === 'tire' || $cat === 'tires') {
+            $cleaned = preg_replace('/\s+tire$/i', '', $name);
+            if ($cleaned !== null && $cleaned !== '') {
+                return $cleaned;
+            }
+        }
+        return $name;
+    }
+}
+
 if (!function_exists('app_compose_record_notes')) {
     function app_compose_record_notes($sales_name, $technician_names = '', $detail = '') {
         $sales_name = trim((string) $sales_name);

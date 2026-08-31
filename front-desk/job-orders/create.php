@@ -120,6 +120,7 @@ $allowed_job_statuses = [
     'waiting' => 'Waiting',
     'in-progress' => 'In Progress',
     'completed' => 'Completed',
+    'archived' => 'Archived',
 ];
 $job_status_filter = $_GET['status'] ?? 'all';
 if (!array_key_exists($job_status_filter, $allowed_job_statuses)) {
@@ -254,17 +255,21 @@ unset($quote);
 
 $job_where = [
     'jo.branch_id = ?',
-    "jo.status IN ('waiting', 'pending', 'in-progress', 'completed')",
 ];
 $job_params = [$user_branch_id];
 $job_activity_expr = record_activity_datetime_expr('jo.job_date', 'jo.created_at', 'jo.updated_at');
 $job_record_date_expr = record_business_datetime_expr('jo.job_date', 'jo.created_at');
 
-if ($job_status_filter === 'waiting') {
-    $job_where[] = "jo.status IN ('waiting', 'pending')";
-} elseif ($job_status_filter !== 'all') {
-    $job_where[] = 'jo.status = ?';
-    $job_params[] = $job_status_filter;
+if ($job_status_filter === 'archived') {
+    $job_where[] = "jo.status = 'archived'";
+} else {
+    $job_where[] = "jo.status <> 'archived'";
+    if ($job_status_filter === 'waiting') {
+        $job_where[] = "jo.status IN ('waiting', 'pending')";
+    } elseif ($job_status_filter !== 'all') {
+        $job_where[] = 'jo.status = ?';
+        $job_params[] = $job_status_filter;
+    }
 }
 
 $job_date_params = [];
@@ -677,11 +682,34 @@ if (!empty($job_quotation_ids)) {
                                 <?php echo esc_html(front_job_status_label($status)); ?>
                             </span>
                         </div>
-                        <div class="job-order-cell job-order-action" role="cell">
+                        <div class="job-order-cell job-order-action" role="cell" style="display: flex; gap: 6px; align-items: center; justify-content: flex-end;">
                             <button type="button" class="job-details-button" data-bs-toggle="modal" data-bs-target="#frontJobDetailsModal<?php echo (int) $job['id']; ?>">
                                 <i class="fas fa-eye"></i>
                                 <span>View</span>
                             </button>
+                            <?php if ($status === 'archived'): ?>
+                                <form method="POST" action="/hwtires/api/job-orders-api.php" style="display:inline;" onsubmit="return confirm('Restore / Unarchive this job order?');">
+                                    <input type="hidden" name="action" value="unarchive">
+                                    <input type="hidden" name="id" value="<?php echo (int) $job['id']; ?>">
+                                    <input type="hidden" name="csrf_token" value="<?php echo esc_attr(get_csrf_token()); ?>">
+                                    <input type="hidden" name="redirect" value="<?php echo esc_attr($_SERVER['REQUEST_URI'] ?? './'); ?>">
+                                    <button type="submit" class="job-details-button" style="background:#e7f6ec; border-color:#8ce1a4; color:#1e7e34;" title="Restore / Unarchive">
+                                        <i class="fas fa-rotate-left"></i>
+                                        <span>Restore</span>
+                                    </button>
+                                </form>
+                            <?php elseif (in_array($status, ['completed', 'waiting', 'cancelled', 'rejected'], true)): ?>
+                                <form method="POST" action="/hwtires/api/job-orders-api.php" style="display:inline;" onsubmit="return confirm('Archive this job order?');">
+                                    <input type="hidden" name="action" value="archive">
+                                    <input type="hidden" name="id" value="<?php echo (int) $job['id']; ?>">
+                                    <input type="hidden" name="csrf_token" value="<?php echo esc_attr(get_csrf_token()); ?>">
+                                    <input type="hidden" name="redirect" value="<?php echo esc_attr($_SERVER['REQUEST_URI'] ?? './'); ?>">
+                                    <button type="submit" class="job-details-button" style="background:#f8fafc; border-color:#cbd5e1; color:#64748b;" title="Archive Job Order">
+                                        <i class="fas fa-box-archive"></i>
+                                        <span>Archive</span>
+                                    </button>
+                                </form>
+                            <?php endif; ?>
                         </div>
                     </article>
 
@@ -802,7 +830,30 @@ if (!empty($job_quotation_ids)) {
                                     </section>
                                 </div>
 
-                                <div class="modal-footer">
+                                <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <?php if ($status === 'archived'): ?>
+                                            <form method="POST" action="/hwtires/api/job-orders-api.php" style="display:inline;" onsubmit="return confirm('Restore / Unarchive this job order?');">
+                                                <input type="hidden" name="action" value="unarchive">
+                                                <input type="hidden" name="id" value="<?php echo (int) $job['id']; ?>">
+                                                <input type="hidden" name="csrf_token" value="<?php echo esc_attr(get_csrf_token()); ?>">
+                                                <input type="hidden" name="redirect" value="<?php echo esc_attr($_SERVER['REQUEST_URI'] ?? './'); ?>">
+                                                <button type="submit" class="btn btn-sm btn-outline-success">
+                                                    <i class="fas fa-rotate-left"></i> Restore / Unarchive
+                                                </button>
+                                            </form>
+                                        <?php elseif (in_array($status, ['completed', 'waiting', 'cancelled', 'rejected'], true)): ?>
+                                            <form method="POST" action="/hwtires/api/job-orders-api.php" style="display:inline;" onsubmit="return confirm('Archive this job order?');">
+                                                <input type="hidden" name="action" value="archive">
+                                                <input type="hidden" name="id" value="<?php echo (int) $job['id']; ?>">
+                                                <input type="hidden" name="csrf_token" value="<?php echo esc_attr(get_csrf_token()); ?>">
+                                                <input type="hidden" name="redirect" value="<?php echo esc_attr($_SERVER['REQUEST_URI'] ?? './'); ?>">
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                                    <i class="fas fa-box-archive"></i> Archive Job Order
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
+                                    </div>
                                     <button type="button" class="job-modal-close-btn" data-bs-dismiss="modal">Close</button>
                                 </div>
                             </div>

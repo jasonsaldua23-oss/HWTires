@@ -371,9 +371,9 @@ if ($action === 'delete' || $action === 'archive') {
             throw new Exception('Unauthorized access');
         }
 
-        // Only allow archiving if status is 'waiting'
-        if ($job_order['status'] !== 'waiting') {
-            throw new Exception('Can only archive job orders with waiting status');
+        // Allow archiving for waiting, completed, cancelled, or rejected job orders
+        if (in_array($job_order['status'], ['in-progress'], true)) {
+            throw new Exception('Cannot archive a job order that is currently in progress. Complete or cancel it first.');
         }
 
         $archive_set = ["status = 'archived'"];
@@ -400,7 +400,65 @@ if ($action === 'delete' || $action === 'archive') {
         set_flash_message($e->getMessage(), 'error');
     }
 
-    redirect($_POST['redirect'] ?? $_SERVER['HTTP_REFERER'] ?? '/hwtires/admin/job-orders/');
+    redirect($_POST['redirect'] ?? $_SERVER['HTTP_REFERER'] ?? '/hwtires/front-desk/job-orders/');
+}
+
+// Handle Unarchive / Restore Job Order
+if ($action === 'unarchive' || $action === 'restore') {
+    try {
+        enforce_modify_permission();
+
+        $is_post_unarchive = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
+        $csrf_token = $is_post_unarchive ? ($_POST['csrf_token'] ?? '') : ($_GET['csrf_token'] ?? '');
+        if (!verify_csrf_token($csrf_token)) {
+            throw new Exception('Invalid security token');
+        }
+
+        $job_order_id = $is_post_unarchive
+            ? intval($_POST['id'] ?? $_POST['job_order_id'] ?? 0)
+            : intval($_GET['id'] ?? $_GET['job_order_id'] ?? 0);
+
+        if ($job_order_id <= 0) {
+            throw new Exception('Invalid job order ID');
+        }
+
+        $stmt = $pdo->prepare("SELECT * FROM job_orders WHERE id = ?");
+        $stmt->execute([$job_order_id]);
+        $job_order = $stmt->fetch();
+
+        if (!$job_order) {
+            throw new Exception('Job order not found');
+        }
+
+        if (!has_branch_access($job_order['branch_id'])) {
+            throw new Exception('Unauthorized access');
+        }
+
+        $restore_status = (!empty($job_order['completed_at']) || !empty($job_order['completed_by'])) ? 'completed' : 'waiting';
+
+        $unarchive_set = ["status = ?"];
+        $unarchive_values = [$restore_status];
+        if (app_column_exists('job_orders', 'updated_at')) {
+            $unarchive_set[] = 'updated_at = NOW()';
+        }
+        $unarchive_values[] = $job_order_id;
+
+        $unarchive_stmt = $pdo->prepare('UPDATE job_orders SET ' . implode(', ', $unarchive_set) . ' WHERE id = ?');
+        $unarchive_stmt->execute($unarchive_values);
+
+        log_audit('job_orders', 'unarchive', $job_order_id, $job_order, [
+            'status' => $restore_status,
+            'records_preserved' => true
+        ]);
+
+        set_flash_message('Job order restored successfully', 'success');
+
+    } catch (Exception $e) {
+        error_log('Unarchive job order error: ' . $e->getMessage());
+        set_flash_message($e->getMessage(), 'error');
+    }
+
+    redirect($_POST['redirect'] ?? $_SERVER['HTTP_REFERER'] ?? '/hwtires/front-desk/job-orders/');
 }
 
 // Invalid action

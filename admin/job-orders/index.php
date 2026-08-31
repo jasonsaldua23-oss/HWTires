@@ -537,11 +537,34 @@ $hidden_for_date = [
                             <?php echo esc_html(job_status_label($status)); ?>
                         </span>
                     </div>
-                    <div class="job-order-cell job-order-action" role="cell">
+                    <div class="job-order-cell job-order-action" role="cell" style="display: flex; gap: 6px; align-items: center; justify-content: flex-end;">
                         <button type="button" class="job-details-button admin-job-detail-trigger" data-bs-toggle="modal" data-bs-target="#jobDetailsModal<?php echo $job_id; ?>">
                             <i class="fas fa-eye"></i>
                             <span>View</span>
                         </button>
+                        <?php if ($status === 'archived'): ?>
+                            <form method="POST" action="/hwtires/api/job-orders-api.php" style="display:inline;" onsubmit="return confirm('Restore / Unarchive this job order?');">
+                                <input type="hidden" name="action" value="unarchive">
+                                <input type="hidden" name="id" value="<?php echo (int) $job_id; ?>">
+                                <input type="hidden" name="csrf_token" value="<?php echo esc_attr(get_csrf_token()); ?>">
+                                <input type="hidden" name="redirect" value="<?php echo esc_attr($_SERVER['REQUEST_URI'] ?? './'); ?>">
+                                <button type="submit" class="job-details-button" style="background:#e7f6ec; border-color:#8ce1a4; color:#1e7e34;" title="Restore / Unarchive">
+                                    <i class="fas fa-rotate-left"></i>
+                                    <span>Restore</span>
+                                </button>
+                            </form>
+                        <?php elseif (in_array($status, ['completed', 'waiting', 'cancelled', 'rejected'], true)): ?>
+                            <form method="POST" action="/hwtires/api/job-orders-api.php" style="display:inline;" onsubmit="return confirm('Archive this job order?');">
+                                <input type="hidden" name="action" value="archive">
+                                <input type="hidden" name="id" value="<?php echo (int) $job_id; ?>">
+                                <input type="hidden" name="csrf_token" value="<?php echo esc_attr(get_csrf_token()); ?>">
+                                <input type="hidden" name="redirect" value="<?php echo esc_attr($_SERVER['REQUEST_URI'] ?? './'); ?>">
+                                <button type="submit" class="job-details-button" style="background:#f8fafc; border-color:#cbd5e1; color:#64748b;" title="Archive Job Order">
+                                    <i class="fas fa-box-archive"></i>
+                                    <span>Archive</span>
+                                </button>
+                            </form>
+                        <?php endif; ?>
                     </div>
                 </article>
 
@@ -692,7 +715,30 @@ $hidden_for_date = [
                                 </section>
                             </div>
 
-                            <div class="modal-footer">
+                            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <?php if ($status === 'archived'): ?>
+                                        <form method="POST" action="/hwtires/api/job-orders-api.php" style="display:inline;" onsubmit="return confirm('Restore / Unarchive this job order?');">
+                                            <input type="hidden" name="action" value="unarchive">
+                                            <input type="hidden" name="id" value="<?php echo (int) $job_id; ?>">
+                                            <input type="hidden" name="csrf_token" value="<?php echo esc_attr(get_csrf_token()); ?>">
+                                            <input type="hidden" name="redirect" value="<?php echo esc_attr($_SERVER['REQUEST_URI'] ?? './'); ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline-success">
+                                                <i class="fas fa-rotate-left"></i> Restore / Unarchive
+                                            </button>
+                                        </form>
+                                    <?php elseif (in_array($status, ['completed', 'waiting', 'cancelled', 'rejected'], true)): ?>
+                                        <form method="POST" action="/hwtires/api/job-orders-api.php" style="display:inline;" onsubmit="return confirm('Archive this job order?');">
+                                            <input type="hidden" name="action" value="archive">
+                                            <input type="hidden" name="id" value="<?php echo (int) $job_id; ?>">
+                                            <input type="hidden" name="csrf_token" value="<?php echo esc_attr(get_csrf_token()); ?>">
+                                            <input type="hidden" name="redirect" value="<?php echo esc_attr($_SERVER['REQUEST_URI'] ?? './'); ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                                <i class="fas fa-box-archive"></i> Archive Job Order
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+                                </div>
                                 <button type="button" class="job-modal-close-btn" data-bs-dismiss="modal">Close</button>
                             </div>
                         </div>

@@ -143,7 +143,7 @@ if (!function_exists('inventory_transaction_source_links')) {
 }
 
 if (!function_exists('inventory_filter_url')) {
-    function inventory_filter_url($category, $branch, $search = '', $per_page = null, $page = null, $view = 'all', $sales_mode = 'all') {
+    function inventory_filter_url($category, $branch, $search = '', $per_page = null, $page = null, $view = 'all', $sales_mode = 'all', $brand = '', $size = '') {
         $query = [];
 
         if ($view !== 'all') {
@@ -154,11 +154,21 @@ if (!function_exists('inventory_filter_url')) {
             $query['sales_mode'] = 'top10';
         }
 
-        if ($category !== 'all') {
+        if ($category !== 'all' && $category !== '') {
             $query['category'] = $category;
         }
 
-        if ($branch !== 'all') {
+        $brand = trim((string) $brand);
+        if ($brand !== '') {
+            $query['brand'] = $brand;
+        }
+
+        $size = trim((string) $size);
+        if ($size !== '') {
+            $query['size'] = $size;
+        }
+
+        if ($branch !== 'all' && $branch !== '') {
             $query['branch'] = $branch;
         }
 
@@ -202,6 +212,50 @@ $category_filter = strtolower(trim($_GET['category'] ?? 'all'));
 if (!in_array($category_filter, $valid_categories, true)) {
     $category_filter = 'all';
 }
+
+$brand_filter = trim((string) ($_GET['brand'] ?? ''));
+$size_filter = trim((string) ($_GET['size'] ?? ''));
+
+// Fetch distinct categories, brands, and sizes for dropdowns
+$filter_meta_stmt = $pdo->query("
+    SELECT DISTINCT category, brand, size 
+    FROM inventory_items 
+    WHERE status = 'active'
+    ORDER BY category ASC, brand ASC, size ASC
+");
+$raw_filter_meta = $filter_meta_stmt ? $filter_meta_stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+$brands_by_category = [];
+$sizes_by_brand = [];
+$all_brands = [];
+$all_sizes = [];
+
+foreach ($raw_filter_meta as $row) {
+    $cat = strtolower(trim((string) ($row['category'] ?? '')));
+    $b = trim((string) ($row['brand'] ?? ''));
+    $s = trim((string) ($row['size'] ?? ''));
+    
+    if ($b !== '') {
+        $all_brands[$b] = $b;
+        if ($cat !== '') {
+            $brands_by_category[$cat][$b] = $b;
+        }
+    }
+    if ($s !== '') {
+        $all_sizes[$s] = $s;
+        if ($b !== '') {
+            $sizes_by_brand[$b][$s] = $s;
+        }
+    }
+}
+
+$available_brands = ($category_filter !== 'all' && isset($brands_by_category[$category_filter]))
+    ? array_values($brands_by_category[$category_filter])
+    : array_values($all_brands);
+
+$available_sizes = ($brand_filter !== '' && isset($sizes_by_brand[$brand_filter]))
+    ? array_values($sizes_by_brand[$brand_filter])
+    : array_values($all_sizes);
 
 $valid_inventory_views = ['all', 'stock_in', 'stock_out', 'low_stock', 'last_month_sales'];
 $view_filter = strtolower(trim($_GET['view'] ?? 'all'));
@@ -256,6 +310,17 @@ if (empty($allowed_branch_ids)) {
 if ($category_filter !== 'all') {
     $where[] = 'i.category = ?';
     $filter_params[] = $category_filter;
+}
+
+if ($brand_filter !== '') {
+    $where[] = 'i.brand = ?';
+    $filter_params[] = $brand_filter;
+}
+
+if ($size_filter !== '') {
+    $where[] = '(i.size = ? OR i.item_name LIKE ?)';
+    $filter_params[] = $size_filter;
+    $filter_params[] = '%' . $size_filter . '%';
 }
 
 if ($search_filter !== '') {
@@ -318,6 +383,17 @@ if (empty($allowed_branch_ids)) {
 if ($category_filter !== 'all') {
     $transaction_where[] = 'i.category = ?';
     $transaction_params[] = $category_filter;
+}
+
+if ($brand_filter !== '') {
+    $transaction_where[] = 'i.brand = ?';
+    $transaction_params[] = $brand_filter;
+}
+
+if ($size_filter !== '') {
+    $transaction_where[] = '(i.size = ? OR i.item_name LIKE ?)';
+    $transaction_params[] = $size_filter;
+    $transaction_params[] = '%' . $size_filter . '%';
 }
 
 if ($view_filter === 'stock_in' || $view_filter === 'stock_out') {
@@ -826,11 +902,11 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
     </section>
 
     <section class="inventory-filter-card">
-        <form class="inventory-unified-filter-form" method="get" action="./#inventory-records" style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; width: 100%;">
+        <form class="inventory-unified-filter-form" method="get" action="./#inventory-records" style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; width: 100%;">
             <input type="hidden" name="per_page" value="<?php echo (int) $per_page; ?>">
-            <div class="inventory-filter-group" style="flex: 1; min-width: 150px;">
-                <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Filter by Category</h2>
-                <select name="category" aria-label="Filter inventory category" class="form-select" style="height: 42px; border-radius: 8px; border-color: #cbd5e1; font-weight: 500;">
+            <div class="inventory-filter-group" style="flex: 1; min-width: 120px;">
+                <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Category</h2>
+                <select name="category" id="adminCategoryFilter" aria-label="Filter inventory category" class="form-select" style="height: 42px; border-radius: 8px; border-color: #cbd5e1; font-weight: 500;">
                 <?php foreach (['all' => 'All Items', 'tire' => 'Tires', 'accessory' => 'Accessories', 'part' => 'Parts'] as $category_value => $category_label): ?>
                     <option value="<?php echo esc_attr($category_value); ?>" <?php echo $category_filter === $category_value ? 'selected' : ''; ?>>
                         <?php echo esc_html($category_label); ?>
@@ -838,8 +914,30 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                 <?php endforeach; ?>
                 </select>
             </div>
-            <div class="inventory-filter-group" style="flex: 1; min-width: 150px;">
-                <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Filter by Branch</h2>
+            <div class="inventory-filter-group" style="flex: 1; min-width: 120px;">
+                <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Brand</h2>
+                <select name="brand" id="adminBrandFilter" aria-label="Filter inventory brand" class="form-select" style="height: 42px; border-radius: 8px; border-color: #cbd5e1; font-weight: 500;">
+                    <option value="">All Brands</option>
+                    <?php foreach ($available_brands as $brand_name): ?>
+                        <option value="<?php echo esc_attr($brand_name); ?>" <?php echo $brand_filter === $brand_name ? 'selected' : ''; ?>>
+                            <?php echo esc_html($brand_name); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="inventory-filter-group" style="flex: 1; min-width: 120px;">
+                <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Size / Spec</h2>
+                <select name="size" id="adminSizeFilter" aria-label="Filter inventory size" class="form-select" style="height: 42px; border-radius: 8px; border-color: #cbd5e1; font-weight: 500;">
+                    <option value="">All Sizes</option>
+                    <?php foreach ($available_sizes as $size_val): ?>
+                        <option value="<?php echo esc_attr($size_val); ?>" <?php echo $size_filter === $size_val ? 'selected' : ''; ?>>
+                            <?php echo esc_html($size_val); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="inventory-filter-group" style="flex: 1; min-width: 130px;">
+                <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Branch</h2>
                 <select name="branch" aria-label="Filter inventory branch" class="form-select" style="height: 42px; border-radius: 8px; border-color: #cbd5e1; font-weight: 500;">
                     <option value="all" <?php echo $branch_filter === 'all' ? 'selected' : ''; ?>>All Branches</option>
                 <?php foreach ($inventory_branches as $branch): ?>
@@ -850,7 +948,7 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                 <?php endforeach; ?>
                 </select>
             </div>
-            <div class="inventory-filter-group inventory-view-group" style="flex: 1; min-width: 150px;">
+            <div class="inventory-filter-group inventory-view-group" style="flex: 1; min-width: 130px;">
                 <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Record View</h2>
                 <select name="view" aria-label="Select inventory record view" class="form-select" style="height: 42px; border-radius: 8px; border-color: #cbd5e1; font-weight: 500;">
                 <?php foreach ($inventory_view_options as $view_value => $view_option): ?>
@@ -860,31 +958,78 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                 <?php endforeach; ?>
                 </select>
             </div>
-            <div class="inventory-filter-group inventory-search-group" style="flex: 2; min-width: 220px;">
-                <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Search Inventory</h2>
+            <div class="inventory-filter-group inventory-search-group" style="flex: 2; min-width: 180px;">
+                <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Search</h2>
                 <label class="inventory-search-field" style="margin: 0; width: 100%;">
                     <i class="fas fa-search"></i>
                     <input type="search"
                            name="search"
                            value="<?php echo esc_attr($search_filter); ?>"
-                           placeholder="Search item, customer, vehicle, size, SKU..."
+                           placeholder="Search item, SKU, vehicle..."
                            style="height: 42px; border-radius: 8px; border-color: #cbd5e1;">
                 </label>
             </div>
             <div class="inventory-filter-actions-group" style="display: flex; gap: 8px; align-items: center;">
-                <button type="submit" class="btn btn-primary" style="height: 42px; padding: 0 20px; font-weight: 600; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                <button type="submit" class="btn btn-primary" style="height: 42px; padding: 0 16px; font-weight: 600; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
                     <i class="fas fa-filter"></i> Apply
                 </button>
-                <?php if ($category_filter !== 'all' || $branch_filter !== 'all' || $view_filter !== 'all' || $search_filter !== ''): ?>
+                <?php if ($category_filter !== 'all' || $brand_filter !== '' || $size_filter !== '' || $branch_filter !== 'all' || $view_filter !== 'all' || $search_filter !== ''): ?>
                     <a class="btn btn-outline-secondary"
                        href="<?php echo esc_attr(inventory_filter_url('all', 'all', '', $per_page, null, 'all')); ?>#inventory-records"
-                       style="height: 42px; padding: 0 16px; font-weight: 600; border-radius: 8px; display: inline-flex; align-items: center;">
+                       style="height: 42px; padding: 0 14px; font-weight: 600; border-radius: 8px; display: inline-flex; align-items: center;">
                         Reset
                     </a>
                 <?php endif; ?>
             </div>
         </form>
     </section>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const brandsByCategory = <?php echo json_encode($brands_by_category, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?> || {};
+        const sizesByBrand = <?php echo json_encode($sizes_by_brand, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?> || {};
+        const allBrands = <?php echo json_encode(array_values($all_brands), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?> || [];
+        const allSizes = <?php echo json_encode(array_values($all_sizes), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?> || [];
+
+        const catSelect = document.getElementById('adminCategoryFilter');
+        const brandSelect = document.getElementById('adminBrandFilter');
+        const sizeSelect = document.getElementById('adminSizeFilter');
+
+        if (!catSelect || !brandSelect || !sizeSelect) return;
+
+        catSelect.addEventListener('change', function() {
+            const cat = this.value;
+            const currentBrand = brandSelect.value;
+            let brands = (cat !== 'all' && brandsByCategory[cat]) ? Object.values(brandsByCategory[cat]) : allBrands;
+            
+            brandSelect.innerHTML = '<option value="">All Brands</option>';
+            brands.forEach(function(b) {
+                const opt = document.createElement('option');
+                opt.value = b;
+                opt.textContent = b;
+                if (b === currentBrand) opt.selected = true;
+                brandSelect.appendChild(opt);
+            });
+
+            brandSelect.dispatchEvent(new Event('change'));
+        });
+
+        brandSelect.addEventListener('change', function() {
+            const brand = this.value;
+            const currentSize = sizeSelect.value;
+            let sizes = (brand && sizesByBrand[brand]) ? Object.values(sizesByBrand[brand]) : allSizes;
+
+            sizeSelect.innerHTML = '<option value="">All Sizes</option>';
+            sizes.forEach(function(s) {
+                const opt = document.createElement('option');
+                opt.value = s;
+                opt.textContent = s;
+                if (s === currentSize) opt.selected = true;
+                sizeSelect.appendChild(opt);
+            });
+        });
+    });
+    </script>
 
     <details class="inventory-support-details inventory-low-stock-panel" id="low-stock-alerts">
         <summary class="inventory-support-summary">
@@ -916,7 +1061,7 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                     <article class="inventory-alert-card">
                         <div class="inventory-alert-card-top">
                             <div>
-                                <h3><?php echo esc_html($item['item_name']); ?></h3>
+                                <h3><?php echo esc_html(app_display_item_name($item['item_name'], $item['category'] ?? null)); ?></h3>
                                 <p>
                                     <?php echo esc_html($item['brand'] ?: 'Unbranded'); ?>
                                     <?php if ($detail !== '-'): ?>
@@ -1200,7 +1345,7 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                                 ?>
                                 <tr class="<?php echo $is_low_stock ? 'is-low-stock' : ''; ?>">
                                     <td>
-                                        <strong><?php echo esc_html($item['item_name']); ?></strong>
+                                        <strong><?php echo esc_html(app_display_item_name($item['item_name'], $item['category'] ?? null)); ?></strong>
                                         <small class="inventory-item-brand"><?php echo esc_html($item['brand'] ?: 'Unbranded'); ?></small>
                                     </td>
                                     <td>

@@ -44,6 +44,8 @@ $allowed_branch_ids = array_map(static function ($branch) {
 }, $inventory_branches);
 
 $category_filter = strtolower(trim($_GET['category'] ?? 'all'));
+$brand_filter = trim((string) ($_GET['brand'] ?? ''));
+$size_filter = trim((string) ($_GET['size'] ?? ''));
 $status_filter = strtolower(trim($_GET['status'] ?? 'all'));
 $search_filter = trim($_GET['search'] ?? '');
 $year_filter = trim($_GET['year'] ?? 'latest');
@@ -57,8 +59,51 @@ if (!in_array($per_page, $page_sizes, true)) {
 }
 $page = max(1, (int) ($_GET['page'] ?? 1));
 
+// Fetch distinct categories, brands, and sizes for dropdowns
+$filter_meta_stmt = $pdo->query("
+    SELECT DISTINCT category, brand, size 
+    FROM inventory_items 
+    WHERE status = 'active'
+    ORDER BY category ASC, brand ASC, size ASC
+");
+$raw_filter_meta = $filter_meta_stmt ? $filter_meta_stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+$brands_by_category = [];
+$sizes_by_brand = [];
+$all_brands = [];
+$all_sizes = [];
+
+foreach ($raw_filter_meta as $row) {
+    $cat = strtolower(trim((string) ($row['category'] ?? '')));
+    $b = trim((string) ($row['brand'] ?? ''));
+    $s = trim((string) ($row['size'] ?? ''));
+    
+    if ($b !== '') {
+        $all_brands[$b] = $b;
+        if ($cat !== '') {
+            $brands_by_category[$cat][$b] = $b;
+        }
+    }
+    if ($s !== '') {
+        $all_sizes[$s] = $s;
+        if ($b !== '') {
+            $sizes_by_brand[$b][$s] = $s;
+        }
+    }
+}
+
+$available_brands = ($category_filter !== 'all' && isset($brands_by_category[$category_filter]))
+    ? array_values($brands_by_category[$category_filter])
+    : array_values($all_brands);
+
+$available_sizes = ($brand_filter !== '' && isset($sizes_by_brand[$brand_filter]))
+    ? array_values($sizes_by_brand[$brand_filter])
+    : array_values($all_sizes);
+
 $forecast = forecast_build_inventory_dss($pdo, [
     'category' => $category_filter,
+    'brand' => $brand_filter,
+    'size' => $size_filter,
     'branch' => $branch_filter,
     'status' => $status_filter,
     'search' => $search_filter,
@@ -69,6 +114,8 @@ $forecast = forecast_build_inventory_dss($pdo, [
 ]);
 
 $category_filter = $forecast['filters']['category'];
+$brand_filter = $forecast['filters']['brand'] ?? $brand_filter;
+$size_filter = $forecast['filters']['size'] ?? $size_filter;
 $branch_filter = $forecast['filters']['branch'];
 $status_filter = $forecast['filters']['status'];
 $sort_filter = $forecast['filters']['sort'];
@@ -228,7 +275,7 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
                     ?>
                     <article class="forecast-risk-row risk-<?php echo esc_attr($risk_status); ?>">
                         <div class="forecast-risk-main">
-                            <strong><?php echo esc_html($risk_inventory_item['item_name']); ?></strong>
+                            <strong><?php echo esc_html(app_display_item_name($risk_inventory_item['item_name'], $risk_inventory_item['category'] ?? null)); ?></strong>
                             <span>
                                 <?php echo esc_html(forecast_category_label($risk_inventory_item['category'])); ?>
                                 &middot;
@@ -260,7 +307,7 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
             <input type="hidden" name="per_page" value="<?php echo (int) $per_page; ?>">
             <label class="forecast-compact-field">
                 <span>Category</span>
-                <select name="category" onchange="this.form.submit()">
+                <select name="category" id="frontForecastCategoryFilter">
                     <?php foreach (['all' => 'All Items', 'tire' => 'Tires', 'accessory' => 'Accessories', 'part' => 'Parts'] as $category_value => $category_label): ?>
                         <option value="<?php echo esc_attr($category_value); ?>" <?php echo $category_filter === $category_value ? 'selected' : ''; ?>>
                             <?php echo esc_html($category_label); ?>
@@ -269,8 +316,30 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
                 </select>
             </label>
             <label class="forecast-compact-field">
+                <span>Brand</span>
+                <select name="brand" id="frontForecastBrandFilter">
+                    <option value="">All Brands</option>
+                    <?php foreach ($available_brands as $brand_name): ?>
+                        <option value="<?php echo esc_attr($brand_name); ?>" <?php echo $brand_filter === $brand_name ? 'selected' : ''; ?>>
+                            <?php echo esc_html($brand_name); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <label class="forecast-compact-field">
+                <span>Size / Spec</span>
+                <select name="size" id="frontForecastSizeFilter">
+                    <option value="">All Sizes</option>
+                    <?php foreach ($available_sizes as $size_val): ?>
+                        <option value="<?php echo esc_attr($size_val); ?>" <?php echo $size_filter === $size_val ? 'selected' : ''; ?>>
+                            <?php echo esc_html($size_val); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <label class="forecast-compact-field">
                 <span>Status</span>
-                <select name="status" onchange="this.form.submit()">
+                <select name="status">
                     <?php foreach (['all' => 'All Statuses', 'critical' => 'Critical', 'warning' => 'Warning', 'good' => 'Good'] as $status_value => $status_label): ?>
                         <option value="<?php echo esc_attr($status_value); ?>" <?php echo $status_filter === $status_value ? 'selected' : ''; ?>>
                             <?php echo esc_html($status_label); ?>
@@ -280,7 +349,7 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
             </label>
             <label class="forecast-compact-field">
                 <span>Forecast</span>
-                <select name="view" onchange="this.form.submit()">
+                <select name="view">
                     <?php foreach ($forecast_view_tabs as $tab_key => $tab): ?>
                         <option value="<?php echo esc_attr($tab_key); ?>" <?php echo $view_filter === $tab_key ? 'selected' : ''; ?>>
                             <?php echo esc_html($tab['label']); ?>
@@ -290,7 +359,7 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
             </label>
             <label class="forecast-compact-field">
                 <span>Sort By</span>
-                <select name="sort" onchange="this.form.submit()">
+                <select name="sort">
                     <?php
                     $sort_options = [
                         'urgency' => 'Highest Risk / Urgency',
@@ -308,13 +377,60 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
                 </select>
             </label>
             <button type="submit" class="forecast-compact-apply">Apply</button>
-            <?php if ($category_filter !== 'all' || $status_filter !== 'all' || $view_filter !== 'weekly' || $sort_filter !== 'urgency'): ?>
+            <?php if ($category_filter !== 'all' || $brand_filter !== '' || $size_filter !== '' || $status_filter !== 'all' || $view_filter !== 'weekly' || $sort_filter !== 'urgency'): ?>
                 <a class="forecast-compact-reset"
                    href="<?php echo esc_attr(forecast_filter_url('all', $branch_filter, 'all', $search_filter, $per_page, null, $year_filter, 'weekly', 'urgency')); ?>#forecast-analysis">
                     Reset filters
                 </a>
             <?php endif; ?>
         </form>
+
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const brandsByCategory = <?php echo json_encode($brands_by_category, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?> || {};
+            const sizesByBrand = <?php echo json_encode($sizes_by_brand, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?> || {};
+            const allBrands = <?php echo json_encode(array_values($all_brands), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?> || [];
+            const allSizes = <?php echo json_encode(array_values($all_sizes), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?> || [];
+
+            const catSelect = document.getElementById('frontForecastCategoryFilter');
+            const brandSelect = document.getElementById('frontForecastBrandFilter');
+            const sizeSelect = document.getElementById('frontForecastSizeFilter');
+
+            if (!catSelect || !brandSelect || !sizeSelect) return;
+
+            catSelect.addEventListener('change', function() {
+                const cat = this.value;
+                const currentBrand = brandSelect.value;
+                let brands = (cat !== 'all' && brandsByCategory[cat]) ? Object.values(brandsByCategory[cat]) : allBrands;
+                
+                brandSelect.innerHTML = '<option value="">All Brands</option>';
+                brands.forEach(function(b) {
+                    const opt = document.createElement('option');
+                    opt.value = b;
+                    opt.textContent = b;
+                    if (b === currentBrand) opt.selected = true;
+                    brandSelect.appendChild(opt);
+                });
+
+                brandSelect.dispatchEvent(new Event('change'));
+            });
+
+            brandSelect.addEventListener('change', function() {
+                const brand = this.value;
+                const currentSize = sizeSelect.value;
+                let sizes = (brand && sizesByBrand[brand]) ? Object.values(sizesByBrand[brand]) : allSizes;
+
+                sizeSelect.innerHTML = '<option value="">All Sizes</option>';
+                sizes.forEach(function(s) {
+                    const opt = document.createElement('option');
+                    opt.value = s;
+                    opt.textContent = s;
+                    if (s === currentSize) opt.selected = true;
+                    sizeSelect.appendChild(opt);
+                });
+            });
+        });
+        </script>
         <form class="forecast-analysis-search forecast-filter-search" method="get" action="./#forecast-analysis">
             <input type="hidden" name="branch" value="<?php echo esc_attr($branch_filter); ?>">
             <?php if ($category_filter !== 'all'): ?>
@@ -385,7 +501,7 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
                 <?php else: ?>
                     <?php foreach ($decision_support['high_priority'] as $item): ?>
                         <div class="forecast-dss-item">
-                            <strong><?php echo esc_html($item['item']['item_name']); ?></strong>
+                            <strong><?php echo esc_html(app_display_item_name($item['item']['item_name'], $item['item']['category'] ?? null)); ?></strong>
                             <p>Stock in <?php echo (int) $item['recommended_order']; ?> units immediately.</p>
                         </div>
                     <?php endforeach; ?>
@@ -399,7 +515,7 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
                 <?php else: ?>
                     <?php foreach ($decision_support['medium_priority'] as $item): ?>
                         <div class="forecast-dss-item">
-                            <strong><?php echo esc_html($item['item']['item_name']); ?></strong>
+                            <strong><?php echo esc_html(app_display_item_name($item['item']['item_name'], $item['item']['category'] ?? null)); ?></strong>
                             <p>Stock in <?php echo (int) $item['recommended_order']; ?> units within the next week.</p>
                         </div>
                     <?php endforeach; ?>
@@ -538,7 +654,7 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
                                     </span>
                                 </td>
                                 <td>
-                                    <strong><?php echo esc_html($inventory_item['item_name']); ?></strong>
+                                    <strong><?php echo esc_html(app_display_item_name($inventory_item['item_name'], $inventory_item['category'] ?? null)); ?></strong>
                                     <span class="forecast-category category-<?php echo esc_attr($inventory_item['category']); ?>">
                                         <?php echo esc_html(forecast_category_label($inventory_item['category'])); ?>
                                     </span>
