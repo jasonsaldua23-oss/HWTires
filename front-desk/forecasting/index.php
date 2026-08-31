@@ -186,37 +186,6 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
             <p><?php echo esc_html(forecast_branch_label($branch_label)); ?> forecast as of <?php echo esc_html(date('F d, Y', strtotime($analysis_date ?: 'now'))); ?></p>
         </div>
         <div class="forecast-scope-actions">
-            <form method="get" action="./" class="forecast-scope-form forecast-scope-form-front">
-                <input type="hidden" name="branch" value="<?php echo esc_attr($branch_filter); ?>">
-                <?php if ($category_filter !== 'all'): ?>
-                    <input type="hidden" name="category" value="<?php echo esc_attr($category_filter); ?>">
-                <?php endif; ?>
-                <?php if ($status_filter !== 'all'): ?>
-                    <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
-                <?php endif; ?>
-                <?php if ($search_filter !== ''): ?>
-                    <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
-                <?php endif; ?>
-                <?php if ($view_filter !== 'weekly'): ?>
-                    <input type="hidden" name="view" value="<?php echo esc_attr($view_filter); ?>">
-                <?php endif; ?>
-                <input type="hidden" name="per_page" value="<?php echo (int) $per_page; ?>">
-                <label class="forecast-scope-field">
-                    <span>Branch</span>
-                    <strong class="forecast-scope-static"><?php echo esc_html(forecast_branch_label($branch_label)); ?></strong>
-                </label>
-                <label class="forecast-scope-field">
-                    <span>Analysis Year</span>
-                    <select name="year" onchange="this.form.submit()">
-                        <option value="latest" <?php echo $year_filter === 'latest' ? 'selected' : ''; ?>>Latest Available</option>
-                        <?php foreach ($available_years as $year): ?>
-                            <option value="<?php echo (int) $year; ?>" <?php echo $year_filter === (string) $year ? 'selected' : ''; ?>>
-                                <?php echo (int) $year; ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </label>
-            </form>
             <a href="/hwtires/front-desk/tire-inventory/" class="forecast-back-link">
                 <i class="fas fa-arrow-left"></i>
                 <span>Inventory</span>
@@ -315,7 +284,7 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
                     <?php endforeach; ?>
                 </select>
             </label>
-            <label class="forecast-compact-field">
+            <label class="forecast-compact-field" id="frontForecastBrandField" style="<?php echo ($category_filter === 'all' && $brand_filter === '') ? 'display: none;' : ''; ?>">
                 <span>Brand</span>
                 <select name="brand" id="frontForecastBrandFilter">
                     <option value="">All Brands</option>
@@ -326,7 +295,7 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
                     <?php endforeach; ?>
                 </select>
             </label>
-            <label class="forecast-compact-field">
+            <label class="forecast-compact-field" id="frontForecastSizeField" style="<?php echo ($category_filter === 'all' && $size_filter === '') ? 'display: none;' : ''; ?>">
                 <span>Size / Spec</span>
                 <select name="size" id="frontForecastSizeFilter">
                     <option value="">All Sizes</option>
@@ -376,10 +345,21 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
                     <?php endforeach; ?>
                 </select>
             </label>
+            <label class="forecast-compact-field">
+                <span>Analysis Year</span>
+                <select name="year">
+                    <option value="latest" <?php echo $year_filter === 'latest' ? 'selected' : ''; ?>>Latest Available</option>
+                    <?php foreach ($available_years as $year): ?>
+                        <option value="<?php echo (int) $year; ?>" <?php echo $year_filter === (string) $year ? 'selected' : ''; ?>>
+                            <?php echo (int) $year; ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
             <button type="submit" class="forecast-compact-apply">Apply</button>
-            <?php if ($category_filter !== 'all' || $brand_filter !== '' || $size_filter !== '' || $status_filter !== 'all' || $view_filter !== 'weekly' || $sort_filter !== 'urgency'): ?>
+            <?php if ($category_filter !== 'all' || $brand_filter !== '' || $size_filter !== '' || $status_filter !== 'all' || $year_filter !== 'latest' || $view_filter !== 'weekly' || $sort_filter !== 'urgency'): ?>
                 <a class="forecast-compact-reset"
-                   href="<?php echo esc_attr(forecast_filter_url('all', $branch_filter, 'all', $search_filter, $per_page, null, $year_filter, 'weekly', 'urgency')); ?>#forecast-analysis">
+                   href="<?php echo esc_attr(forecast_filter_url('all', $branch_filter, 'all', $search_filter, $per_page, null, 'latest', 'weekly', 'urgency')); ?>#forecast-analysis">
                     Reset filters
                 </a>
             <?php endif; ?>
@@ -395,12 +375,26 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
             const catSelect = document.getElementById('frontForecastCategoryFilter');
             const brandSelect = document.getElementById('frontForecastBrandFilter');
             const sizeSelect = document.getElementById('frontForecastSizeFilter');
+            const brandField = document.getElementById('frontForecastBrandField');
+            const sizeField = document.getElementById('frontForecastSizeField');
 
             if (!catSelect || !brandSelect || !sizeSelect) return;
 
             catSelect.addEventListener('change', function() {
                 const cat = this.value;
                 const currentBrand = brandSelect.value;
+
+                if (cat === 'all') {
+                    if (brandField) brandField.style.display = 'none';
+                    if (sizeField) sizeField.style.display = 'none';
+                    brandSelect.value = '';
+                    sizeSelect.value = '';
+                    return;
+                }
+
+                if (brandField) brandField.style.display = '';
+                if (sizeField) sizeField.style.display = '';
+
                 let brands = (cat !== 'all' && brandsByCategory[cat]) ? Object.values(brandsByCategory[cat]) : allBrands;
                 
                 brandSelect.innerHTML = '<option value="">All Brands</option>';

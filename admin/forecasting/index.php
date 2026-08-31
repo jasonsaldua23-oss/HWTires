@@ -388,7 +388,7 @@ foreach ($movement_category_totals as $category_total) {
                     <?php endforeach; ?>
                 </select>
             </label>
-            <label class="forecast-compact-field">
+            <label class="forecast-compact-field" id="adminForecastBrandField" style="<?php echo ($category_filter === 'all' && $brand_filter === '') ? 'display: none;' : ''; ?>">
                 <span>Brand</span>
                 <select name="brand" id="adminForecastBrandFilter">
                     <option value="">All Brands</option>
@@ -399,7 +399,7 @@ foreach ($movement_category_totals as $category_total) {
                     <?php endforeach; ?>
                 </select>
             </label>
-            <label class="forecast-compact-field">
+            <label class="forecast-compact-field" id="adminForecastSizeField" style="<?php echo ($category_filter === 'all' && $size_filter === '') ? 'display: none;' : ''; ?>">
                 <span>Size / Spec</span>
                 <select name="size" id="adminForecastSizeFilter">
                     <option value="">All Sizes</option>
@@ -491,12 +491,26 @@ foreach ($movement_category_totals as $category_total) {
             const catSelect = document.getElementById('adminForecastCategoryFilter');
             const brandSelect = document.getElementById('adminForecastBrandFilter');
             const sizeSelect = document.getElementById('adminForecastSizeFilter');
+            const brandField = document.getElementById('adminForecastBrandField');
+            const sizeField = document.getElementById('adminForecastSizeField');
 
             if (!catSelect || !brandSelect || !sizeSelect) return;
 
             catSelect.addEventListener('change', function() {
                 const cat = this.value;
                 const currentBrand = brandSelect.value;
+
+                if (cat === 'all') {
+                    if (brandField) brandField.style.display = 'none';
+                    if (sizeField) sizeField.style.display = 'none';
+                    brandSelect.value = '';
+                    sizeSelect.value = '';
+                    return;
+                }
+
+                if (brandField) brandField.style.display = '';
+                if (sizeField) sizeField.style.display = '';
+
                 let brands = (cat !== 'all' && brandsByCategory[cat]) ? Object.values(brandsByCategory[cat]) : allBrands;
                 
                 brandSelect.innerHTML = '<option value="">All Brands</option>';

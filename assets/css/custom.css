@@ -20433,6 +20433,12 @@ body {
     background: var(--job-accent) !important;
 }
 
+.front-job-create-page [data-selected-quote][hidden],
+.front-job-create-page .job-selected-block[hidden],
+.front-job-create-page [data-selected-quote].is-hidden {
+    display: none !important;
+}
+
 .front-job-create-page .job-order-list.job-order-records-table {
     display: block !important;
     overflow: hidden;
@@ -20444,7 +20450,7 @@ body {
 .front-job-create-page .job-order-records-head,
 .front-job-create-page .job-order-row {
     display: grid;
-    grid-template-columns: minmax(210px, 1.25fr) 138px 158px minmax(130px, 0.85fr) minmax(250px, 1.35fr) 112px 84px;
+    grid-template-columns: minmax(210px, 1.25fr) 138px 158px minmax(130px, 0.85fr) minmax(250px, 1.35fr) 112px 168px;
     align-items: center;
     gap: 14px;
 }
@@ -21757,7 +21763,7 @@ body {
 .admin-job-order-page .job-order-records-head,
 .admin-job-order-page .admin-job-order-row {
     display: grid !important;
-    grid-template-columns: minmax(230px, 1.35fr) minmax(130px, 0.75fr) minmax(150px, 0.85fr) minmax(130px, 0.75fr) minmax(230px, 1.2fr) minmax(160px, 0.95fr) 118px 76px;
+    grid-template-columns: minmax(230px, 1.35fr) minmax(130px, 0.75fr) minmax(150px, 0.85fr) minmax(130px, 0.75fr) minmax(230px, 1.2fr) minmax(160px, 0.95fr) 118px 168px;
     align-items: center;
     gap: 12px;
 }
@@ -23363,36 +23369,18 @@ button.customer-vehicle-status-pill.customer-status-action {
     order: 10 !important;
 }
 
-.inventory-records-page > .inventory-filter-card:not(.inventory-transactions-filter) {
-    display: grid !important;
-    align-items: end !important;
-    gap: 14px 18px !important;
-}
-
-.inventory-records-page > .inventory-filter-card:not(.front-inventory-filter-card):not(.inventory-transactions-filter) {
-    grid-template-columns: minmax(300px, 0.8fr) minmax(480px, 1.05fr) minmax(340px, 0.9fr) !important;
-}
-
+.inventory-records-page > .inventory-filter-card:not(.inventory-transactions-filter),
 .inventory-records-page > .front-inventory-filter-card:not(.inventory-transactions-filter) {
-    grid-template-columns: minmax(300px, 0.85fr) minmax(360px, 0.95fr) !important;
+    display: block !important;
+    padding: 20px 24px !important;
 }
 
-.inventory-records-page > .inventory-filter-card:not(.inventory-transactions-filter) > .inventory-filter-group:first-child {
-    order: 1 !important;
-}
-
-.inventory-records-page > .inventory-filter-card:not(.inventory-transactions-filter) > .inventory-filter-group:nth-child(2):not(.inventory-search-group) {
-    order: 2 !important;
-}
-
-.inventory-records-page > .inventory-filter-card:not(.inventory-transactions-filter) > .inventory-search-group {
-    order: 3 !important;
-    justify-self: end !important;
+.inventory-records-page .inventory-unified-filter-form {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 14px !important;
     width: 100% !important;
-}
-
-.inventory-records-page > .front-inventory-filter-card:not(.inventory-transactions-filter) > .inventory-search-group {
-    order: 2 !important;
 }
 
 .inventory-records-page > .inventory-filter-card:not(.inventory-transactions-filter) .inventory-filter-buttons {

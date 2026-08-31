@@ -465,7 +465,7 @@ if (!empty($job_quotation_ids)) {
             </div>
         </div>
 
-        <section class="job-create-card job-selected-block" data-selected-quote>
+        <section class="job-create-card job-selected-block" data-selected-quote hidden style="display: none;">
             <h2>Customer &amp; Vehicle Details</h2>
             <div class="job-info-band">
                 <div>
@@ -481,7 +481,7 @@ if (!empty($job_quotation_ids)) {
             </div>
         </section>
 
-        <section class="job-create-card job-selected-block" data-selected-quote>
+        <section class="job-create-card job-selected-block" data-selected-quote hidden style="display: none;">
             <h2>Service Requested</h2>
             <div class="job-service-band">
                 <strong>Services from Service Operation:</strong>
@@ -489,7 +489,7 @@ if (!empty($job_quotation_ids)) {
             </div>
         </section>
 
-        <section class="job-create-card job-selected-block" data-selected-quote>
+        <section class="job-create-card job-selected-block" data-selected-quote hidden style="display: none;">
             <h2>Job Order Details</h2>
             <div class="job-form-grid">
                 <label>
@@ -1292,6 +1292,7 @@ function renderSelectedQuotation() {
 
     quoteBlocks.forEach(block => {
         block.hidden = !hasQuote;
+        block.style.display = hasQuote ? '' : 'none';
     });
     quoteEmptyNotice.hidden = hasQuote;
     if (quoteSelectorDone) {

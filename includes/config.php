@@ -144,6 +144,12 @@ if (!function_exists('generate_csrf_token')) {
     }
 }
 
+if (!function_exists('get_csrf_token')) {
+    function get_csrf_token() {
+        return generate_csrf_token();
+    }
+}
+
 /**
  * Verify CSRF token
  */

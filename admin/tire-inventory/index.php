@@ -914,7 +914,7 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                 <?php endforeach; ?>
                 </select>
             </div>
-            <div class="inventory-filter-group" style="flex: 1; min-width: 120px;">
+            <div class="inventory-filter-group" id="adminBrandGroup" style="flex: 1; min-width: 130px; <?php echo ($category_filter === 'all' && $brand_filter === '') ? 'display: none;' : ''; ?>">
                 <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Brand</h2>
                 <select name="brand" id="adminBrandFilter" aria-label="Filter inventory brand" class="form-select" style="height: 42px; border-radius: 8px; border-color: #cbd5e1; font-weight: 500;">
                     <option value="">All Brands</option>
@@ -925,7 +925,7 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="inventory-filter-group" style="flex: 1; min-width: 120px;">
+            <div class="inventory-filter-group" id="adminSizeGroup" style="flex: 1; min-width: 130px; <?php echo ($category_filter === 'all' && $size_filter === '') ? 'display: none;' : ''; ?>">
                 <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Size / Spec</h2>
                 <select name="size" id="adminSizeFilter" aria-label="Filter inventory size" class="form-select" style="height: 42px; border-radius: 8px; border-color: #cbd5e1; font-weight: 500;">
                     <option value="">All Sizes</option>
@@ -936,7 +936,7 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="inventory-filter-group" style="flex: 1; min-width: 130px;">
+            <div class="inventory-filter-group" style="flex: 1; min-width: 140px;">
                 <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Branch</h2>
                 <select name="branch" aria-label="Filter inventory branch" class="form-select" style="height: 42px; border-radius: 8px; border-color: #cbd5e1; font-weight: 500;">
                     <option value="all" <?php echo $branch_filter === 'all' ? 'selected' : ''; ?>>All Branches</option>
@@ -958,7 +958,7 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                 <?php endforeach; ?>
                 </select>
             </div>
-            <div class="inventory-filter-group inventory-search-group" style="flex: 2; min-width: 180px;">
+            <div class="inventory-filter-group inventory-search-group" style="flex: 2; min-width: 200px;">
                 <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Search</h2>
                 <label class="inventory-search-field" style="margin: 0; width: 100%;">
                     <i class="fas fa-search"></i>
@@ -970,7 +970,7 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                 </label>
             </div>
             <div class="inventory-filter-actions-group" style="display: flex; gap: 8px; align-items: center;">
-                <button type="submit" class="btn btn-primary" style="height: 42px; padding: 0 16px; font-weight: 600; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                <button type="submit" class="btn btn-primary" style="height: 42px; padding: 0 18px; font-weight: 600; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
                     <i class="fas fa-filter"></i> Apply
                 </button>
                 <?php if ($category_filter !== 'all' || $brand_filter !== '' || $size_filter !== '' || $branch_filter !== 'all' || $view_filter !== 'all' || $search_filter !== ''): ?>
@@ -994,12 +994,26 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
         const catSelect = document.getElementById('adminCategoryFilter');
         const brandSelect = document.getElementById('adminBrandFilter');
         const sizeSelect = document.getElementById('adminSizeFilter');
+        const brandGroup = document.getElementById('adminBrandGroup');
+        const sizeGroup = document.getElementById('adminSizeGroup');
 
         if (!catSelect || !brandSelect || !sizeSelect) return;
 
         catSelect.addEventListener('change', function() {
             const cat = this.value;
             const currentBrand = brandSelect.value;
+
+            if (cat === 'all') {
+                if (brandGroup) brandGroup.style.display = 'none';
+                if (sizeGroup) sizeGroup.style.display = 'none';
+                brandSelect.value = '';
+                sizeSelect.value = '';
+                return;
+            }
+
+            if (brandGroup) brandGroup.style.display = '';
+            if (sizeGroup) sizeGroup.style.display = '';
+
             let brands = (cat !== 'all' && brandsByCategory[cat]) ? Object.values(brandsByCategory[cat]) : allBrands;
             
             brandSelect.innerHTML = '<option value="">All Brands</option>';

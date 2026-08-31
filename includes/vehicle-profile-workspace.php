@@ -484,14 +484,18 @@ if (!function_exists('vehicle_profile_item_display_parts')) {
 
         $separator = ' - ';
         $position = strrpos($line, $separator);
-        if ($position === false) {
-            return $parts;
+        if ($position !== false) {
+            $possible_price = trim(substr($line, $position + strlen($separator)));
+            if ($possible_price !== '' && preg_match('/^[^\d-]*\d[\d,]*(?:\.\d{2})?$/', $possible_price)) {
+                $parts['label'] = trim(substr($line, 0, $position));
+                $parts['price'] = $possible_price;
+            }
         }
 
-        $possible_price = trim(substr($line, $position + strlen($separator)));
-        if ($possible_price !== '' && preg_match('/^[^\d-]*\d[\d,]*(?:\.\d{2})?$/', $possible_price)) {
-            $parts['label'] = trim(substr($line, 0, $position));
-            $parts['price'] = $possible_price;
+        // Clean transfer tag and trailing " Tire"
+        $parts['label'] = preg_replace('/\s*\[Transferred:[^\]]+\]/i', '', $parts['label']);
+        if (function_exists('app_display_item_name')) {
+            $parts['label'] = app_display_item_name($parts['label']);
         }
 
         return $parts;
@@ -794,16 +798,12 @@ if (!function_exists('vehicle_profile_event_key')) {
             }
         }
 
-        $record_date = trim((string) ($record['record_date'] ?? ''));
-        $branch_id = (int) ($record['branch_id'] ?? 0);
-        if ($record_date !== '' && $branch_id > 0) {
-            return 'service-date:' . $record_date . ':branch:' . $branch_id;
-        }
-
+        // Group by Quotation (Service Operation) if present
         if ($quotation_id > 0) {
-            return 'service:' . $quotation_id;
+            return 'service-qt:' . $quotation_id;
         }
 
+        // Group by Job Order if present
         if ($job_order_id > 0) {
             return 'service-job:' . $job_order_id;
         }
