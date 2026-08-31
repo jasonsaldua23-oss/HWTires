@@ -1801,18 +1801,20 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                     <label class="inventory-stock-field">
                         <span>Supply Source</span>
                         <select name="source_type" id="stockInSource">
-                            <option value="supplier_delivery">Supplier Delivery</option>
-                            <option value="branch_transfer">Stock Transfer from Branch</option>
-                            <option value="adjustment">Inventory Count Adjustment</option>
+                            <option value="tangub_warehouse">Central Warehouse (Tangub Hub)</option>
+                            <option value="sancarlos_warehouse">Auxiliary Warehouse (San Carlos Hub)</option>
+                            <option value="supplier_delivery">Direct Supplier Delivery (Manila / Distributor)</option>
+                            <option value="branch_transfer">Stock Transfer from Other Branch</option>
+                            <option value="adjustment">Physical Inventory Adjustment</option>
                         </select>
                     </label>
                     <label class="inventory-stock-field">
                         <span>Supplier / Source Name</span>
-                        <input type="text" id="stockInSupplier" name="supplier_name" placeholder="e.g., Yokohama PH / Main Branch">
+                        <input type="text" id="stockInSupplier" name="supplier_name" placeholder="e.g., Yokohama PH / Manila Distributor">
                     </label>
                     <label class="inventory-stock-field" style="grid-column: span 2;">
                         <span>Delivery Receipt (DR) / Invoice #</span>
-                        <input type="text" id="stockInRef" name="reference_number" placeholder="e.g., DR-2026-0812 / INV-9921">
+                        <input type="text" id="stockInRef" name="reference_number" placeholder="e.g., DR-2026-0831 / INV-9921">
                     </label>
                 </div>
                 <label class="inventory-stock-field" style="margin-top: 10px; display: block;">

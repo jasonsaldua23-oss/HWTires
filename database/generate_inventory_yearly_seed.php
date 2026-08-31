@@ -746,14 +746,20 @@ foreach ($years as $year) {
             $cycle = $category === 'tire' ? 2 : ($category === 'accessory' ? ($branch_id === 2 ? 1 : 3) : ($branch_id === 3 ? 2 : 3));
             $should_restock = (($loop_year * 12 + $month + $id) % $cycle) === 0;
             $restock_floor = (int) $item['reorder_level'] + (int) ceil($base * 2.2);
-            $restock_ceiling = (int) $item['reorder_level'] + (int) ceil($base * mt_rand(34, 54) / 10);
-
             if ($balances[$id] < $restock_floor || ($should_restock && $balances[$id] < $restock_ceiling)) {
                 $target_balance = max($restock_floor + mt_rand(4, 12), $restock_ceiling);
                 $stock_in_qty = (int) max(1, $target_balance - $balances[$id]);
                 $day = min($effective_days, mt_rand(2, min(24, $days_in_month)));
                 $date = sprintf('%04d-%02d-%02d %02d:%02d:00', $loop_year, $month, $day, mt_rand(8, 15), mt_rand(0, 59));
-                add_transaction($transactions, $transaction_id, (int) $id, 'stock_in', $stock_in_qty, 'supplier_delivery', $reference_id++, 'Supplier delivery received and checked.', $date);
+                $dr_ref = sprintf('DR-%04d%02d%02d-%03d', $loop_year, $month, $day, mt_rand(10, 99));
+                if ($category === 'tire') {
+                    $stock_note = ($branch_id === 2) // If Tangub hub
+                        ? "Supplier Delivery (Manila Distributor: " . ($item['brand'] ?? 'Yokohama') . " PH) | DR #: {$dr_ref}"
+                        : "Tangub Central Warehouse Delivery | DR #: {$dr_ref}";
+                } else {
+                    $stock_note = "Supplier Delivery (Manila Distributor) | DR #: {$dr_ref}";
+                }
+                add_transaction($transactions, $transaction_id, (int) $id, 'stock_in', $stock_in_qty, 'supplier_delivery', $reference_id++, $stock_note, $date);
                 $balances[$id] += $stock_in_qty;
                 $items[$id]['last_restock_date'] = substr($date, 0, 10);
             }

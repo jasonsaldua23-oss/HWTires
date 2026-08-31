@@ -408,8 +408,12 @@ if ($action === 'stock_in') {
         $new_quantity = $old_quantity + $quantity;
 
         $note_parts = [];
-        if ($source_type === 'supplier_delivery') {
-            $note_parts[] = 'Supplier Delivery' . ($supplier_name !== '' ? ': ' . $supplier_name : '');
+        if ($source_type === 'tangub_warehouse') {
+            $note_parts[] = 'Tangub Central Warehouse Delivery';
+        } elseif ($source_type === 'sancarlos_warehouse') {
+            $note_parts[] = 'San Carlos Warehouse Delivery';
+        } elseif ($source_type === 'supplier_delivery') {
+            $note_parts[] = 'Supplier Delivery (Manila Distributor)' . ($supplier_name !== '' ? ': ' . $supplier_name : '');
         } elseif ($source_type === 'branch_transfer') {
             $note_parts[] = 'Stock Transfer Received' . ($supplier_name !== '' ? ' from ' . $supplier_name : '');
         } elseif ($source_type === 'adjustment') {
@@ -419,7 +423,7 @@ if ($action === 'stock_in') {
         }
 
         if ($reference_number !== '') {
-            $note_parts[] = 'Ref/DR #: ' . $reference_number;
+            $note_parts[] = 'DR #: ' . $reference_number;
         }
 
         if ($custom_notes !== '' && $custom_notes !== 'Manual stock in from Front Desk Inventory') {
