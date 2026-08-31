@@ -498,6 +498,15 @@ if (!function_exists('vehicle_profile_item_display_parts')) {
     }
 }
 
+if (!function_exists('vehicle_profile_item_short_label')) {
+    function vehicle_profile_item_short_label($line) {
+        $parts = vehicle_profile_item_display_parts($line);
+        $label = $parts['label'];
+        $label = preg_replace('/\s*\[Transferred:[^\]]+\]/i', '', $label);
+        return trim($label);
+    }
+}
+
 if (!function_exists('vehicle_profile_item_line_html')) {
     function vehicle_profile_item_line_html($line, $muted = false) {
         $parts = vehicle_profile_item_display_parts($line);
@@ -868,17 +877,27 @@ if (!function_exists('vehicle_profile_group_records')) {
 
             foreach (vehicle_profile_split_lines($record['service_lines'] ?? '') as $service_line) {
                 $service_line = trim($service_line);
-                if ($service_line !== '' && !in_array($service_line, ['Service operation', 'Job order', 'Service history', 'Service event', 'Service Visit'], true)) {
+                if ($service_line !== '' 
+                    && !in_array($service_line, ['Service operation', 'Job order', 'Service history', 'Service event', 'Service Visit'], true)
+                    && stripos($service_line, 'items used:') === false
+                    && stripos($service_line, '[transferred:') === false
+                    && stripos($service_line, ' - ₱') === false) {
                     vehicle_profile_unique_push($events[$key]['services_done'], $service_line);
                 }
             }
 
             $summary = trim((string) ($record['summary'] ?? ''));
             if ($summary !== '' && !in_array($summary, ['Service operation', 'Job order', 'Service history', 'Service event', 'Service Visit'], true)) {
-                $sub_services = array_map('trim', explode(',', $summary));
-                foreach ($sub_services as $ss) {
-                    if ($ss !== '' && !in_array($ss, ['Service operation', 'Job order', 'Service history', 'Service event', 'Service Visit'], true)) {
-                        vehicle_profile_unique_push($events[$key]['services_done'], $ss);
+                if (stripos($summary, 'items used:') === false && stripos($summary, '[transferred:') === false && stripos($summary, ' - ₱') === false) {
+                    $sub_services = array_map('trim', explode(',', $summary));
+                    foreach ($sub_services as $ss) {
+                        if ($ss !== '' 
+                            && !in_array($ss, ['Service operation', 'Job order', 'Service history', 'Service event', 'Service Visit'], true)
+                            && stripos($ss, 'items used:') === false
+                            && stripos($ss, '[transferred:') === false
+                            && stripos($ss, ' - ₱') === false) {
+                            vehicle_profile_unique_push($events[$key]['services_done'], $ss);
+                        }
                     }
                 }
             }
@@ -929,10 +948,14 @@ if (!function_exists('vehicle_profile_group_records')) {
         }
 
         foreach ($events as &$event) {
+            // Clean, human-readable summary
             if (!empty($event['services_done'])) {
                 $event['summary'] = implode(', ', array_unique($event['services_done']));
+            } elseif (!empty($event['items_used'])) {
+                $item_count = count($event['items_used']);
+                $event['summary'] = $item_count . ' Item' . ($item_count > 1 ? 's' : '') . ' Installed / Issued';
             } else {
-                $event['summary'] = trim((string) ($event['summary'] ?? 'Service event'));
+                $event['summary'] = trim((string) ($event['summary'] ?? 'Service Visit'));
             }
 
             $event['item_lines'] = implode(';;', $event['items_used']);
@@ -949,8 +972,11 @@ if (!function_exists('vehicle_profile_group_records')) {
             }
             $event['meta_text'] = !empty($clean_meta) ? implode(' | ', $clean_meta) : '-';
 
-            $clean_notes = [];
-            $seen_note_keys = [];
+            // Clean, deduplicate technicians and general notes
+            $sales_in_charge = '';
+            $seen_technicians = [];
+            $general_notes = [];
+
             foreach ($event['notes_collection'] as $note_line) {
                 $note_line = trim((string) $note_line);
                 if ($note_line === '' || $note_line === '-') continue;
@@ -962,24 +988,77 @@ if (!function_exists('vehicle_profile_group_records')) {
                     if (preg_match('/Stock used for job order task/i', $clean_seg)) continue;
                     if (preg_match('/^Service notes:\s*Stock used/i', $clean_seg)) continue;
 
+                    // Match "Technician assigned: <Name>" or "Technician: <Name>"
+                    if (preg_match('/^(?:Technician(?:\s+assigned)?|Assigned(?:\s+technician)?)\s*:\s*(.+)$/i', $clean_seg, $m)) {
+                        $tech_names = array_map('trim', explode(',', $m[1]));
+                        foreach ($tech_names as $tn) {
+                            $tn = trim($tn);
+                            if ($tn !== '' && !in_array(strtolower($tn), array_map('strtolower', $seen_technicians), true)) {
+                                $seen_technicians[] = $tn;
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Match "Sales in charge: <Name>"
+                    if (preg_match('/^Sales(?:\s+in\s+charge)?\s*:\s*(.+)$/i', $clean_seg, $m)) {
+                        if ($sales_in_charge === '') {
+                            $sales_in_charge = 'Sales in charge: ' . trim($m[1]);
+                        }
+                        continue;
+                    }
+
                     $normalized_content = preg_replace('/^(?:Service notes:\s*|Cross-branch service history\.\s*|Completed cross-branch job order\.\s*|Approved cross-branch service operation\.\s*|Completed yearly cross-branch service history\.\s*|Cross-branch service operation\.\s*|Service operation note:\s*|Job order note:\s*|Service history note:\s*|Quotation note:\s*)+/i', '', $clean_seg);
                     $normalized_content = trim($normalized_content);
                     if ($normalized_content === '') continue;
 
-                    $key = strtolower(preg_replace('/[^a-z0-9]/', '', $normalized_content));
-                    if (!isset($seen_note_keys[$key])) {
-                        $seen_note_keys[$key] = true;
-                        $clean_notes[] = $clean_seg;
+                    $key_note = strtolower(preg_replace('/[^a-z0-9]/', '', $normalized_content));
+                    if (!isset($general_notes[$key_note])) {
+                        $general_notes[$key_note] = $clean_seg;
                     }
                 }
             }
-            $event['notes'] = !empty($clean_notes) ? implode(' • ', $clean_notes) : '';
+
+            $final_notes = [];
+            if ($sales_in_charge !== '') {
+                $final_notes[] = $sales_in_charge;
+            }
+            if (!empty($seen_technicians)) {
+                $final_notes[] = 'Technician(s): ' . implode(', ', $seen_technicians);
+            }
+            foreach ($general_notes as $gn) {
+                $final_notes[] = $gn;
+            }
+            $event['notes'] = !empty($final_notes) ? implode(' • ', $final_notes) : '';
 
             if (!empty($event['source_type_keys']['job']) || !empty($event['source_type_keys']['history'])) {
                 $event['record_status'] = 'completed';
             }
 
-            $event['linked_records'] = array_values($event['linked_records']);
+            // Filter linked records to avoid showing redundant internal SH/INV IDs when QT/JO exist
+            $raw_links = array_values($event['linked_records']);
+            $has_primary_link = false;
+            foreach ($raw_links as $lr) {
+                $lbl = strtolower($lr['label'] ?? '');
+                if (str_contains($lbl, 'service operation') || str_contains($lbl, 'job order')) {
+                    $has_primary_link = true;
+                    break;
+                }
+            }
+
+            if ($has_primary_link) {
+                $filtered_links = [];
+                foreach ($raw_links as $lr) {
+                    $lbl = strtolower($lr['label'] ?? '');
+                    if (!str_contains($lbl, 'service history') && !str_contains($lbl, 'items used/sold')) {
+                        $filtered_links[] = $lr;
+                    }
+                }
+                $event['linked_records'] = !empty($filtered_links) ? $filtered_links : $raw_links;
+            } else {
+                $event['linked_records'] = $raw_links;
+            }
+
             $event['record_count'] = count($event['linked_records']);
             $event['source_types'] = array_keys($event['source_type_keys']);
 
@@ -2193,11 +2272,10 @@ foreach ($record_sections as $record_section) {
                                                                     <span class="muted"><?php echo esc_html($payload['empty_items_label']); ?></span>
                                                                 <?php else: ?>
                                                                     <?php foreach (array_slice($preview_items, 0, 2) as $preview_item): ?>
-                                                                        <?php $preview_parts = vehicle_profile_item_display_parts($preview_item); ?>
-                                                                        <span><?php echo esc_html($preview_parts['label']); ?></span>
+                                                                        <span>• <?php echo esc_html(vehicle_profile_item_short_label($preview_item)); ?></span>
                                                                     <?php endforeach; ?>
                                                                     <?php if (count($preview_items) > 2): ?>
-                                                                        <em>+<?php echo count($preview_items) - 2; ?> more</em>
+                                                                        <em>+<?php echo count($preview_items) - 2; ?> more item<?php echo (count($preview_items) - 2) > 1 ? 's' : ''; ?></em>
                                                                     <?php endif; ?>
                                                                 <?php endif; ?>
                                                             </div>
