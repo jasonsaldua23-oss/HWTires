@@ -59,16 +59,13 @@ if (!in_array($per_page, $page_sizes, true)) {
 }
 $page = max(1, (int) ($_GET['page'] ?? 1));
 
-$branch_id = (int) ($user['branch_id'] ?? 0);
-
-// Fetch distinct categories, brands, and sizes for dropdowns (scoped to this branch)
-$filter_meta_stmt = $pdo->prepare("
+// Fetch distinct categories, brands, and sizes for dropdowns
+$filter_meta_stmt = $pdo->query("
     SELECT DISTINCT category, brand, size 
     FROM inventory_items 
-    WHERE status = 'active' AND branch_id = ?
+    WHERE status = 'active'
     ORDER BY category ASC, brand ASC, size ASC
 ");
-$filter_meta_stmt->execute([$branch_id]);
 $raw_filter_meta = $filter_meta_stmt ? $filter_meta_stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 
 $brands_by_category = [];
