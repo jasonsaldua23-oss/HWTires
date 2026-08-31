@@ -20472,15 +20472,21 @@ body {
 .job-action-icon-btn.is-restore:focus {
     background: #dcfce7 !important;
     border-color: #4ade80 !important;
-    color: #15803d !important;
+.front-job-create-page .job-order-list.job-order-records-table {
+    display: block !important;
+    overflow-x: auto !important;
+    background: #ffffff !important;
+    border: 1px solid var(--job-border) !important;
+    border-radius: 8px !important;
 }
 
 .front-job-create-page .job-order-records-head,
 .front-job-create-page .job-order-row {
-    display: grid;
-    grid-template-columns: minmax(210px, 1.25fr) 138px 158px minmax(130px, 0.85fr) minmax(250px, 1.35fr) 112px 96px;
-    align-items: center;
-    gap: 14px;
+    display: grid !important;
+    grid-template-columns: minmax(210px, 1.25fr) 138px 158px minmax(130px, 0.85fr) minmax(250px, 1.35fr) 112px 96px !important;
+    align-items: center !important;
+    gap: 14px !important;
+    min-width: 900px !important;
 }
 
 .front-job-create-page .job-order-records-head {
@@ -20712,24 +20718,6 @@ body {
 
     .front-job-create-page .job-create-open-btn {
         width: 100%;
-    }
-
-    .front-job-create-page .job-order-records-head {
-        display: none;
-    }
-
-    .front-job-create-page .job-order-card.job-order-row {
-        grid-template-columns: 1fr;
-        gap: 10px;
-        padding: 14px !important;
-    }
-
-    .front-job-create-page .job-order-action {
-        justify-items: stretch;
-    }
-
-    .front-job-create-page .job-order-row .job-details-button {
-        width: 100% !important;
     }
 }
 
@@ -22532,6 +22520,8 @@ body {
     .customer-records-filter select,
     .vehicle-records-filter input,
     .vehicle-records-filter select,
+    .vehicle-workspace-filter input,
+    .vehicle-workspace-filter select,
     .reports-filter-form input,
     .reports-filter-form select,
     .inventory-transaction-filter-grid input,
@@ -22545,24 +22535,30 @@ body {
     .records-search-field,
     .records-search-field input
 ) {
-    min-height: 40px !important;
-    border-radius: 7px !important;
-    font-size: 14px !important;
+    min-height: 36px !important;
+    height: 36px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
 }
 
 .main-content .content :is(
     .customer-records-filter button,
     .vehicle-records-filter button,
+    .vehicle-workspace-filter button,
     .reports-filter-form button,
     .forecast-compact-apply,
     .forecast-compact-reset,
     .records-date-filter button,
     .records-search-btn,
-    .records-search-clear
+    .records-search-clear,
+    .vehicle-workspace-btn,
+    .vehicle-workspace-clear
 ) {
-    min-height: 40px !important;
-    border-radius: 7px !important;
-    font-size: 14px !important;
+    min-height: 36px !important;
+    height: 36px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    padding: 0 12px !important;
 }
 
 .main-content .content :is(
@@ -22572,8 +22568,10 @@ body {
     .inventory-filter-card h2,
     .reports-filter-card h2
 ) {
-    margin-bottom: 12px !important;
-    font-size: 20px !important;
+    margin-bottom: 6px !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: #1e293b !important;
 }
 
 .admin-job-order-page .admin-job-order-filter-card .service-filter-grid {
@@ -22999,40 +22997,78 @@ body {
         flex: 1 1 100% !important;
         max-width: 100% !important;
     }
+/* Customer/vehicle record filters: clean, minimal, unified row layout. */
+.main-content .content :is(.vehicle-records-filter-card, .vehicle-workspace-filter-card, .customer-records-filter-card) {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 12px 18px !important;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
+    margin-bottom: 18px !important;
 }
 
-/* Customer/vehicle record filters: keep the primary filters in one clean row on desktop. */
-.main-content .content .vehicle-records-filter {
-    grid-template-columns: minmax(260px, 420px) minmax(150px, 220px) minmax(145px, 190px) minmax(145px, 190px) auto !important;
-    gap: 10px !important;
-    justify-content: start !important;
+.main-content .content :is(.vehicle-records-filter, .vehicle-workspace-filter, .customer-records-filter) {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 10px 12px !important;
+    width: 100% !important;
 }
 
-.main-content .content .vehicle-records-filter .vehicle-records-submit {
-    align-self: stretch !important;
-    min-width: 82px !important;
+.main-content .content :is(.vehicle-records-filter, .vehicle-workspace-filter, .customer-records-filter) > label,
+.main-content .content :is(.vehicle-records-filter, .vehicle-workspace-filter, .customer-records-filter) > select,
+.main-content .content :is(.vehicle-records-filter, .vehicle-workspace-filter, .customer-records-filter) > div {
+    flex: 0 1 auto !important;
+    min-width: 125px !important;
+    margin: 0 !important;
+}
+
+.main-content .content :is(.vehicle-records-filter, .vehicle-workspace-filter, .customer-records-filter) label > span {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    color: #64748b !important;
+    margin: 0 0 3px 0 !important;
+    display: block !important;
+}
+
+.main-content .content :is(.vehicle-records-filter, .vehicle-workspace-filter, .customer-records-filter) :is(.vehicle-search-field, .records-search-field, .vehicle-workspace-search) {
+    flex: 1 1 200px !important;
+    min-width: 170px !important;
+    max-width: 320px !important;
+    margin: 0 !important;
 }
 
 .main-content .content :is(.vehicle-records-filter-card, .vehicle-workspace-filter-card) > .records-date-filter {
-    justify-content: flex-end !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 8px 12px !important;
     margin-top: 8px !important;
-    padding-top: 10px !important;
-    border-top: 1px solid var(--company-border) !important;
+    padding-top: 8px !important;
+    border-top: 1px solid #f1f5f9 !important;
 }
 
-.main-content .content :is(.vehicle-records-filter-card, .vehicle-workspace-filter-card) > .records-date-filter label,
-.main-content .content :is(.vehicle-records-filter-card, .vehicle-workspace-filter-card) > .records-date-filter label:first-child {
-    flex: 0 1 190px !important;
-    min-width: 170px !important;
-    max-width: 210px !important;
+.main-content .content :is(.vehicle-records-filter-card, .vehicle-workspace-filter-card) > .records-date-filter label {
+    flex: 0 1 auto !important;
+    min-width: 130px !important;
+    max-width: 180px !important;
+    margin: 0 !important;
 }
 
-.main-content .content .vehicle-workspace-filter {
-    grid-template-columns: minmax(132px, 170px) minmax(132px, 160px) minmax(220px, 320px) auto auto !important;
-}
-
-.main-content .content .vehicle-workspace-filter .vehicle-workspace-search {
-    max-width: 320px !important;
+.main-content .content :is(.vehicle-records-filter-card, .vehicle-workspace-filter-card) > .records-date-filter label span {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    color: #64748b !important;
+    margin: 0 0 3px 0 !important;
+    display: block !important;
 }
 
 @media (max-width: 1200px) {
@@ -23402,7 +23438,12 @@ button.customer-vehicle-status-pill.customer-status-action {
     display: block !important;
     width: 100% !important;
     max-width: 100% !important;
-    padding: 20px 24px !important;
+    padding: 12px 18px !important;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
+    margin-bottom: 18px !important;
 }
 
 .inventory-records-page .inventory-unified-filter-form {
@@ -23410,26 +23451,38 @@ button.customer-vehicle-status-pill.customer-status-action {
     flex-direction: row !important;
     flex-wrap: wrap !important;
     align-items: flex-end !important;
-    gap: 12px 16px !important;
+    gap: 10px 14px !important;
     width: 100% !important;
 }
 
 .inventory-records-page .inventory-unified-filter-form .inventory-filter-group {
-    flex: 1 1 140px !important;
-    min-width: 130px !important;
+    flex: 0 1 auto !important;
+    min-width: 120px !important;
     margin: 0 !important;
 }
 
+.inventory-records-page .inventory-unified-filter-form .inventory-filter-group h2,
+.inventory-records-page .inventory-unified-filter-form .inventory-filter-group span {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    color: #64748b !important;
+    margin: 0 0 3px 0 !important;
+    display: block !important;
+}
+
 .inventory-records-page .inventory-unified-filter-form .inventory-search-group {
-    flex: 2 1 220px !important;
-    min-width: 200px !important;
+    flex: 1 1 200px !important;
+    min-width: 170px !important;
+    max-width: 300px !important;
     margin: 0 !important;
 }
 
 .inventory-records-page .inventory-unified-filter-form .inventory-filter-actions-group {
     flex: 0 0 auto !important;
     display: flex !important;
-    gap: 8px !important;
+    gap: 6px !important;
     align-items: flex-end !important;
     margin: 0 !important;
 }
@@ -23438,8 +23491,11 @@ button.customer-vehicle-status-pill.customer-status-action {
 .inventory-records-page .inventory-unified-filter-form input,
 .inventory-records-page .inventory-unified-filter-form button,
 .inventory-records-page .inventory-unified-filter-form a.btn {
-    min-height: 42px !important;
-    height: 42px !important;
+    min-height: 36px !important;
+    height: 36px !important;
+    font-size: 13px !important;
+    padding: 0 10px !important;
+    border-radius: 6px !important;
 }
 
 .inventory-records-page > .inventory-filter-card:not(.inventory-transactions-filter) .inventory-search-field {
@@ -24965,33 +25021,52 @@ button.customer-vehicle-status-pill.customer-status-action {
 
 /* Forecasting filters */
 .main-content .content .forecasting-page .forecast-secondary-filter-card {
-    display: grid !important;
-    grid-template-columns: minmax(0, auto) minmax(360px, 1fr) !important;
-    gap: 12px !important;
-    align-items: end !important;
-    padding: 16px !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 12px 18px !important;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
+    margin-bottom: 18px !important;
 }
 
 .main-content .content .forecasting-page .forecast-compact-filters {
     display: flex !important;
-    flex-wrap: nowrap !important;
-    gap: 10px !important;
-    align-items: end !important;
-    min-width: 0 !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 10px 14px !important;
+    width: 100% !important;
 }
 
 .main-content .content .forecasting-page .forecast-compact-field {
-    flex: 0 1 175px !important;
-    min-width: 145px !important;
+    flex: 0 1 auto !important;
+    min-width: 120px !important;
+    margin: 0 !important;
 }
 
 .main-content .content .forecasting-page .forecast-compact-field label {
-    margin-bottom: 6px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    color: #64748b !important;
+    margin: 0 0 3px 0 !important;
+    display: block !important;
     white-space: nowrap !important;
 }
 
-.main-content .content .forecasting-page .forecast-compact-field select {
-    width: 100% !important;
+.main-content .content .forecasting-page .forecast-compact-field select,
+.main-content .content .forecasting-page .forecast-compact-field input,
+.main-content .content .forecasting-page .forecast-filter-submit,
+.main-content .content .forecasting-page .forecast-filter-search button {
+    height: 36px !important;
+    min-height: 36px !important;
+    font-size: 13px !important;
+    padding: 0 10px !important;
+    border-radius: 6px !important;
 }
 
 .main-content .content .forecasting-page .forecast-filter-submit {
@@ -25000,10 +25075,18 @@ button.customer-vehicle-status-pill.customer-status-action {
 
 .main-content .content .forecasting-page .forecast-filter-search {
     display: flex !important;
-    justify-self: end !important;
-    width: 100% !important;
-    max-width: 600px !important;
-    gap: 10px !important;
+    align-items: flex-end !important;
+    flex: 1 1 200px !important;
+    min-width: 170px !important;
+    max-width: 320px !important;
+    gap: 6px !important;
+    margin: 0 !important;
+}
+
+.main-content .content .forecasting-page .forecast-filter-search input {
+    height: 36px !important;
+    min-height: 36px !important;
+    font-size: 13px !important;
 }
 
 .main-content .content .forecasting-page .forecast-filter-search .forecast-search-field {
