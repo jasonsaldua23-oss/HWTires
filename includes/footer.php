@@ -309,16 +309,14 @@
         });
     });
 
-    // Session Inactivity Timeout Handler (Configured for testing: 1 min total = 45s idle + 15s modal countdown)
+    // Session Inactivity Timeout Handler (1 Hour limit: 59 min idle + 60s countdown modal)
     (function() {
         <?php if (is_logged_in()): ?>
         // =========================================================================
-        // TIMEOUT SETTINGS:
-        // Current Test Setting: 45 seconds idle + 15 seconds modal countdown (1 min total)
-        // To restore to 15 minutes: change to (14 * 60 * 1000) and 60
+        // TIMEOUT SETTINGS: 1 Hour Total (59 minutes idle + 60s modal countdown)
         // =========================================================================
-        const INACTIVITY_TIMEOUT_MS = 45 * 1000; // 45 seconds before warning modal appears
-        const COUNTDOWN_SECONDS = 15;            // 15 seconds countdown on warning modal
+        const INACTIVITY_TIMEOUT_MS = 59 * 60 * 1000; // 59 minutes before warning modal appears
+        const COUNTDOWN_SECONDS = 60;                 // 60 seconds countdown on warning modal
         const LOGOUT_URL = <?php echo json_encode(APP_URL . '/logout.php?timeout=1'); ?>;
         const PING_URL = <?php echo json_encode(APP_URL . '/api/notifications-api.php?action=ping'); ?>;
 
@@ -412,7 +410,7 @@
                     You have been inactive for a while. For your security, your session will expire in:
                 </p>
                 <div style="font-size: 2.2rem; font-weight: 800; color: #dc2626; margin: 10px 0 12px; font-variant-numeric: tabular-nums;" id="sessionTimeoutCountdown">
-                    15s
+                    60s
                 </div>
                 <p style="color: #64748b; font-size: 0.85rem; margin: 0;">
                     Click "Stay Logged In" to continue working.
