@@ -309,7 +309,7 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
             <label class="forecast-compact-field">
                 <span>Status</span>
                 <select name="status">
-                    <?php foreach (['all' => 'All Statuses', 'critical' => 'Critical', 'warning' => 'Warning', 'good' => 'Good'] as $status_value => $status_label): ?>
+                    <?php foreach (['all' => 'All Statuses', 'critical' => 'Critical', 'warning' => 'Warning', 'watch' => 'Watch', 'good' => 'Good'] as $status_value => $status_label): ?>
                         <option value="<?php echo esc_attr($status_value); ?>" <?php echo $status_filter === $status_value ? 'selected' : ''; ?>>
                             <?php echo esc_html($status_label); ?>
                         </option>
@@ -600,7 +600,7 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
             <table class="forecast-table">
                 <thead>
                     <tr>
-                        <th>Status</th>
+                        <th>Forecast Status</th>
                         <th>Item</th>
                         <th>Current Stock</th>
                         <?php if ($view_filter === 'monthly'): ?>

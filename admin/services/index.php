@@ -331,7 +331,25 @@ sort($categories);
 
                 <label>
                     <span>Estimated Duration</span>
-                    <input type="text" name="estimated_duration" placeholder="e.g., 1 hour, 2 days" data-service-duration-input>
+                    <select id="serviceDurationPreset" data-service-duration-preset>
+                        <option value="">Select duration...</option>
+                        <option value="15 minutes">15 minutes</option>
+                        <option value="30 minutes">30 minutes</option>
+                        <option value="45 minutes">45 minutes</option>
+                        <option value="1 hour">1 hour</option>
+                        <option value="1 hour 30 minutes">1 hour 30 minutes</option>
+                        <option value="2 hours">2 hours</option>
+                        <option value="3 hours">3 hours</option>
+                        <option value="4 hours">4 hours</option>
+                        <option value="1 day">1 day</option>
+                        <option value="2 days">2 days</option>
+                        <option value="custom">Custom...</option>
+                    </select>
+                </label>
+
+                <label id="serviceCustomDurationWrapper" data-service-custom-wrapper style="display: none;">
+                    <span>Custom Duration</span>
+                    <input type="text" name="estimated_duration" placeholder="e.g., 30–45 minutes, 3–5 hours" data-service-duration-input>
                 </label>
 
                 <label class="users-modal-wide">
@@ -365,6 +383,35 @@ document.addEventListener('DOMContentLoaded', function() {
     const modal = document.getElementById('serviceModal');
     if (!modal) return;
 
+    const presetSelect = modal.querySelector('[data-service-duration-preset]');
+    const customWrapper = modal.querySelector('[data-service-custom-wrapper]');
+    const durationInput = modal.querySelector('[data-service-duration-input]');
+
+    const standardPresets = [
+        '15 minutes',
+        '30 minutes',
+        '45 minutes',
+        '1 hour',
+        '1 hour 30 minutes',
+        '2 hours',
+        '3 hours',
+        '4 hours',
+        '1 day',
+        '2 days'
+    ];
+
+    if (presetSelect && customWrapper && durationInput) {
+        presetSelect.addEventListener('change', function() {
+            if (this.value === 'custom') {
+                customWrapper.style.display = '';
+                durationInput.focus();
+            } else {
+                customWrapper.style.display = 'none';
+                durationInput.value = this.value;
+            }
+        });
+    }
+
     modal.addEventListener('show.bs.modal', function(event) {
         const button = event.relatedTarget;
         const action = button ? button.dataset.serviceAction || 'create' : 'create';
@@ -377,7 +424,25 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.querySelector('[data-service-category-input]').value = isUpdate ? button.dataset.serviceCategory || 'Service' : 'Service';
         modal.querySelector('[data-service-price-input]').value = isUpdate ? button.dataset.servicePrice || '0' : '';
         modal.querySelector('[data-service-labor-input]').value = isUpdate ? button.dataset.serviceLaborCost || button.dataset.servicePrice || '0' : '';
-        modal.querySelector('[data-service-duration-input]').value = isUpdate ? button.dataset.serviceEstimatedDuration || '' : '';
+        
+        const rawDuration = isUpdate ? (button.dataset.serviceEstimatedDuration || '') : '';
+        if (durationInput) {
+            durationInput.value = rawDuration;
+        }
+
+        if (presetSelect && customWrapper) {
+            if (!rawDuration) {
+                presetSelect.value = '';
+                customWrapper.style.display = 'none';
+            } else if (standardPresets.indexOf(rawDuration) !== -1) {
+                presetSelect.value = rawDuration;
+                customWrapper.style.display = 'none';
+            } else {
+                presetSelect.value = 'custom';
+                customWrapper.style.display = '';
+            }
+        }
+
         modal.querySelector('[data-service-description-input]').value = isUpdate ? button.dataset.serviceDescription || '' : '';
         modal.querySelector('[data-service-variable-input]').checked = isUpdate ? button.dataset.serviceVariable === '1' : false;
         modal.querySelector('[data-service-status-input]').value = isUpdate ? button.dataset.serviceStatus || 'active' : 'active';

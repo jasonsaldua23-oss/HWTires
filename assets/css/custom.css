@@ -26245,4 +26245,85 @@ button.customer-vehicle-status-pill.customer-status-action {
     border-radius: 8px !important;
 }
 
+/* Scoped exclusively to Front Desk Inventory Filter Alignment */
+.front-inventory-page .front-inventory-filter-card,
+.front-inventory-page > .front-inventory-filter-card:not(.inventory-transactions-filter),
+.main-content .content .front-inventory-page > .front-inventory-filter-card:not(.inventory-transactions-filter),
+.inventory-records-page.front-inventory-page > .front-inventory-filter-card:not(.inventory-transactions-filter),
+.main-content .content .inventory-records-page.front-inventory-page > .front-inventory-filter-card:not(.inventory-transactions-filter) {
+    display: block !important;
+    grid-template-columns: none !important;
+    padding: 20px 24px !important;
+}
+
+.front-inventory-page .inventory-unified-filter-form,
+.front-inventory-page > .front-inventory-filter-card .inventory-unified-filter-form {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 12px !important;
+    width: 100% !important;
+}
+
+.front-inventory-page .inventory-unified-filter-form .inventory-filter-group {
+    flex: 1 1 140px !important;
+    min-width: 130px !important;
+    order: 0 !important;
+}
+
+.front-inventory-page .inventory-unified-filter-form .inventory-search-group {
+    flex: 2 1 200px !important;
+    min-width: 180px !important;
+    order: 0 !important;
+}
+
+.front-inventory-page .inventory-unified-filter-form .inventory-filter-actions-group {
+    order: 0 !important;
+    flex: 0 0 auto !important;
+}
+
+/* Scoped exclusively to Admin Inventory Filter Alignment */
+.inventory-records-page:not(.front-inventory-page) > .inventory-filter-card:not(.inventory-transactions-filter),
+.main-content .content .inventory-records-page:not(.front-inventory-page) > .inventory-filter-card:not(.inventory-transactions-filter) {
+    display: block !important;
+    grid-template-columns: none !important;
+    padding: 20px 24px !important;
+}
+
+.inventory-records-page:not(.front-inventory-page) .inventory-unified-filter-form {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 12px !important;
+    width: 100% !important;
+}
+
+.inventory-records-page:not(.front-inventory-page) .inventory-unified-filter-form .inventory-filter-group {
+    flex: 1 1 130px !important;
+    min-width: 120px !important;
+    order: 0 !important;
+}
+
+.inventory-records-page:not(.front-inventory-page) .inventory-unified-filter-form .inventory-search-group {
+    flex: 2 1 180px !important;
+    min-width: 160px !important;
+    order: 0 !important;
+}
+
+.inventory-records-page:not(.front-inventory-page) .inventory-unified-filter-form .inventory-filter-actions-group {
+    order: 0 !important;
+    flex: 0 0 auto !important;
+}
+
+/* Scoped exclusively to Forecasting Page Status Badge */
+.forecasting-page .forecast-status-pill.status-watch {
+    background-color: #fef3c7 !important;
+    color: #b45309 !important;
+    border-color: #fde68a !important;
+}
+
+
+
 

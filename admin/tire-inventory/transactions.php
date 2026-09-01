@@ -104,6 +104,7 @@ $query = "
         i.size,
         i.sku,
         i.branch_id,
+        i.supplier_name,
         u.name AS user_name,
         b.name AS branch_name,
         tagged_customer.name AS tagged_customer_name,
@@ -350,7 +351,7 @@ if (!function_exists('inventory_transaction_vehicle_label')) {
                         <th>Item</th>
                         <th>Type</th>
                         <th>Qty</th>
-                        <th>Tagged To</th>
+                        <th>Tagged To / Source</th>
                         <th>Entered By</th>
                         <th>Notes</th>
                     </tr>
@@ -377,7 +378,7 @@ if (!function_exists('inventory_transaction_vehicle_label')) {
                             if (!empty($transaction['tagged_quotation_number'])) {
                                 $tagged_refs[] = $transaction['tagged_quotation_number'];
                             }
-                            $empty_tag_label = app_inventory_transaction_tag_empty_label($transaction['reference_type'] ?? '', $transaction['transaction_type'] ?? '');
+                            $source_display_label = app_inventory_transaction_source_display($transaction);
                             ?>
                             <tr>
                                 <td><?php echo esc_html(date('M d, Y h:i A', strtotime($transaction['created_at']))); ?></td>
@@ -410,7 +411,11 @@ if (!function_exists('inventory_transaction_vehicle_label')) {
                                 </td>
                                 <td><strong class="inventory-quantity"><?php echo (int) $transaction['quantity']; ?></strong></td>
                                 <td>
-                                    <?php if ($tagged_customer !== '' || $tagged_vehicle !== '' || !empty($tagged_refs)): ?>
+                                    <?php if ($transaction['transaction_type'] === 'stock_in'): ?>
+                                        <div class="inventory-tag-cell">
+                                            <strong><i class="fas fa-truck-ramp-box" style="margin-right: 4px; color: #0284c7;"></i><?php echo esc_html($source_display_label); ?></strong>
+                                        </div>
+                                    <?php elseif ($tagged_customer !== '' || $tagged_vehicle !== '' || !empty($tagged_refs)): ?>
                                         <div class="inventory-tag-cell">
                                             <?php if ($tagged_customer !== ''): ?>
                                                 <strong><?php echo esc_html($tagged_customer); ?></strong>
@@ -423,7 +428,7 @@ if (!function_exists('inventory_transaction_vehicle_label')) {
                                             <?php endif; ?>
                                         </div>
                                     <?php else: ?>
-                                        <span class="inventory-tag-empty"><?php echo esc_html($empty_tag_label); ?></span>
+                                        <span class="inventory-tag-empty"><?php echo esc_html($source_display_label); ?></span>
                                     <?php endif; ?>
                                 </td>
                                 <td><?php echo esc_html($transaction['user_name'] ?? 'System'); ?></td>

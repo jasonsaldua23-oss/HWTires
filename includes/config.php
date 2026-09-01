@@ -1485,6 +1485,57 @@ if (!function_exists('app_inventory_transaction_tag_empty_label')) {
     }
 }
 
+if (!function_exists('app_inventory_transaction_source_display')) {
+    function app_inventory_transaction_source_display(array $transaction) {
+        $type = strtolower(trim((string) ($transaction['transaction_type'] ?? '')));
+        $ref_type = strtolower(trim((string) ($transaction['reference_type'] ?? '')));
+        $notes = trim((string) ($transaction['notes'] ?? ''));
+        $supplier_name = trim((string) ($transaction['supplier_name'] ?? ''));
+
+        if ($type === 'stock_in') {
+            if ($ref_type === 'tangub_warehouse' || stripos($notes, 'Tangub Central Warehouse') !== false || stripos($notes, 'Tangub Warehouse') !== false) {
+                return 'Central Warehouse (Tangub Hub)';
+            }
+            if ($ref_type === 'sancarlos_warehouse' || stripos($notes, 'San Carlos Warehouse') !== false) {
+                return 'Auxiliary Warehouse (San Carlos Hub)';
+            }
+            if ($ref_type === 'branch_transfer' || $ref_type === 'inter_branch_transfer' || stripos($notes, 'received from') !== false) {
+                if (preg_match('/received from\s+([^,;|\.]+)/i', $notes, $m)) {
+                    return 'Stock Transfer — ' . trim($m[1]);
+                }
+                if ($supplier_name !== '') {
+                    return 'Stock Transfer — ' . $supplier_name;
+                }
+                return 'Stock Transfer from Other Branch';
+            }
+            if ($ref_type === 'adjustment' || stripos($notes, 'Physical Count') !== false || stripos($notes, 'Adjustment') !== false) {
+                return 'Physical Inventory Adjustment';
+            }
+            if ($ref_type === 'initial_stock' || stripos($notes, 'Initial stock') !== false) {
+                return 'Initial Stock Setup';
+            }
+            if ($ref_type === 'quotation') {
+                return 'Quotation Reversal';
+            }
+
+            // Direct supplier delivery
+            if (preg_match('/Supplier Delivery[^:]*:\s*([^|;]+)/i', $notes, $m)) {
+                $parsed_sup = trim($m[1]);
+                if ($parsed_sup !== '') {
+                    return 'Direct Supplier Delivery — ' . $parsed_sup;
+                }
+            }
+            if ($supplier_name !== '') {
+                return 'Direct Supplier Delivery — ' . $supplier_name;
+            }
+            return 'Direct Supplier Delivery (Manila / Distributor)';
+        }
+
+        // For stock out and other movements, fallback to standard tag label
+        return app_inventory_transaction_tag_empty_label($ref_type, $type);
+    }
+}
+
 if (!function_exists('ensure_job_orders_assigned_technician_name_column')) {
     function ensure_job_orders_assigned_technician_name_column() {
         try {

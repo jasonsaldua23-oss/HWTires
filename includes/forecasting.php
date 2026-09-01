@@ -32,6 +32,7 @@ if (!function_exists('forecast_status_label')) {
         return [
             'critical' => 'Critical',
             'warning' => 'Warning',
+            'watch' => 'Watch',
             'good' => 'Good',
         ][$status] ?? 'Good';
     }
@@ -231,7 +232,7 @@ if (!function_exists('forecast_build_inventory_dss')) {
             $category_filter = 'all';
         }
 
-        if (!in_array($status_filter, ['all', 'critical', 'warning', 'good'], true)) {
+        if (!in_array($status_filter, ['all', 'critical', 'warning', 'watch', 'good'], true)) {
             $status_filter = 'all';
         }
 
@@ -380,6 +381,7 @@ if (!function_exists('forecast_build_inventory_dss')) {
         $summary = [
             'critical' => 0,
             'warning' => 0,
+            'watch' => 0,
             'good' => 0,
             'total' => 0,
             'reorder_value' => 0,
@@ -419,10 +421,10 @@ if (!function_exists('forecast_build_inventory_dss')) {
 
             if ($weekly_usage > 0 && $stock_duration < 2) {
                 $status = 'critical';
+            } elseif ($current_stock <= $reorder_level) {
+                $status = 'warning';
             } elseif ($weekly_usage > 0 && $stock_duration < 4) {
-                $status = 'warning';
-            } elseif ($weekly_usage <= 0 && $current_stock <= $reorder_level) {
-                $status = 'warning';
+                $status = 'watch';
             } else {
                 $status = 'good';
             }
@@ -439,7 +441,7 @@ if (!function_exists('forecast_build_inventory_dss')) {
             $coverage_target = $weekly_usage > 0 ? (int) ceil($weekly_usage * $coverage_weeks) : $reorder_level;
             $recommended_order = max(0, $coverage_target - $current_stock, $reorder_level - $current_stock);
 
-            if ($status === 'good') {
+            if ($status === 'good' || $status === 'watch') {
                 $recommended_order = max(0, $reorder_level - $current_stock);
             }
 
@@ -448,7 +450,7 @@ if (!function_exists('forecast_build_inventory_dss')) {
             $monthly_target = $monthly_usage > 0 ? (int) ceil($monthly_usage * $monthly_coverage_months) : $reorder_level;
             $recommended_monthly_order = max(0, $monthly_target - $current_stock, $reorder_level - $current_stock);
 
-            if ($status === 'good') {
+            if ($status === 'good' || $status === 'watch') {
                 $recommended_monthly_order = max(0, $reorder_level - $current_stock);
             }
 
@@ -579,8 +581,8 @@ if (!function_exists('forecast_build_inventory_dss')) {
             };
         } else {
             $sorter = static function ($a, $b) {
-                $rank = ['critical' => 0, 'warning' => 1, 'good' => 2];
-                $status_diff = ($rank[$a['status']] ?? 3) <=> ($rank[$b['status']] ?? 3);
+                $rank = ['critical' => 0, 'warning' => 1, 'watch' => 2, 'good' => 3];
+                $status_diff = ($rank[$a['status']] ?? 4) <=> ($rank[$b['status']] ?? 4);
                 if ($status_diff !== 0) {
                     return $status_diff;
                 }
@@ -596,8 +598,8 @@ if (!function_exists('forecast_build_inventory_dss')) {
         }
 
         $urgency_sorter = static function ($a, $b) {
-            $rank = ['critical' => 0, 'warning' => 1, 'good' => 2];
-            $status_diff = ($rank[$a['status']] ?? 3) <=> ($rank[$b['status']] ?? 3);
+            $rank = ['critical' => 0, 'warning' => 1, 'watch' => 2, 'good' => 3];
+            $status_diff = ($rank[$a['status']] ?? 4) <=> ($rank[$b['status']] ?? 4);
             if ($status_diff !== 0) {
                 return $status_diff;
             }

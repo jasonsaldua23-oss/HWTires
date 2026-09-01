@@ -425,7 +425,7 @@ foreach ($movement_category_totals as $category_total) {
             <label class="forecast-compact-field">
                 <span>Status</span>
                 <select name="status">
-                    <?php foreach (['all' => 'All Statuses', 'critical' => 'Critical', 'warning' => 'Warning', 'good' => 'Good'] as $status_value => $status_label): ?>
+                    <?php foreach (['all' => 'All Statuses', 'critical' => 'Critical', 'warning' => 'Warning', 'watch' => 'Watch', 'good' => 'Good'] as $status_value => $status_label): ?>
                         <option value="<?php echo esc_attr($status_value); ?>" <?php echo $status_filter === $status_value ? 'selected' : ''; ?>>
                             <?php echo esc_html($status_label); ?>
                         </option>
@@ -860,7 +860,7 @@ foreach ($movement_category_totals as $category_total) {
             <table class="forecast-table">
                 <thead>
                     <tr>
-                        <th>Status</th>
+                        <th>Forecast Status</th>
                         <th>Item</th>
                         <th>Branch</th>
                         <th>Current Stock</th>

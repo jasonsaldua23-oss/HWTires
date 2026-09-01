@@ -2067,10 +2067,64 @@ if ($pie_total > 0) {
 }
 
 $pie_background = $pie_total > 0 ? 'conic-gradient(' . implode(', ', $pie_gradient_parts) . ')' : '#eef2f7';
-$export_url = reports_detail_url($report_tab, $branch_filter, $date_from, $date_to, $status_filter, $search_filter, [
-    'per_page' => $detail_per_page,
-    'export' => 'csv',
-]);
+// Calculate Average Job Order Turnaround Time (Elapsed time from created_at to actual_end_time for completed jobs)
+$tat_params = [$date_from, $date_to];
+$tat_branch_sql = '';
+if ($branch_filter !== '') {
+    $tat_branch_sql = ' AND jo.branch_id = ?';
+    $tat_params[] = (int) $branch_filter;
+}
+
+$tat_overall_stmt = $pdo->prepare("
+    SELECT 
+        COUNT(*) AS total_completed,
+        AVG(TIMESTAMPDIFF(MINUTE, jo.created_at, jo.actual_end_time)) AS avg_tat_minutes
+    FROM job_orders jo
+    WHERE (jo.status = 'completed' OR jo.status = 'archived')
+      AND jo.actual_end_time IS NOT NULL
+      AND jo.actual_end_time >= jo.created_at
+      AND DATE(COALESCE(jo.job_date, jo.created_at)) BETWEEN ? AND ?
+      $tat_branch_sql
+");
+$tat_overall_stmt->execute($tat_params);
+$tat_overall = $tat_overall_stmt->fetch(PDO::FETCH_ASSOC);
+$overall_avg_tat_minutes = (float) ($tat_overall['avg_tat_minutes'] ?? 0);
+$overall_completed_count = (int) ($tat_overall['total_completed'] ?? 0);
+
+// Branch TAT Breakdown
+$tat_branch_stmt = $pdo->prepare("
+    SELECT 
+        b.id,
+        b.name,
+        COUNT(jo.id) AS completed_count,
+        AVG(TIMESTAMPDIFF(MINUTE, jo.created_at, jo.actual_end_time)) AS avg_tat_minutes
+    FROM branches b
+    LEFT JOIN job_orders jo ON jo.branch_id = b.id
+        AND (jo.status = 'completed' OR jo.status = 'archived')
+        AND jo.actual_end_time IS NOT NULL
+        AND jo.actual_end_time >= jo.created_at
+        AND DATE(COALESCE(jo.job_date, jo.created_at)) BETWEEN ? AND ?
+    WHERE b.status = 'active'
+    GROUP BY b.id, b.name
+    ORDER BY b.id
+");
+$tat_branch_stmt->execute([$date_from, $date_to]);
+$tat_branch_breakdown = $tat_branch_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+if (!function_exists('reports_format_tat_minutes')) {
+    function reports_format_tat_minutes($minutes) {
+        $mins = (int) round((float) $minutes);
+        if ($mins <= 0) {
+            return '0 mins';
+        }
+        $hours = (int) floor($mins / 60);
+        $rem_mins = $mins % 60;
+        if ($hours > 0) {
+            return $hours . ' hr' . ($hours > 1 ? 's' : '') . ($rem_mins > 0 ? ' ' . $rem_mins . ' min' . ($rem_mins > 1 ? 's' : '') : '');
+        }
+        return $rem_mins . ' min' . ($rem_mins > 1 ? 's' : '');
+    }
+}
 $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'all', '');
 ?>
 
@@ -2674,7 +2728,7 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
         <details class="reports-support-details reports-service-analytics" id="performance-analytics">
             <summary class="reports-support-summary">
                 <span class="reports-support-title"><i class="fas fa-chart-line"></i><strong>Performance Analytics</strong></span>
-                <span class="reports-support-count">3 charts</span>
+                <span class="reports-support-count">4 analytics views</span>
             </summary>
             <div class="reports-support-body">
     <section class="reports-chart-grid">
@@ -2777,6 +2831,47 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
                 </span>
             <?php endforeach; ?>
             <span class="reports-axis-note">Y-axis: revenue in thousands of pesos</span>
+        </div>
+    </section>
+
+    <section class="reports-panel reports-tat-panel" style="margin-top: 18px;">
+        <div class="reports-panel-title-row">
+            <div>
+                <h2>Average Job Order Turnaround Time</h2>
+                <p>Elapsed time from Job Order creation until Job Order completion (completed jobs only).</p>
+            </div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-top: 14px;">
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; display: flex; align-items: center; gap: 14px;">
+                <div style="width: 44px; height: 44px; border-radius: 8px; background: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;">
+                    <i class="fas fa-stopwatch"></i>
+                </div>
+                <div>
+                    <span style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px;">Overall Average TAT</span>
+                    <strong style="display: block; font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 2px;">
+                        <?php echo esc_html(reports_format_tat_minutes($overall_avg_tat_minutes)); ?>
+                    </strong>
+                    <small style="color: #64748b; font-size: 11.5px;"><?php echo number_format($overall_completed_count); ?> completed job orders</small>
+                </div>
+            </div>
+            <?php foreach ($tat_branch_breakdown as $b_tat): ?>
+                <?php
+                $b_avg = (float) ($b_tat['avg_tat_minutes'] ?? 0);
+                $b_cnt = (int) ($b_tat['completed_count'] ?? 0);
+                ?>
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; display: flex; align-items: center; gap: 14px;">
+                    <div style="width: 44px; height: 44px; border-radius: 8px; background: #f1f5f9; color: #475569; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <div>
+                        <span style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px;"><?php echo esc_html(reports_branch_label($b_tat['name'])); ?></span>
+                        <strong style="display: block; font-size: 17px; font-weight: 700; color: #0f172a; margin-top: 2px;">
+                            <?php echo esc_html(reports_format_tat_minutes($b_avg)); ?>
+                        </strong>
+                        <small style="color: #64748b; font-size: 11.5px;"><?php echo number_format($b_cnt); ?> completed jobs</small>
+                    </div>
+                </div>
+            <?php endforeach; ?>
         </div>
     </section>
             </div>
