@@ -565,76 +565,67 @@ try {
         LEFT JOIN users u ON u.id = tr.requested_by
         LEFT JOIN customers c ON c.id = tr.customer_id
         LEFT JOIN quotations q ON q.id = tr.quotation_id
-        WHERE tr.donor_branch_id = ?
+        WHERE (tr.donor_branch_id = ? OR tr.requesting_branch_id = ?)
           AND (
               tr.status IN ('pending', 'approved', 'shipped')
+              OR (tr.status = 'cancelled' AND tr.notes LIKE '%[RETURN_PENDING]%' AND tr.notes NOT LIKE '%[RETURNED]%')
               OR (
-                  tr.status = 'received'
+                  tr.status IN ('received', 'cancelled')
                   AND COALESCE(tr.received_date, tr.updated_at, tr.created_at) >= DATE_SUB(NOW(), INTERVAL 7 DAY)
               )
           )
-        ORDER BY FIELD(tr.status, 'pending', 'approved', 'shipped', 'received'), tr.created_at DESC
-        LIMIT 12
+        ORDER BY FIELD(tr.status, 'pending', 'approved', 'shipped', 'cancelled', 'received'), tr.created_at DESC
+        LIMIT 20
     ");
-    $incoming_request_stmt->execute([$branch_id]);
+    $incoming_request_stmt->execute([$branch_id, $branch_id]);
     $incoming_item_requests = $incoming_request_stmt->fetchAll();
 } catch (Exception $request_error) {
     error_log('Front desk incoming inventory requests error: ' . $request_error->getMessage());
 }
 
-$pending_item_requests = array_values(array_filter($incoming_item_requests, static function ($request) {
-    return in_array(strtolower((string) ($request['status'] ?? 'pending')), ['pending', 'approved', 'shipped'], true);
+$pending_item_requests = array_values(array_filter($incoming_item_requests, static function ($request) use ($branch_id) {
+    $st = strtolower((string) ($request['status'] ?? 'pending'));
+    $notes = (string) ($request['notes'] ?? '');
+    $is_donor = (int) ($request['donor_branch_id'] ?? 0) === (int) $branch_id;
+    $is_receiver = (int) ($request['requesting_branch_id'] ?? 0) === (int) $branch_id;
+
+    if ($is_donor && in_array($st, ['pending', 'approved'], true)) {
+        return true;
+    }
+    if ($is_receiver && $st === 'shipped') {
+        return true;
+    }
+    if ($is_donor && $st === 'cancelled' && strpos($notes, '[RETURN_PENDING]') !== false && strpos($notes, '[RETURNED]') === false) {
+        return true;
+    }
+    if ($is_donor && $st === 'shipped') {
+        return true; // Still in transit, waiting for receiver
+    }
+    return false;
 }));
-$transferred_item_requests = array_values(array_filter($incoming_item_requests, static function ($request) {
-    return strtolower((string) ($request['status'] ?? 'pending')) === 'received';
+
+$transferred_item_requests = array_values(array_filter($incoming_item_requests, static function ($request) use ($branch_id) {
+    $st = strtolower((string) ($request['status'] ?? 'pending'));
+    $notes = (string) ($request['notes'] ?? '');
+    return $st === 'received' || strpos($notes, '[RETURNED]') !== false;
 }));
 
 $stock_out_tag_customers = [];
 $stock_out_tag_vehicles = [];
 try {
-    $customer_branch_clause = 'c.branch_id = ?';
-    $customer_branch_params = [$branch_id];
-
-    if (app_table_exists('customer_branch_records')) {
-        $customer_branch_clause .= " OR EXISTS (
-            SELECT 1
-            FROM customer_branch_records cbr
-            WHERE cbr.customer_id = c.id
-              AND cbr.branch_id = ?
-              AND cbr.status = 'active'
-        )";
-        $customer_branch_params[] = $branch_id;
-    }
-
-    $tag_customer_stmt = $pdo->prepare("
+    $tag_customer_stmt = $pdo->query("
         SELECT DISTINCT
             c.id,
             c.name,
             COALESCE(NULLIF(c.phone_mobile, ''), NULLIF(c.contact, ''), '') AS phone
         FROM customers c
         WHERE c.status = 'active'
-          AND ($customer_branch_clause)
         ORDER BY c.name ASC
-        LIMIT 300
+        LIMIT 500
     ");
-    $tag_customer_stmt->execute($customer_branch_params);
-    $stock_out_tag_customers = $tag_customer_stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stock_out_tag_customers = $tag_customer_stmt ? $tag_customer_stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 
-    $vehicle_branch_clause = 'v.branch_id = ?';
-    $vehicle_branch_params = [$branch_id];
-
-    if (app_table_exists('customer_branch_records')) {
-        $vehicle_branch_clause .= " OR EXISTS (
-            SELECT 1
-            FROM customer_branch_records cbrv
-            WHERE cbrv.customer_id = c.id
-              AND cbrv.branch_id = ?
-              AND cbrv.status = 'active'
-        )";
-        $vehicle_branch_params[] = $branch_id;
-    }
-
-    $tag_vehicle_stmt = $pdo->prepare("
+    $tag_vehicle_stmt = $pdo->query("
         SELECT
             v.id,
             v.customer_id,
@@ -647,12 +638,10 @@ try {
         INNER JOIN customers c ON c.id = v.customer_id
         WHERE v.status = 'active'
           AND c.status = 'active'
-          AND ($vehicle_branch_clause)
         ORDER BY c.name ASC, v.plate_number ASC, v.id DESC
         LIMIT 500
     ");
-    $tag_vehicle_stmt->execute($vehicle_branch_params);
-    $stock_out_tag_vehicles = $tag_vehicle_stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stock_out_tag_vehicles = $tag_vehicle_stmt ? $tag_vehicle_stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 } catch (Exception $tag_error) {
     error_log('Stock out tag option load error: ' . $tag_error->getMessage());
 }
@@ -1163,11 +1152,21 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                             <?php foreach ($pending_item_requests as $request): ?>
                                 <?php
                                 $request_status = strtolower($request['status'] ?? 'pending');
-                                $request_status_label = [
-                                    'pending' => 'Pending',
-                                    'approved' => 'Approved',
-                                    'shipped' => 'In Transit',
-                                ][$request_status] ?? ucfirst($request_status);
+                                $request_notes = (string) ($request['notes'] ?? '');
+                                $is_donor = (int) ($request['donor_branch_id'] ?? 0) === (int) $branch_id;
+                                $is_receiver = (int) ($request['requesting_branch_id'] ?? 0) === (int) $branch_id;
+
+                                if ($request_status === 'shipped') {
+                                    $request_status_label = $is_receiver ? 'In Transit (Awaiting Receipt)' : 'In Transit';
+                                } elseif ($request_status === 'cancelled' && strpos($request_notes, '[RETURN_PENDING]') !== false) {
+                                    $request_status_label = 'Return Pending';
+                                } else {
+                                    $request_status_label = [
+                                        'pending' => 'Pending',
+                                        'approved' => 'Approved',
+                                    ][$request_status] ?? ucfirst($request_status);
+                                }
+
                                 $approved_quantity = (int) ($request['approved_quantity'] ?? 0);
                                 $display_quantity = $approved_quantity > 0
                                     ? $approved_quantity
@@ -1178,7 +1177,11 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                         <div>
                                             <h3><?php echo esc_html($request['item_name'] ?? 'Requested item'); ?></h3>
                                             <p>
-                                                <?php echo esc_html($request['requesting_branch_name'] ?? 'Requesting branch'); ?>
+                                                <?php if ($is_receiver): ?>
+                                                    From: <strong><?php echo esc_html($request['donor_branch_name'] ?? 'Donor branch'); ?></strong>
+                                                <?php else: ?>
+                                                    To: <strong><?php echo esc_html($request['requesting_branch_name'] ?? 'Requesting branch'); ?></strong>
+                                                <?php endif; ?>
                                                 <?php if (!empty($request['quotation_number'])): ?>
                                                     &bull; <?php echo esc_html($request['quotation_number']); ?>
                                                 <?php endif; ?>
@@ -1194,15 +1197,67 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                         <span>Requested: <strong><?php echo esc_html(date('M j, Y g:i A', strtotime($request['created_at'] ?? 'now'))); ?></strong></span>
                                     </div>
                                     <div class="inventory-service-request-footer">
-                                        <button type="button"
-                                                class="inventory-service-request-done-btn"
-                                                data-transfer-done
-                                                data-transfer-id="<?php echo (int) ($request['id'] ?? 0); ?>"
-                                                data-request-number="<?php echo esc_attr($request['request_number'] ?? 'this request'); ?>"
-                                                data-item-name="<?php echo esc_attr($request['item_name'] ?? 'this item'); ?>">
-                                            <i class="fas fa-check"></i>
-                                            <span>Mark Done</span>
-                                        </button>
+                                        <?php if ($is_receiver && $request_status === 'shipped'): ?>
+                                            <div style="display: flex; gap: 8px; width: 100%;">
+                                                <button type="button"
+                                                        class="inventory-service-request-done-btn js-transfer-accept-btn"
+                                                        style="background: #0d9488; flex: 1;"
+                                                        data-transfer-accept
+                                                        data-transfer-id="<?php echo (int) ($request['id'] ?? 0); ?>"
+                                                        data-request-number="<?php echo esc_attr($request['request_number'] ?? 'this request'); ?>"
+                                                        data-item-name="<?php echo esc_attr($request['item_name'] ?? 'this item'); ?>"
+                                                        data-donor-branch="<?php echo esc_attr($request['donor_branch_name'] ?? 'Donor branch'); ?>"
+                                                        data-qty="<?php echo $display_quantity; ?>"
+                                                        title="Accept transfer and add to inventory">
+                                                    <i class="fas fa-check-circle"></i>
+                                                    <span>Accept</span>
+                                                </button>
+                                                <button type="button"
+                                                        class="inventory-service-request-done-btn js-transfer-reject-btn"
+                                                        style="background: #ef4444; flex: 1;"
+                                                        data-transfer-reject
+                                                        data-transfer-id="<?php echo (int) ($request['id'] ?? 0); ?>"
+                                                        data-request-number="<?php echo esc_attr($request['request_number'] ?? 'this request'); ?>"
+                                                        data-item-name="<?php echo esc_attr($request['item_name'] ?? 'this item'); ?>"
+                                                        title="Reject transfer and initiate return">
+                                                    <i class="fas fa-times-circle"></i>
+                                                    <span>Reject</span>
+                                                </button>
+                                            </div>
+                                        <?php elseif ($is_donor && in_array($request_status, ['pending', 'approved'], true)): ?>
+                                            <button type="button"
+                                                    class="inventory-service-request-done-btn"
+                                                    data-transfer-done
+                                                    data-transfer-id="<?php echo (int) ($request['id'] ?? 0); ?>"
+                                                    data-request-number="<?php echo esc_attr($request['request_number'] ?? 'this request'); ?>"
+                                                    data-item-name="<?php echo esc_attr($request['item_name'] ?? 'this item'); ?>"
+                                                    title="Mark item as transferred/shipped">
+                                                <i class="fas fa-truck"></i>
+                                                <span>Mark Shipped</span>
+                                            </button>
+                                        <?php elseif ($is_donor && $request_status === 'cancelled' && strpos($request_notes, '[RETURN_PENDING]') !== false && strpos($request_notes, '[RETURNED]') === false): ?>
+                                            <button type="button"
+                                                    class="inventory-service-request-done-btn js-transfer-return-btn"
+                                                    style="background: #0284c7; width: 100%;"
+                                                    data-transfer-return
+                                                    data-transfer-id="<?php echo (int) ($request['id'] ?? 0); ?>"
+                                                    data-request-number="<?php echo esc_attr($request['request_number'] ?? 'this request'); ?>"
+                                                    data-item-name="<?php echo esc_attr($request['item_name'] ?? 'this item'); ?>"
+                                                    title="Confirm receipt of returned stock and restore inventory">
+                                                <i class="fas fa-undo"></i>
+                                                <span>Confirm Returned Stock</span>
+                                            </button>
+                                        <?php elseif ($is_donor && $request_status === 'shipped'): ?>
+                                            <span class="inventory-service-request-complete" style="color: #0284c7;">
+                                                <i class="fas fa-truck"></i>
+                                                In transit to <?php echo esc_html($request['requesting_branch_name'] ?? 'receiver'); ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="inventory-service-request-complete" style="color: #64748b;">
+                                                <i class="fas fa-info-circle"></i>
+                                                <?php echo esc_html($request_status_label); ?>
+                                            </span>
+                                        <?php endif; ?>
                                     </div>
                                 </article>
                             <?php endforeach; ?>
@@ -1225,8 +1280,10 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                 $display_quantity = $approved_quantity > 0
                                     ? $approved_quantity
                                     : (int) ($request['requested_quantity'] ?? 0);
+                                $request_notes = (string) ($request['notes'] ?? '');
+                                $is_returned = strpos($request_notes, '[RETURNED]') !== false;
                                 ?>
-                                <article class="inventory-service-request-card status-received">
+                                <article class="inventory-service-request-card <?php echo $is_returned ? 'status-cancelled' : 'status-received'; ?>">
                                     <div class="inventory-service-request-card-top">
                                         <div>
                                             <h3><?php echo esc_html($request['item_name'] ?? 'Requested item'); ?></h3>
@@ -1237,20 +1294,27 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                                 <?php endif; ?>
                                             </p>
                                         </div>
-                                        <span class="inventory-service-request-status">Transferred</span>
+                                        <span class="inventory-service-request-status"><?php echo $is_returned ? 'Returned' : 'Transferred'; ?></span>
                                     </div>
                                     <div class="inventory-service-request-meta">
                                         <span>Qty: <strong><?php echo $display_quantity; ?></strong></span>
                                         <?php if (!empty($request['customer_name'])): ?>
                                             <span>Customer: <strong><?php echo esc_html($request['customer_name']); ?></strong></span>
                                         <?php endif; ?>
-                                        <span>Transferred: <strong><?php echo esc_html(date('M j, Y g:i A', strtotime($request['received_date'] ?? $request['updated_at'] ?? $request['created_at'] ?? 'now'))); ?></strong></span>
+                                        <span><?php echo $is_returned ? 'Returned:' : 'Transferred:'; ?> <strong><?php echo esc_html(date('M j, Y g:i A', strtotime($request['received_date'] ?? $request['updated_at'] ?? $request['created_at'] ?? 'now'))); ?></strong></span>
                                     </div>
                                     <div class="inventory-service-request-footer">
-                                        <span class="inventory-service-request-complete">
-                                            <i class="fas fa-circle-check"></i>
-                                            Transfer completed
-                                        </span>
+                                        <?php if ($is_returned): ?>
+                                            <span class="inventory-service-request-complete" style="color: #64748b;">
+                                                <i class="fas fa-undo"></i>
+                                                Returned to sender
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="inventory-service-request-complete">
+                                                <i class="fas fa-circle-check"></i>
+                                                Transfer completed
+                                            </span>
+                                        <?php endif; ?>
                                     </div>
                                 </article>
                             <?php endforeach; ?>
@@ -2034,16 +2098,21 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                         <span style="font-size: 0.84rem; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.5px;">
                             <i class="fas fa-user-tag" style="color: #0d9488; margin-right: 6px;"></i> Tag Customer &amp; Vehicle
                         </span>
-                        <button type="button" id="stockOutClearTag" style="border: none; background: #e2e8f0; color: #475569; font-size: 0.76rem; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-weight: 600;">
-                            <i class="fas fa-times-circle" style="margin-right: 4px;"></i> Clear Selection
-                        </button>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <a href="/hwtires/front-desk/customers/" target="_blank" style="font-size: 0.76rem; color: #0284c7; text-decoration: none; font-weight: 600;">
+                                <i class="fas fa-user-plus"></i> Register Customer
+                            </a>
+                            <button type="button" id="stockOutClearTag" style="border: none; background: #e2e8f0; color: #475569; font-size: 0.76rem; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                <i class="fas fa-times-circle" style="margin-right: 4px;"></i> Clear Selection
+                            </button>
+                        </div>
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
                         <!-- Customer Autocomplete -->
                         <div style="position: relative;">
                             <label style="display: block; font-size: 0.85rem; font-weight: 700; color: #334155; margin-bottom: 5px;">
-                                Tagged Customer
+                                Tagged Customer <span id="stockOutCustomerRequired" style="color: #dc3545;">*</span>
                             </label>
                             <input type="hidden" name="customer_id" id="stockOutCustomer" value="">
                             <div style="position: relative;">
@@ -2056,7 +2125,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                         <!-- Vehicle Autocomplete -->
                         <div style="position: relative;">
                             <label style="display: block; font-size: 0.85rem; font-weight: 700; color: #334155; margin-bottom: 5px;">
-                                Tagged Vehicle
+                                Tagged Vehicle <span style="font-size: 0.75rem; font-weight: 400; color: #64748b;">(Optional)</span>
                             </label>
                             <input type="hidden" name="vehicle_id" id="stockOutVehicle" value="">
                             <div style="position: relative;">
@@ -2202,6 +2271,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderCustomerSuggestions(query = '') {
         if (!stockOutCustomerDropdown) return;
         const q = query.toLowerCase().trim();
+        const isDirectSale = stockOutReasonType && stockOutReasonType.value === 'direct_sale';
         let matches = [];
         if (q === '') {
             matches = tagCustomers.slice(0, 15);
@@ -2214,10 +2284,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         let html = '';
-        html += `<div class="tag-autocomplete-item tag-item-default" data-id="" style="font-weight: 600; color: #64748b; font-size: 0.8rem; background: #f8fafc;">-- Not Tagged (Walk-In) --</div>`;
+        if (!isDirectSale) {
+            html += `<div class="tag-autocomplete-item tag-item-default" data-id="" style="font-weight: 600; color: #64748b; font-size: 0.8rem; background: #f8fafc;">-- Not Tagged --</div>`;
+        }
 
         if (matches.length === 0) {
-            html += `<div style="padding: 10px 12px; color: #94a3b8; font-size: 0.82rem; text-align: center;">No matching customer found</div>`;
+            html += `<div style="padding: 10px 12px; color: #94a3b8; font-size: 0.82rem; text-align: center;">No matching active customer found</div>`;
         } else {
             matches.forEach(c => {
                 const isSelected = stockOutCustomerHidden && stockOutCustomerHidden.value === String(c.id);
@@ -2473,6 +2545,43 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    function updateStockOutCustomerRequirement() {
+        const isDirectSale = stockOutReasonType && stockOutReasonType.value === 'direct_sale';
+        const reqEl = document.getElementById('stockOutCustomerRequired');
+        if (reqEl) {
+            reqEl.style.display = isDirectSale ? 'inline' : 'none';
+        }
+        if (stockOutCustomerInput && !stockOutCustomerHidden.value) {
+            stockOutCustomerInput.placeholder = isDirectSale ? '🔍 Select active customer (required)...' : '🔍 Type customer name or phone...';
+        }
+    }
+
+    if (stockOutReasonType) {
+        stockOutReasonType.addEventListener('change', function() {
+            updateStockOutCustomerRequirement();
+            if (stockOutCustomerDropdown && stockOutCustomerDropdown.style.display === 'block') {
+                renderCustomerSuggestions(stockOutCustomerInput ? stockOutCustomerInput.value : '');
+            }
+        });
+    }
+
+    const stockOutFormEl = stockOutModalEl ? stockOutModalEl.querySelector('form') : null;
+    if (stockOutFormEl) {
+        stockOutFormEl.addEventListener('submit', function(e) {
+            if (stockOutReasonType && stockOutReasonType.value === 'direct_sale') {
+                const custId = parseInt(stockOutCustomerHidden ? stockOutCustomerHidden.value : '0', 10);
+                if (!custId || custId <= 0) {
+                    e.preventDefault();
+                    alert('Direct Sale / Walk-In stock out requires selecting an active registered customer.\n\nIf the customer is not yet in the system, please use the "+ Register Customer" link to register them first.');
+                    if (stockOutCustomerInput) {
+                        stockOutCustomerInput.focus();
+                    }
+                    return false;
+                }
+            }
+        });
+    }
+
     document.querySelectorAll('.js-stock-out').forEach(function(button) {
         button.addEventListener('click', function() {
             stockOutCurrent = parseInt(button.dataset.current || '0', 10);
@@ -2489,6 +2598,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (stockOutNotes) {
                 stockOutNotes.value = '';
             }
+            updateStockOutCustomerRequirement();
             updateStockOutPreview();
             stockOutModal.show();
         });
@@ -2516,9 +2626,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const requestNumber = button.dataset.requestNumber || 'this request';
             const itemName = button.dataset.itemName || 'this item';
             const confirmed = window.confirm(
-                'Mark ' + requestNumber + ' as transferred?\n\n' +
+                'Mark ' + requestNumber + ' as shipped?\n\n' +
                 'Item: ' + itemName + '\n\n' +
-                'This will deduct the item from this branch inventory and notify the requesting branch.'
+                'This will deduct the item from this branch inventory and put it in transit. The receiving branch will then accept or reject receipt.'
             );
 
             if (!confirmed) {
@@ -2527,11 +2637,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const originalContent = button.innerHTML;
             button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Updating...</span>';
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Shipping...</span>';
 
             try {
                 const body = new URLSearchParams();
-                body.append('action', 'complete_transfer');
+                body.append('action', 'ship_transfer');
                 body.append('transfer_id', button.dataset.transferId || '0');
 
                 const response = await fetch('/hwtires/api/transfers-api.php', {
@@ -2544,7 +2654,155 @@ document.addEventListener('DOMContentLoaded', function() {
                 const result = await response.json();
 
                 if (!response.ok || !result.success) {
-                    throw new Error(result.message || 'Unable to mark the request as transferred.');
+                    throw new Error(result.message || 'Unable to ship the transfer request.');
+                }
+
+                window.location.reload();
+            } catch (error) {
+                alert(error.message);
+                button.disabled = false;
+                button.innerHTML = originalContent;
+            }
+        });
+    });
+
+    document.querySelectorAll('[data-transfer-accept]').forEach(function(button) {
+        button.addEventListener('click', async function() {
+            const requestNumber = button.dataset.requestNumber || 'this request';
+            const itemName = button.dataset.itemName || 'this item';
+            const donorBranch = button.dataset.donorBranch || 'the sending branch';
+            const qty = button.dataset.qty || '1';
+
+            const confirmed = window.confirm(
+                'Accept incoming transfer ' + requestNumber + '?\n\n' +
+                'Item: ' + itemName + '\n' +
+                'Quantity: ' + qty + '\n' +
+                'From: ' + donorBranch + '\n\n' +
+                'This will add ' + qty + ' unit(s) to this branch inventory.'
+            );
+
+            if (!confirmed) {
+                return;
+            }
+
+            const originalContent = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            try {
+                const body = new URLSearchParams();
+                body.append('action', 'accept_transfer');
+                body.append('transfer_id', button.dataset.transferId || '0');
+
+                const response = await fetch('/hwtires/api/transfers-api.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: body.toString()
+                });
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'Unable to accept the transfer.');
+                }
+
+                window.location.reload();
+            } catch (error) {
+                alert(error.message);
+                button.disabled = false;
+                button.innerHTML = originalContent;
+            }
+        });
+    });
+
+    document.querySelectorAll('[data-transfer-reject]').forEach(function(button) {
+        button.addEventListener('click', async function() {
+            const requestNumber = button.dataset.requestNumber || 'this request';
+            const itemName = button.dataset.itemName || 'this item';
+
+            const reason = window.prompt(
+                'Reject incoming transfer ' + requestNumber + ' (' + itemName + ')?\n\n' +
+                'Please enter the reason for rejection (e.g. wrong item, defective, no longer needed):'
+            );
+
+            if (reason === null) {
+                return; // User clicked Cancel
+            }
+
+            const trimmedReason = reason.trim();
+            if (!trimmedReason) {
+                alert('A rejection reason is required.');
+                return;
+            }
+
+            const originalContent = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            try {
+                const body = new URLSearchParams();
+                body.append('action', 'reject_transfer');
+                body.append('transfer_id', button.dataset.transferId || '0');
+                body.append('reason', trimmedReason);
+
+                const response = await fetch('/hwtires/api/transfers-api.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: body.toString()
+                });
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'Unable to reject the transfer.');
+                }
+
+                window.location.reload();
+            } catch (error) {
+                alert(error.message);
+                button.disabled = false;
+                button.innerHTML = originalContent;
+            }
+        });
+    });
+
+    document.querySelectorAll('[data-transfer-return]').forEach(function(button) {
+        button.addEventListener('click', async function() {
+            const requestNumber = button.dataset.requestNumber || 'this request';
+            const itemName = button.dataset.itemName || 'this item';
+
+            const confirmed = window.confirm(
+                'Confirm physical return for ' + requestNumber + '?\n\n' +
+                'Item: ' + itemName + '\n\n' +
+                'Confirm that the returned stock has physically arrived back at this branch.\nThis will restore the item quantity in your inventory.'
+            );
+
+            if (!confirmed) {
+                return;
+            }
+
+            const originalContent = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Restoring...</span>';
+
+            try {
+                const body = new URLSearchParams();
+                body.append('action', 'confirm_return');
+                body.append('transfer_id', button.dataset.transferId || '0');
+
+                const response = await fetch('/hwtires/api/transfers-api.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: body.toString()
+                });
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'Unable to confirm return.');
                 }
 
                 window.location.reload();

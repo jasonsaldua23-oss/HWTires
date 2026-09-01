@@ -348,10 +348,11 @@ try {
             break;
 
         case 'complete_transfer':
+        case 'ship_transfer':
             /**
-             * Mark transfer as completed and handle inventory adjustment.
-             * Donor branches can complete a pending/approved/shipped request from the
-             * front-desk inventory screen once the item has actually been transferred.
+             * Mark transfer as shipped by the donor branch.
+             * Deducts stock from donor branch and sets status to 'shipped' (in transit).
+             * Receiver stock is NOT added until receiver explicitly accepts.
              * POST: transfer_id
              */
             $transfer_id = (int) ($_POST['transfer_id'] ?? 0);
@@ -404,17 +405,24 @@ try {
             }
 
             $old_status = strtolower($transfer['status'] ?? 'pending');
+            if ($old_status === 'shipped') {
+                $pdo->commit();
+                $response['success'] = true;
+                $response['message'] = 'Transfer was already marked as shipped';
+                $response['data'] = ['transfer_id' => $transfer_id, 'status' => 'shipped'];
+                break;
+            }
+
             if ($old_status === 'received') {
                 $pdo->commit();
-
                 $response['success'] = true;
-                $response['message'] = 'Transfer was already marked as completed';
+                $response['message'] = 'Transfer was already completed';
                 $response['data'] = ['transfer_id' => $transfer_id, 'status' => 'received'];
                 break;
             }
 
-            if (!in_array($old_status, ['pending', 'approved', 'shipped'], true)) {
-                throw new Exception('This transfer request can no longer be completed');
+            if (!in_array($old_status, ['pending', 'approved'], true)) {
+                throw new Exception('This transfer request can no longer be shipped');
             }
 
             $transfer_qty = (int) ($transfer['approved_quantity'] ?? 0);
@@ -449,7 +457,7 @@ try {
                 'quotation_id' => $transfer['quotation_id'] ?? null,
             ];
 
-            // Create transactions for auditing
+            // Create stock_out transaction for donor branch
             transfer_log_inventory_transaction($pdo, $user,
                 $transfer['item_id'],
                 'stock_out',
@@ -459,9 +467,145 @@ try {
                 $transfer_tags
             );
 
-            // If the requesting branch also has inventory, add the item to that
-            // branch's stock. Service-only branches receive the item for the job
-            // request, so only the donor stock-out is recorded.
+            // Update transfer status to shipped (in transit)
+            $stmt = $pdo->prepare("
+                UPDATE inter_branch_transfer_requests
+                SET approved_quantity = ?,
+                    approved_by = COALESCE(approved_by, ?),
+                    status = 'shipped',
+                    shipping_date = NOW()
+                WHERE id = ?
+            ");
+            $stmt->execute([$transfer_qty, $user['id'], $transfer_id]);
+
+            $notification_stmt = $pdo->prepare("
+                INSERT INTO transfer_notifications
+                (branch_id, user_id, transfer_request_id, title, message, type, action_url)
+                VALUES (?, ?, ?, ?, ?, 'info', ?)
+            ");
+            $notify_users_stmt = $pdo->prepare("
+                SELECT id, branch_id
+                FROM users
+                WHERE branch_id IN (?, ?)
+                  AND status = 'active'
+            ");
+            $notify_users_stmt->execute([
+                $transfer['requesting_branch_id'],
+                $transfer['donor_branch_id']
+            ]);
+
+            $notify_title = "Item Request Shipped";
+            $customer_suffix = !empty($transfer['customer_name']) ? " for {$transfer['customer_name']}" : '';
+            $notify_message = "{$transfer['request_number']} for {$transfer['item_name']}{$customer_suffix} was shipped ({$transfer_qty} unit(s)). Awaiting receiver confirmation.";
+            $receiver_url = "/hwtires/front-desk/tire-inventory/?transfer_request={$transfer_id}#requested-items";
+
+            foreach ($notify_users_stmt->fetchAll(PDO::FETCH_ASSOC) as $notify_user) {
+                $notification_stmt->execute([
+                    $notify_user['branch_id'],
+                    $notify_user['id'],
+                    $transfer_id,
+                    $notify_title,
+                    $notify_message,
+                    $receiver_url
+                ]);
+            }
+
+            log_audit('inter_branch_transfer_requests', 'UPDATE', $transfer_id,
+                      ['status' => $old_status], ['status' => 'shipped', 'quantity' => $transfer_qty]);
+
+            $pdo->commit();
+
+            $response['success'] = true;
+            $response['message'] = "Transfer marked as shipped. Receiver must confirm delivery.";
+            $response['data'] = ['transfer_id' => $transfer_id, 'status' => 'shipped'];
+            break;
+
+        case 'accept_transfer':
+            /**
+             * Accept transfer by the receiving branch.
+             * Adds stock to the receiving branch and sets status to 'received'.
+             * POST: transfer_id
+             */
+            $transfer_id = (int) ($_POST['transfer_id'] ?? 0);
+
+            if (!$transfer_id) {
+                throw new Exception('Invalid transfer ID');
+            }
+
+            $pdo->beginTransaction();
+
+            $stmt = $pdo->prepare("
+                SELECT
+                    tr.*,
+                    donor_item.item_name AS donor_item_name,
+                    donor_item.category AS donor_category,
+                    donor_item.brand AS donor_brand,
+                    donor_item.size AS donor_size,
+                    donor_item.description AS donor_description,
+                    donor_item.sku AS donor_sku,
+                    donor_item.reorder_level AS donor_reorder_level,
+                    donor_item.unit_price AS donor_unit_price,
+                    rb.name AS requesting_branch_name,
+                    rb.has_inventory AS requesting_has_inventory,
+                    db.name AS donor_branch_name,
+                    c.name AS customer_name,
+                    q.quotation_number,
+                    q.vehicle_id,
+                    jo.id AS job_order_id
+                FROM inter_branch_transfer_requests tr
+                INNER JOIN inventory_items donor_item ON donor_item.id = tr.item_id
+                INNER JOIN branches rb ON rb.id = tr.requesting_branch_id
+                INNER JOIN branches db ON db.id = tr.donor_branch_id
+                LEFT JOIN customers c ON c.id = tr.customer_id
+                LEFT JOIN quotations q ON q.id = tr.quotation_id
+                LEFT JOIN job_orders jo ON jo.quotation_id = tr.quotation_id
+                WHERE tr.id = ?
+                FOR UPDATE
+            ");
+            $stmt->execute([$transfer_id]);
+            $transfer = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$transfer) {
+                throw new Exception('Transfer request not found');
+            }
+
+            $is_admin = in_array($user['role'] ?? '', ['admin', 'owner', 'admin_owner'], true);
+            $user_branch_id = (int) ($user['branch_id'] ?? 0);
+
+            if (!$is_admin && $user_branch_id !== (int) $transfer['requesting_branch_id']) {
+                throw new Exception('Only the receiving branch can accept this transfer');
+            }
+
+            if (!$is_admin && $user_branch_id === (int) $transfer['donor_branch_id']) {
+                throw new Exception('Donor branch cannot accept its own transfer');
+            }
+
+            $current_status = strtolower($transfer['status'] ?? 'pending');
+            if ($current_status === 'received') {
+                $pdo->commit();
+                $response['success'] = true;
+                $response['message'] = 'Transfer was already accepted and received';
+                $response['data'] = ['transfer_id' => $transfer_id, 'status' => 'received'];
+                break;
+            }
+
+            if ($current_status !== 'shipped') {
+                throw new Exception('Transfer must be shipped before it can be accepted');
+            }
+
+            $transfer_qty = (int) ($transfer['approved_quantity'] ?? 0);
+            if ($transfer_qty <= 0) {
+                $transfer_qty = (int) ($transfer['requested_quantity'] ?? 0);
+            }
+
+            $transfer_tags = [
+                'customer_id' => $transfer['customer_id'] ?? null,
+                'vehicle_id' => $transfer['vehicle_id'] ?? null,
+                'job_order_id' => $transfer['job_order_id'] ?? null,
+                'quotation_id' => $transfer['quotation_id'] ?? null,
+            ];
+
+            // If the requesting branch has inventory, add stock
             if ((int) ($transfer['requesting_has_inventory'] ?? 0) === 1) {
                 $destination_stmt = $pdo->prepare("
                     SELECT id
@@ -525,72 +669,195 @@ try {
                 );
             }
 
-            // Update transfer status
+            // Update status to received
             $stmt = $pdo->prepare("
                 UPDATE inter_branch_transfer_requests
-                SET approved_quantity = ?,
-                    approved_by = COALESCE(approved_by, ?),
-                    status = 'received',
-                    shipping_date = COALESCE(shipping_date, NOW()),
+                SET status = 'received',
                     received_date = NOW()
                 WHERE id = ?
             ");
-            $stmt->execute([$transfer_qty, $user['id'], $transfer_id]);
-
-            $notification_stmt = $pdo->prepare("
-                INSERT INTO transfer_notifications
-                (branch_id, user_id, transfer_request_id, title, message, type, action_url)
-                VALUES (?, ?, ?, ?, ?, 'success', ?)
-            ");
-            $notify_users_stmt = $pdo->prepare("
-                SELECT id, branch_id
-                FROM users
-                WHERE branch_id IN (?, ?)
-                  AND status = 'active'
-            ");
-            $notify_users_stmt->execute([
-                $transfer['requesting_branch_id'],
-                $transfer['donor_branch_id']
-            ]);
-
-            $notify_title = "Item Request Transferred";
-            $customer_suffix = !empty($transfer['customer_name']) ? " for {$transfer['customer_name']}" : '';
-            $notify_message = "{$transfer['request_number']} for {$transfer['item_name']}{$customer_suffix} was transferred ({$transfer_qty} unit(s)).";
-            $receiver_params = ['date_scope' => 'all'];
-            if (!empty($transfer['job_order_id'])) {
-                $receiver_params['job_id'] = (int) $transfer['job_order_id'];
-            } elseif (!empty($transfer['customer_name'])) {
-                $receiver_params['search'] = (string) $transfer['customer_name'];
-            } elseif (!empty($transfer['quotation_number'])) {
-                $receiver_params['search'] = (string) $transfer['quotation_number'];
-            } else {
-                $receiver_params['search'] = (string) ($transfer['item_name'] ?? '');
-            }
-            $receiver_url = '/hwtires/front-desk/service-status/?' . http_build_query($receiver_params) . '#service-records';
-
-            foreach ($notify_users_stmt->fetchAll(PDO::FETCH_ASSOC) as $notify_user) {
-                $action_url = ((int) $notify_user['branch_id'] === (int) $transfer['donor_branch_id'])
-                    ? "/hwtires/front-desk/tire-inventory/?transfer_request={$transfer_id}#requested-items"
-                    : $receiver_url;
-
-                $notification_stmt->execute([
-                    $notify_user['branch_id'],
-                    $notify_user['id'],
-                    $transfer_id,
-                    $notify_title,
-                    $notify_message,
-                    $action_url
-                ]);
-            }
+            $stmt->execute([$transfer_id]);
 
             log_audit('inter_branch_transfer_requests', 'UPDATE', $transfer_id,
-                      ['status' => $old_status], ['status' => 'received', 'quantity' => $transfer_qty]);
+                      ['status' => 'shipped'], ['status' => 'received', 'quantity' => $transfer_qty]);
 
             $pdo->commit();
 
             $response['success'] = true;
-            $response['message'] = 'Transfer completed and inventory updated';
+            $response['message'] = "Transfer accepted. {$transfer_qty} unit(s) added to inventory.";
             $response['data'] = ['transfer_id' => $transfer_id, 'status' => 'received'];
+            break;
+
+        case 'reject_transfer':
+            /**
+             * Reject transfer by the receiving branch.
+             * Sets status to 'cancelled' with [RETURN_PENDING] note.
+             * Does NOT restore donor inventory yet (goods in transit back).
+             * POST: transfer_id, reason
+             */
+            $transfer_id = (int) ($_POST['transfer_id'] ?? 0);
+            $rejection_reason = trim((string) ($_POST['reason'] ?? ''));
+
+            if (!$transfer_id) {
+                throw new Exception('Invalid transfer ID');
+            }
+
+            if ($rejection_reason === '') {
+                throw new Exception('A reason is required when rejecting an incoming transfer');
+            }
+
+            $pdo->beginTransaction();
+
+            $stmt = $pdo->prepare("
+                SELECT tr.*, rb.name AS requesting_branch_name, db.name AS donor_branch_name
+                FROM inter_branch_transfer_requests tr
+                INNER JOIN branches rb ON rb.id = tr.requesting_branch_id
+                INNER JOIN branches db ON db.id = tr.donor_branch_id
+                WHERE tr.id = ?
+                FOR UPDATE
+            ");
+            $stmt->execute([$transfer_id]);
+            $transfer = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$transfer) {
+                throw new Exception('Transfer request not found');
+            }
+
+            $is_admin = in_array($user['role'] ?? '', ['admin', 'owner', 'admin_owner'], true);
+            $user_branch_id = (int) ($user['branch_id'] ?? 0);
+
+            if (!$is_admin && $user_branch_id !== (int) $transfer['requesting_branch_id']) {
+                throw new Exception('Only the receiving branch can reject this transfer');
+            }
+
+            if (!$is_admin && $user_branch_id === (int) $transfer['donor_branch_id']) {
+                throw new Exception('Donor branch cannot reject its own transfer');
+            }
+
+            $current_status = strtolower($transfer['status'] ?? 'pending');
+            if ($current_status !== 'shipped') {
+                throw new Exception('Only shipped transfers in transit can be rejected');
+            }
+
+            $existing_notes = trim((string) ($transfer['notes'] ?? ''));
+            $reject_note = "[RETURN_PENDING] Rejected by " . ($user['username'] ?? 'Front Desk') . " (" . $transfer['requesting_branch_name'] . ") on " . date('Y-m-d H:i:s') . ". Reason: " . $rejection_reason;
+            $new_notes = $existing_notes !== '' ? $existing_notes . "\n" . $reject_note : $reject_note;
+
+            $stmt = $pdo->prepare("
+                UPDATE inter_branch_transfer_requests
+                SET status = 'cancelled',
+                    notes = ?
+                WHERE id = ?
+            ");
+            $stmt->execute([$new_notes, $transfer_id]);
+
+            log_audit('inter_branch_transfer_requests', 'UPDATE', $transfer_id,
+                      ['status' => 'shipped'], ['status' => 'cancelled', 'reason' => $rejection_reason]);
+
+            $pdo->commit();
+
+            $response['success'] = true;
+            $response['message'] = "Transfer rejected. Donor branch has been notified of pending return.";
+            $response['data'] = ['transfer_id' => $transfer_id, 'status' => 'cancelled'];
+            break;
+
+        case 'confirm_return':
+            /**
+             * Confirm physical return by donor branch.
+             * Restores stock to donor branch once goods physically arrive back.
+             * POST: transfer_id
+             */
+            $transfer_id = (int) ($_POST['transfer_id'] ?? 0);
+
+            if (!$transfer_id) {
+                throw new Exception('Invalid transfer ID');
+            }
+
+            $pdo->beginTransaction();
+
+            $stmt = $pdo->prepare("
+                SELECT tr.*, rb.name AS requesting_branch_name, db.name AS donor_branch_name
+                FROM inter_branch_transfer_requests tr
+                INNER JOIN branches rb ON rb.id = tr.requesting_branch_id
+                INNER JOIN branches db ON db.id = tr.donor_branch_id
+                WHERE tr.id = ?
+                FOR UPDATE
+            ");
+            $stmt->execute([$transfer_id]);
+            $transfer = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$transfer) {
+                throw new Exception('Transfer request not found');
+            }
+
+            $is_admin = in_array($user['role'] ?? '', ['admin', 'owner', 'admin_owner'], true);
+            $user_branch_id = (int) ($user['branch_id'] ?? 0);
+
+            if (!$is_admin && $user_branch_id !== (int) $transfer['donor_branch_id']) {
+                throw new Exception('Only the donor branch can confirm receipt of returned stock');
+            }
+
+            if (!$is_admin && $user_branch_id === (int) $transfer['requesting_branch_id']) {
+                throw new Exception('Receiving branch cannot confirm return for the donor branch');
+            }
+
+            $notes = (string) ($transfer['notes'] ?? '');
+            if (strpos($notes, '[RETURN_PENDING]') === false) {
+                throw new Exception('This transfer does not have a pending return to confirm');
+            }
+
+            if (strpos($notes, '[RETURNED]') !== false) {
+                $pdo->commit();
+                $response['success'] = true;
+                $response['message'] = 'Return was already confirmed and stock restored';
+                $response['data'] = ['transfer_id' => $transfer_id, 'status' => 'cancelled'];
+                break;
+            }
+
+            $transfer_qty = (int) ($transfer['approved_quantity'] ?? 0);
+            if ($transfer_qty <= 0) {
+                $transfer_qty = (int) ($transfer['requested_quantity'] ?? 0);
+            }
+
+            // Restore donor stock
+            $stmt = $pdo->prepare("
+                UPDATE inventory_items
+                SET quantity = quantity + ?
+                WHERE id = ? AND branch_id = ?
+            ");
+            $stmt->execute([
+                $transfer_qty,
+                $transfer['item_id'],
+                $transfer['donor_branch_id']
+            ]);
+
+            // Log stock in restoration transaction
+            transfer_log_inventory_transaction($pdo, $user,
+                $transfer['item_id'],
+                'stock_in',
+                $transfer_qty,
+                $transfer_id,
+                "Returned transfer stock confirmed from {$transfer['requesting_branch_name']}"
+            );
+
+            $return_note = "[RETURNED] Physical return confirmed by " . ($user['username'] ?? 'Storekeeper') . " on " . date('Y-m-d H:i:s');
+            $new_notes = $notes . "\n" . $return_note;
+
+            $stmt = $pdo->prepare("
+                UPDATE inter_branch_transfer_requests
+                SET notes = ?
+                WHERE id = ?
+            ");
+            $stmt->execute([$new_notes, $transfer_id]);
+
+            log_audit('inter_branch_transfer_requests', 'UPDATE', $transfer_id,
+                      ['notes' => $notes], ['notes' => $new_notes, 'restored_quantity' => $transfer_qty]);
+
+            $pdo->commit();
+
+            $response['success'] = true;
+            $response['message'] = "Physical return confirmed. {$transfer_qty} unit(s) restored to donor inventory.";
+            $response['data'] = ['transfer_id' => $transfer_id, 'status' => 'cancelled'];
             break;
 
         default:

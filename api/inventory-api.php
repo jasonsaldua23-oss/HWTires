@@ -258,32 +258,17 @@ if (!function_exists('inventory_api_resolve_stock_out_tag')) {
         }
 
         if ($customer_id > 0) {
-            $params = [$customer_id, $branch_id];
-            $branch_clause = 'c.branch_id = ?';
-
-            if (app_table_exists('customer_branch_records')) {
-                $branch_clause .= " OR EXISTS (
-                    SELECT 1
-                    FROM customer_branch_records cbr
-                    WHERE cbr.customer_id = c.id
-                      AND cbr.branch_id = ?
-                      AND cbr.status = 'active'
-                )";
-                $params[] = $branch_id;
-            }
-
             $customer_stmt = $pdo->prepare("
                 SELECT c.id
                 FROM customers c
                 WHERE c.id = ?
                   AND c.status = 'active'
-                  AND ($branch_clause)
                 LIMIT 1
             ");
-            $customer_stmt->execute($params);
+            $customer_stmt->execute([$customer_id]);
 
             if (!$customer_stmt->fetchColumn()) {
-                throw new Exception('Selected customer is not available for this branch');
+                throw new Exception('Selected customer is not active or does not exist');
             }
         }
 
@@ -576,14 +561,6 @@ if ($action === 'stock_out') {
         $old_quantity = (int) $item['quantity'];
         $tag_data = inventory_api_resolve_stock_out_tag((int) ($item['branch_id'] ?? 0));
 
-        if ($old_quantity < $quantity) {
-            throw new Exception('Insufficient stock available. Current: ' . $old_quantity);
-        }
-
-        $new_quantity = $old_quantity - $quantity;
-        $update_stmt = $pdo->prepare("UPDATE inventory_items SET quantity = ? WHERE id = ?");
-        $update_stmt->execute([$new_quantity, $item_id]);
-
         $reason_type = trim((string) ($_POST['reason_type'] ?? ''));
         $reason_labels = [
             'direct_sale' => 'Direct Sale / Walk-In',
@@ -592,6 +569,18 @@ if ($action === 'stock_out') {
             'other' => 'Inventory Adjustment',
         ];
         $reason_label = $reason_labels[$reason_type] ?? '';
+
+        if ($reason_type === 'direct_sale' && empty($tag_data['customer_id'])) {
+            throw new Exception('Direct Sale / Walk-In stock out requires selecting an active registered customer. Please register the customer first if they are not yet in the system.');
+        }
+
+        if ($old_quantity < $quantity) {
+            throw new Exception('Insufficient stock available. Current: ' . $old_quantity);
+        }
+
+        $new_quantity = $old_quantity - $quantity;
+        $update_stmt = $pdo->prepare("UPDATE inventory_items SET quantity = ? WHERE id = ?");
+        $update_stmt->execute([$new_quantity, $item_id]);
 
         $note_parts = [];
         if ($reason_label !== '') {
