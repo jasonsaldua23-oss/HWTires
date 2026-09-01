@@ -79,15 +79,20 @@ foreach ($raw_filter_meta as $row) {
     $s = trim((string) ($row['size'] ?? ''));
     
     if ($b !== '') {
-        $all_brands[$b] = $b;
-        if ($cat !== '') {
-            $brands_by_category[$cat][$b] = $b;
+        $b_key = strtolower($b);
+        $canonical_b = strcasecmp($b, 'bridgestone') === 0 ? 'BRIDGESTONE' : $b;
+        if (!isset($all_brands[$b_key])) {
+            $all_brands[$b_key] = $canonical_b;
+        }
+        if ($cat !== '' && !isset($brands_by_category[$cat][$b_key])) {
+            $brands_by_category[$cat][$b_key] = $canonical_b;
         }
     }
     if ($s !== '') {
         $all_sizes[$s] = $s;
         if ($b !== '') {
-            $sizes_by_brand[$b][$s] = $s;
+            $canonical_b = strcasecmp($b, 'bridgestone') === 0 ? 'BRIDGESTONE' : $b;
+            $sizes_by_brand[$canonical_b][$s] = $s;
         }
     }
 }
@@ -96,8 +101,10 @@ $available_brands = ($category_filter !== 'all' && isset($brands_by_category[$ca
     ? array_values($brands_by_category[$category_filter])
     : array_values($all_brands);
 
-$available_sizes = ($brand_filter !== '' && isset($sizes_by_brand[$brand_filter]))
-    ? array_values($sizes_by_brand[$brand_filter])
+$canonical_selected_brand = strcasecmp($brand_filter, 'bridgestone') === 0 ? 'BRIDGESTONE' : $brand_filter;
+
+$available_sizes = ($canonical_selected_brand !== '' && isset($sizes_by_brand[$canonical_selected_brand]))
+    ? array_values($sizes_by_brand[$canonical_selected_brand])
     : array_values($all_sizes);
 
 $forecast = forecast_build_inventory_dss($pdo, [
@@ -393,7 +400,7 @@ foreach ($movement_category_totals as $category_total) {
                 <select name="brand" id="adminForecastBrandFilter">
                     <option value="">All Brands</option>
                     <?php foreach ($available_brands as $brand_name): ?>
-                        <option value="<?php echo esc_attr($brand_name); ?>" <?php echo $brand_filter === $brand_name ? 'selected' : ''; ?>>
+                        <option value="<?php echo esc_attr($brand_name); ?>" <?php echo strcasecmp($brand_filter, $brand_name) === 0 ? 'selected' : ''; ?>>
                             <?php echo esc_html($brand_name); ?>
                         </option>
                     <?php endforeach; ?>

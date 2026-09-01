@@ -59,14 +59,20 @@ if (!in_array($per_page, $page_sizes, true)) {
 }
 $page = max(1, (int) ($_GET['page'] ?? 1));
 
-// Fetch distinct categories, brands, and sizes for dropdowns
-$filter_meta_stmt = $pdo->query("
-    SELECT DISTINCT category, brand, size 
-    FROM inventory_items 
-    WHERE status = 'active'
-    ORDER BY category ASC, brand ASC, size ASC
-");
-$raw_filter_meta = $filter_meta_stmt ? $filter_meta_stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+// Fetch distinct categories, brands, and sizes for dropdowns scoped to user's branch
+$raw_filter_meta = [];
+if (!empty($allowed_branch_ids)) {
+    $meta_placeholders = implode(',', array_fill(0, count($allowed_branch_ids), '?'));
+    $filter_meta_stmt = $pdo->prepare("
+        SELECT DISTINCT category, brand, size 
+        FROM inventory_items 
+        WHERE status = 'active'
+          AND branch_id IN ($meta_placeholders)
+        ORDER BY category ASC, brand ASC, size ASC
+    ");
+    $filter_meta_stmt->execute($allowed_branch_ids);
+    $raw_filter_meta = $filter_meta_stmt ? $filter_meta_stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+}
 
 $brands_by_category = [];
 $sizes_by_brand = [];
@@ -79,15 +85,20 @@ foreach ($raw_filter_meta as $row) {
     $s = trim((string) ($row['size'] ?? ''));
     
     if ($b !== '') {
-        $all_brands[$b] = $b;
-        if ($cat !== '') {
-            $brands_by_category[$cat][$b] = $b;
+        $b_key = strtolower($b);
+        $canonical_b = strcasecmp($b, 'bridgestone') === 0 ? 'BRIDGESTONE' : $b;
+        if (!isset($all_brands[$b_key])) {
+            $all_brands[$b_key] = $canonical_b;
+        }
+        if ($cat !== '' && !isset($brands_by_category[$cat][$b_key])) {
+            $brands_by_category[$cat][$b_key] = $canonical_b;
         }
     }
     if ($s !== '') {
         $all_sizes[$s] = $s;
         if ($b !== '') {
-            $sizes_by_brand[$b][$s] = $s;
+            $canonical_b = strcasecmp($b, 'bridgestone') === 0 ? 'BRIDGESTONE' : $b;
+            $sizes_by_brand[$canonical_b][$s] = $s;
         }
     }
 }
@@ -96,8 +107,10 @@ $available_brands = ($category_filter !== 'all' && isset($brands_by_category[$ca
     ? array_values($brands_by_category[$category_filter])
     : array_values($all_brands);
 
-$available_sizes = ($brand_filter !== '' && isset($sizes_by_brand[$brand_filter]))
-    ? array_values($sizes_by_brand[$brand_filter])
+$canonical_selected_brand = strcasecmp($brand_filter, 'bridgestone') === 0 ? 'BRIDGESTONE' : $brand_filter;
+
+$available_sizes = ($canonical_selected_brand !== '' && isset($sizes_by_brand[$canonical_selected_brand]))
+    ? array_values($sizes_by_brand[$canonical_selected_brand])
     : array_values($all_sizes);
 
 $forecast = forecast_build_inventory_dss($pdo, [
@@ -289,7 +302,7 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
                 <select name="brand" id="frontForecastBrandFilter">
                     <option value="">All Brands</option>
                     <?php foreach ($available_brands as $brand_name): ?>
-                        <option value="<?php echo esc_attr($brand_name); ?>" <?php echo $brand_filter === $brand_name ? 'selected' : ''; ?>>
+                        <option value="<?php echo esc_attr($brand_name); ?>" <?php echo strcasecmp($brand_filter, $brand_name) === 0 ? 'selected' : ''; ?>>
                             <?php echo esc_html($brand_name); ?>
                         </option>
                     <?php endforeach; ?>
