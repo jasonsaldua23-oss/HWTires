@@ -714,4 +714,187 @@ if (!function_exists('forecast_build_inventory_dss')) {
         ];
     }
 }
+
+if (!function_exists('forecast_csv_safe')) {
+    function forecast_csv_safe($value) {
+        if ($value === null || $value === '') {
+            return '';
+        }
+        if (is_numeric($value)) {
+            return $value;
+        }
+        $str = (string) $value;
+        if (isset($str[0]) && in_array($str[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
+            return "'" . $str;
+        }
+        return $str;
+    }
+}
+
+if (!function_exists('forecast_export_url')) {
+    function forecast_export_url($category, $branch, $status, $search = '', $year = 'latest', $view = 'weekly', $sort = 'urgency', $brand = '', $size = '') {
+        $params = [
+            'action' => 'export_recommendations',
+        ];
+
+        if ($category !== 'all' && $category !== '') {
+            $params['category'] = $category;
+        }
+
+        $brand = trim((string) $brand);
+        if ($brand !== '') {
+            $params['brand'] = $brand;
+        }
+
+        $size = trim((string) $size);
+        if ($size !== '') {
+            $params['size'] = $size;
+        }
+
+        if ($branch !== 'all' && $branch !== '') {
+            $params['branch'] = $branch;
+        }
+
+        if ($status !== 'all' && $status !== '') {
+            $params['status'] = $status;
+        }
+
+        $sort = strtolower(trim((string) $sort));
+        if ($sort !== '' && $sort !== 'urgency') {
+            $params['sort'] = $sort;
+        }
+
+        $year = trim((string) $year);
+        if ($year !== '' && $year !== 'latest') {
+            $params['year'] = $year;
+        }
+
+        $view = strtolower(trim((string) $view));
+        if (in_array($view, ['monthly', 'items'], true)) {
+            $params['view'] = $view;
+        }
+
+        $search = trim((string) $search);
+        if ($search !== '') {
+            $params['search'] = $search;
+        }
+
+        return '/hwtires/api/forecasting-api.php?' . http_build_query($params);
+    }
+}
+
+if (!function_exists('forecast_send_csv')) {
+    function forecast_send_csv(array $forecast, $output_target = 'php://output') {
+        $filters = $forecast['filters'] ?? [];
+        $items = $forecast['items'] ?? [];
+        $view_filter = strtolower(trim((string) ($filters['view'] ?? 'weekly')));
+        $branch_filter = $filters['branch'] ?? 'all';
+
+        $filename_parts = ['forecasting_recommendations'];
+        if ($branch_filter !== 'all') {
+            $filename_parts[] = 'branch_' . $branch_filter;
+        }
+        $filename_parts[] = $view_filter;
+        $filename_parts[] = date('Y-m-d');
+        $filename = implode('_', $filename_parts) . '.csv';
+
+        if (is_resource($output_target)) {
+            $out = $output_target;
+        } else {
+            if ($output_target === 'php://output' && !headers_sent()) {
+                if (ob_get_level()) {
+                    ob_end_clean();
+                }
+
+                header('Content-Type: text/csv; charset=utf-8');
+                header('Content-Disposition: attachment; filename="' . $filename . '"');
+                header('Pragma: no-cache');
+                header('Expires: 0');
+            }
+
+            $out = fopen($output_target, 'w');
+        }
+
+        // Output UTF-8 Byte Order Mark (BOM) for Excel
+        fwrite($out, "\xEF\xBB\xBF");
+
+        // First row contains column headers
+        fputcsv($out, [
+            'Forecast Status',
+            'Item Name',
+            'SKU',
+            'Category',
+            'Brand',
+            'Size / Spec',
+            'Branch',
+            'Current Stock',
+            'Reorder Level',
+            'Weekly Demand',
+            'Monthly Demand',
+            'Demand Trend',
+            'Stock Runway',
+            'Projected Stock',
+            'Recommended Order',
+            'Unit Price',
+            'Estimated Order Value',
+            'Suggested Action',
+            'Forecast Basis / Reason',
+        ]);
+
+        foreach ($items as $item) {
+            $inv = $item['item'] ?? [];
+            $status = $item['status'] ?? 'good';
+            $trend = (int) ($item['trend_percent'] ?? 0);
+            $trend_str = ($trend > 0 ? '+' : '') . $trend . '%';
+
+            $runway = ($view_filter === 'monthly')
+                ? ($item['months_duration_human'] ?? '')
+                : ($item['duration_human'] ?? '');
+
+            $rec_order = ($view_filter === 'monthly')
+                ? (int) ($item['recommended_monthly_order'] ?? 0)
+                : (int) ($item['recommended_order'] ?? 0);
+
+            $unit_price = (float) ($inv['unit_price'] ?? 0);
+            $est_value = ($view_filter === 'monthly')
+                ? (float) ($item['monthly_order_value'] ?? 0)
+                : (float) ($item['order_value'] ?? 0);
+
+            $suggested_action = '';
+            if ($view_filter === 'monthly') {
+                $suggested_action = $rec_order > 0 ? 'Procure ' . $rec_order . ' units' : 'Monitor';
+            } elseif ($view_filter === 'items') {
+                $suggested_action = $rec_order > 0 ? 'Stock in ' . $rec_order . ' units' : 'Monitor';
+            } else {
+                $suggested_action = $rec_order > 0 ? 'Order ' . $rec_order . ' units' : 'Optimal level';
+            }
+
+            fputcsv($out, [
+                forecast_csv_safe(forecast_status_label($status)),
+                forecast_csv_safe(app_display_item_name($inv['item_name'] ?? '', $inv['category'] ?? null)),
+                forecast_csv_safe($inv['sku'] ?: '-'),
+                forecast_csv_safe(forecast_category_label($inv['category'] ?? '')),
+                forecast_csv_safe($inv['brand'] ?: 'Unbranded'),
+                forecast_csv_safe($inv['size'] ?: '-'),
+                forecast_csv_safe(forecast_branch_label($inv['branch_name'] ?? '')),
+                (int) ($inv['quantity'] ?? 0),
+                (int) ($inv['reorder_level'] ?? 0),
+                number_format((float) ($item['weekly_usage'] ?? 0), 1, '.', ''),
+                number_format((float) ($item['monthly_usage'] ?? 0), 1, '.', ''),
+                forecast_csv_safe($trend_str),
+                forecast_csv_safe($runway),
+                forecast_csv_safe($item['projected_stock_text'] ?? ''),
+                $rec_order,
+                number_format($unit_price, 2, '.', ''),
+                number_format($est_value, 2, '.', ''),
+                forecast_csv_safe($suggested_action),
+                forecast_csv_safe($item['forecast_reason'] ?? ''),
+            ]);
+        }
+
+        if (!is_resource($output_target)) {
+            fclose($out);
+        }
+    }
+}
 ?>

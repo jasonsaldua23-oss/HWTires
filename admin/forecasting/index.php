@@ -814,9 +814,24 @@ foreach ($movement_category_totals as $category_total) {
                 </div>
                 <p>Showing <?php echo (int) $showing_from; ?>-<?php echo (int) $showing_to; ?> of <?php echo (int) $total_records; ?> items</p>
             </div>
-            <form class="records-page-size-form" method="get" action="./#forecast-analysis">
+            <div class="forecast-toolbar-controls">
+                <a href="<?php echo esc_attr(forecast_export_url($category_filter, $branch_filter, $status_filter, $search_filter, $year_filter, $view_filter, $sort_filter, $brand_filter, $size_filter)); ?>"
+                   class="forecast-export-btn"
+                   title="Export currently filtered forecasting recommendations as CSV"
+                   download>
+                    <i class="fas fa-file-csv"></i>
+                    <span>Export Recommendations</span>
+                </a>
+                <span class="forecast-toolbar-divider" aria-hidden="true"></span>
+                <form class="records-page-size-form" method="get" action="./#forecast-analysis">
                 <?php if ($category_filter !== 'all'): ?>
                     <input type="hidden" name="category" value="<?php echo esc_attr($category_filter); ?>">
+                <?php endif; ?>
+                <?php if ($brand_filter !== ''): ?>
+                    <input type="hidden" name="brand" value="<?php echo esc_attr($brand_filter); ?>">
+                <?php endif; ?>
+                <?php if ($size_filter !== ''): ?>
+                    <input type="hidden" name="size" value="<?php echo esc_attr($size_filter); ?>">
                 <?php endif; ?>
                 <?php if ($branch_filter !== 'all'): ?>
                     <input type="hidden" name="branch" value="<?php echo esc_attr($branch_filter); ?>">
@@ -847,6 +862,7 @@ foreach ($movement_category_totals as $category_total) {
                     </select>
                 </label>
             </form>
+            </div>
         </div>
 
         <div class="table-responsive">
@@ -951,7 +967,7 @@ foreach ($movement_category_totals as $category_total) {
                                     </td>
                                     <td>
                                         <?php if ((int) $item['recommended_order'] > 0): ?>
-                                            <strong class="forecast-recommendation">Stock in <?php echo (int) $item['recommended_order']; ?> units</strong>
+                                             <strong class="forecast-recommendation">Stock in <?php echo (int) $item['recommended_order']; ?> units</strong>
                                         <?php else: ?>
                                             <strong>Monitor</strong>
                                         <?php endif; ?>
@@ -991,23 +1007,23 @@ foreach ($movement_category_totals as $category_total) {
                 <ul class="pagination justify-content-center">
                     <?php if ($page > 1): ?>
                         <li class="page-item">
-                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, 1, $year_filter, $view_filter, $sort_filter)); ?>#forecast-analysis">First</a>
+                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, 1, $year_filter, $view_filter, $sort_filter, $brand_filter, $size_filter)); ?>#forecast-analysis">First</a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $page - 1, $year_filter, $view_filter, $sort_filter)); ?>#forecast-analysis">Previous</a>
+                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $page - 1, $year_filter, $view_filter, $sort_filter, $brand_filter, $size_filter)); ?>#forecast-analysis">Previous</a>
                         </li>
                     <?php endif; ?>
                     <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
                         <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
-                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $i, $year_filter, $view_filter, $sort_filter)); ?>#forecast-analysis"><?php echo (int) $i; ?></a>
+                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $i, $year_filter, $view_filter, $sort_filter, $brand_filter, $size_filter)); ?>#forecast-analysis"><?php echo (int) $i; ?></a>
                         </li>
                     <?php endfor; ?>
                     <?php if ($page < $total_pages): ?>
                         <li class="page-item">
-                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $page + 1, $year_filter, $view_filter, $sort_filter)); ?>#forecast-analysis">Next</a>
+                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $page + 1, $year_filter, $view_filter, $sort_filter, $brand_filter, $size_filter)); ?>#forecast-analysis">Next</a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $total_pages, $year_filter, $view_filter, $sort_filter)); ?>#forecast-analysis">Last</a>
+                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $total_pages, $year_filter, $view_filter, $sort_filter, $brand_filter, $size_filter)); ?>#forecast-analysis">Last</a>
                         </li>
                     <?php endif; ?>
                 </ul>

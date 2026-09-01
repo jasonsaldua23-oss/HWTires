@@ -561,10 +561,25 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
                 </div>
                 <p>Showing <?php echo (int) $showing_from; ?>-<?php echo (int) $showing_to; ?> of <?php echo (int) $total_records; ?> items</p>
             </div>
-            <form class="records-page-size-form" method="get" action="./#forecast-analysis">
+            <div class="forecast-toolbar-controls">
+                <a href="<?php echo esc_attr(forecast_export_url($category_filter, $branch_filter, $status_filter, $search_filter, $year_filter, $view_filter, $sort_filter, $brand_filter, $size_filter)); ?>"
+                   class="forecast-export-btn"
+                   title="Export currently filtered forecasting recommendations as CSV"
+                   download>
+                    <i class="fas fa-file-csv"></i>
+                    <span>Export Recommendations</span>
+                </a>
+                <span class="forecast-toolbar-divider" aria-hidden="true"></span>
+                <form class="records-page-size-form" method="get" action="./#forecast-analysis">
                 <input type="hidden" name="branch" value="<?php echo esc_attr($branch_filter); ?>">
                 <?php if ($category_filter !== 'all'): ?>
                     <input type="hidden" name="category" value="<?php echo esc_attr($category_filter); ?>">
+                <?php endif; ?>
+                <?php if ($brand_filter !== ''): ?>
+                    <input type="hidden" name="brand" value="<?php echo esc_attr($brand_filter); ?>">
+                <?php endif; ?>
+                <?php if ($size_filter !== ''): ?>
+                    <input type="hidden" name="size" value="<?php echo esc_attr($size_filter); ?>">
                 <?php endif; ?>
                 <?php if ($status_filter !== 'all'): ?>
                     <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
@@ -592,6 +607,7 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
                     </select>
                 </label>
             </form>
+            </div>
         </div>
 
         <div class="table-responsive">
@@ -652,8 +668,8 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
                                     </span>
                                 </td>
                                 <td>
-                                    <strong><?php echo (int) $inventory_item['quantity']; ?> units</strong>
-                                    <small>Min level: <?php echo (int) $inventory_item['reorder_level']; ?></small>
+                                    <strong><?php echo (int) $inventory_item['quantity']; ?></strong>
+                                    <small>Reorder at <?php echo (int) $inventory_item['reorder_level']; ?></small>
                                 </td>
                                 <?php if ($view_filter === 'monthly'): ?>
                                     <td>
@@ -676,35 +692,34 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
                                         <strong><?php echo esc_html($item['projected_stock_text']); ?></strong>
                                     </td>
                                     <td>
-                                        <strong class="forecast-recommendation"><?php echo $stock_in_quantity; ?> units</strong>
+                                        <strong class="forecast-recommendation"><?php echo (int) $item['recommended_monthly_order']; ?> units</strong>
                                         <small><?php echo forecast_money($item['monthly_order_value']); ?></small>
                                     </td>
                                     <td>
-                                        <?php if ($stock_in_quantity > 0): ?>
-                                            <a class="forecast-action-link" href="<?php echo esc_attr($stock_in_url); ?>">
-                                                Stock In
+                                        <?php if ((int) $item['recommended_monthly_order'] > 0): ?>
+                                            <a class="forecast-row-action" href="<?php echo esc_attr($stock_in_url); ?>">
+                                                <i class="fas fa-plus"></i>
+                                                <span>Stock In</span>
                                             </a>
                                         <?php else: ?>
-                                            <strong>Monitor</strong>
+                                            <span class="forecast-action-muted">Healthy</span>
                                         <?php endif; ?>
                                     </td>
                                 <?php elseif ($view_filter === 'items'): ?>
                                     <td>
-                                        <strong><?php echo (int) $inventory_item['reorder_level']; ?> units</strong>
-                                        <small>safety threshold</small>
+                                        <strong><?php echo (int) $inventory_item['reorder_level']; ?></strong>
+                                        <small>minimum level</small>
                                     </td>
                                     <td>
-                                        <strong><?php echo number_format((float) $item['basis_out'], 1); ?> units</strong>
-                                        <small>used past 90 days</small>
+                                        <strong><?php echo number_format((float) $item['basis_out'], 1); ?></strong>
+                                        <small>units used</small>
                                     </td>
                                     <td>
                                         <strong><?php echo esc_html($item['projected_stock_text']); ?></strong>
                                     </td>
                                     <td>
-                                        <?php if ($stock_in_quantity > 0): ?>
-                                            <a class="forecast-action-link" href="<?php echo esc_attr($stock_in_url); ?>">
-                                                Stock in <?php echo $stock_in_quantity; ?>
-                                            </a>
+                                        <?php if ((int) $item['recommended_order'] > 0): ?>
+                                            <strong class="forecast-recommendation">Stock in <?php echo (int) $item['recommended_order']; ?> units</strong>
                                         <?php else: ?>
                                             <strong>Monitor</strong>
                                         <?php endif; ?>
@@ -730,14 +745,15 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
                                             <?php echo esc_html($item['duration_human']); ?>
                                         </span>
                                     </td>
-                                    <td><strong class="forecast-recommendation"><?php echo $stock_in_quantity; ?> units</strong></td>
+                                    <td><strong class="forecast-recommendation"><?php echo (int) $item['recommended_order']; ?> units</strong></td>
                                     <td>
-                                        <?php if ($stock_in_quantity > 0): ?>
-                                            <a class="forecast-action-link" href="<?php echo esc_attr($stock_in_url); ?>">
-                                                Stock In
+                                        <?php if ((int) $item['recommended_order'] > 0): ?>
+                                            <a class="forecast-row-action" href="<?php echo esc_attr($stock_in_url); ?>">
+                                                <i class="fas fa-plus"></i>
+                                                <span>Stock In</span>
                                             </a>
                                         <?php else: ?>
-                                            <strong>Monitor</strong>
+                                            <span class="forecast-action-muted">Healthy</span>
                                         <?php endif; ?>
                                     </td>
                                 <?php endif; ?>
@@ -753,23 +769,23 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
                 <ul class="pagination justify-content-center">
                     <?php if ($page > 1): ?>
                         <li class="page-item">
-                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, 1, $year_filter, $view_filter, $sort_filter)); ?>#forecast-analysis">First</a>
+                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, 1, $year_filter, $view_filter, $sort_filter, $brand_filter, $size_filter)); ?>#forecast-analysis">First</a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $page - 1, $year_filter, $view_filter, $sort_filter)); ?>#forecast-analysis">Previous</a>
+                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $page - 1, $year_filter, $view_filter, $sort_filter, $brand_filter, $size_filter)); ?>#forecast-analysis">Previous</a>
                         </li>
                     <?php endif; ?>
                     <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
                         <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
-                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $i, $year_filter, $view_filter, $sort_filter)); ?>#forecast-analysis"><?php echo (int) $i; ?></a>
+                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $i, $year_filter, $view_filter, $sort_filter, $brand_filter, $size_filter)); ?>#forecast-analysis"><?php echo (int) $i; ?></a>
                         </li>
                     <?php endfor; ?>
                     <?php if ($page < $total_pages): ?>
                         <li class="page-item">
-                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $page + 1, $year_filter, $view_filter, $sort_filter)); ?>#forecast-analysis">Next</a>
+                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $page + 1, $year_filter, $view_filter, $sort_filter, $brand_filter, $size_filter)); ?>#forecast-analysis">Next</a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $total_pages, $year_filter, $view_filter, $sort_filter)); ?>#forecast-analysis">Last</a>
+                            <a class="page-link" href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, $search_filter, $per_page, $total_pages, $year_filter, $view_filter, $sort_filter, $brand_filter, $size_filter)); ?>#forecast-analysis">Last</a>
                         </li>
                     <?php endif; ?>
                 </ul>

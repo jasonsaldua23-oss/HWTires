@@ -18,6 +18,51 @@ if (!is_logged_in()) {
 $user = app_get_session_user();
 $action = $_POST['action'] ?? $_GET['action'] ?? null;
 
+// Handle Export Forecasting Recommendations (CSV)
+if ($action === 'export_recommendations' || $action === 'export_csv') {
+    try {
+        $branches = forecast_load_inventory_branches($pdo, $user);
+        $allowed_branch_ids = array_map(static function ($branch) {
+            return (int) $branch['id'];
+        }, $branches);
+
+        if (($user['role'] ?? '') !== 'admin') {
+            // Front Desk is strictly constrained to session branch ID
+            $branch_filter = (string) (int) ($user['branch_id'] ?? 0);
+            $allowed_branch_ids = array_values(array_intersect($allowed_branch_ids, [(int) ($user['branch_id'] ?? 0)]));
+        } else {
+            $branch_filter = trim($_GET['branch'] ?? $_GET['branch_id'] ?? 'all');
+            if ($branch_filter === '0' || $branch_filter === '') {
+                $branch_filter = 'all';
+            }
+            if ($branch_filter !== 'all' && !has_branch_access((int) $branch_filter)) {
+                throw new Exception('Unauthorized access');
+            }
+        }
+
+        $forecast = forecast_build_inventory_dss($pdo, [
+            'category' => $_GET['category'] ?? 'all',
+            'brand' => $_GET['brand'] ?? '',
+            'size' => $_GET['size'] ?? '',
+            'branch' => $branch_filter,
+            'status' => $_GET['status'] ?? 'all',
+            'search' => $_GET['search'] ?? '',
+            'year' => $_GET['year'] ?? 'latest',
+            'view' => $_GET['view'] ?? 'weekly',
+            'sort' => $_GET['sort'] ?? 'urgency',
+            'allowed_branch_ids' => $allowed_branch_ids,
+        ]);
+
+        forecast_send_csv($forecast);
+        exit;
+
+    } catch (Exception $e) {
+        error_log('Forecast export error: ' . $e->getMessage());
+        http_response_code(400);
+        die('Export failed: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8'));
+    }
+}
+
 // Handle Get Inventory Forecast and Decision Support
 if ($action === 'forecast_inventory' || $action === 'decision_support') {
     try {
@@ -26,22 +71,29 @@ if ($action === 'forecast_inventory' || $action === 'decision_support') {
             return (int) $branch['id'];
         }, $branches);
 
-        $branch_filter = trim($_GET['branch'] ?? $_GET['branch_id'] ?? 'all');
-        if ($branch_filter === '0' || $branch_filter === '') {
-            $branch_filter = 'all';
-        }
-
-        if ($branch_filter !== 'all' && !has_branch_access((int) $branch_filter)) {
-            throw new Exception('Unauthorized access');
+        if (($user['role'] ?? '') !== 'admin') {
+            $branch_filter = (string) (int) ($user['branch_id'] ?? 0);
+            $allowed_branch_ids = array_values(array_intersect($allowed_branch_ids, [(int) ($user['branch_id'] ?? 0)]));
+        } else {
+            $branch_filter = trim($_GET['branch'] ?? $_GET['branch_id'] ?? 'all');
+            if ($branch_filter === '0' || $branch_filter === '') {
+                $branch_filter = 'all';
+            }
+            if ($branch_filter !== 'all' && !has_branch_access((int) $branch_filter)) {
+                throw new Exception('Unauthorized access');
+            }
         }
 
         $forecast = forecast_build_inventory_dss($pdo, [
             'category' => $_GET['category'] ?? 'all',
+            'brand' => $_GET['brand'] ?? '',
+            'size' => $_GET['size'] ?? '',
             'branch' => $branch_filter,
             'status' => $_GET['status'] ?? 'all',
             'search' => $_GET['search'] ?? '',
             'year' => $_GET['year'] ?? 'latest',
             'view' => $_GET['view'] ?? 'weekly',
+            'sort' => $_GET['sort'] ?? 'urgency',
             'allowed_branch_ids' => $allowed_branch_ids,
         ]);
 

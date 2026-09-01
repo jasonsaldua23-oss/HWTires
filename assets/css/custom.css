@@ -18575,6 +18575,72 @@ body {
     padding: 16px 20px !important;
 }
 
+.forecasting-page .forecast-toolbar-controls {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.forecasting-page .forecast-export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 15px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #065f46 !important;
+    background: #ecfdf5 !important;
+    border: 1.5px solid #10b981 !important;
+    border-radius: 6px;
+    text-decoration: none !important;
+    white-space: nowrap;
+    transition: all 0.18s ease-in-out;
+    box-shadow: 0 1px 2px rgba(16, 185, 129, 0.08);
+}
+
+.forecasting-page .forecast-export-btn i {
+    color: #059669;
+    font-size: 15px;
+    transition: transform 0.18s ease-in-out;
+}
+
+.forecasting-page .forecast-export-btn:hover {
+    background: #d1fae5 !important;
+    border-color: #059669 !important;
+    color: #064e3b !important;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.22);
+    transform: translateY(-1px);
+}
+
+.forecasting-page .forecast-export-btn:hover i {
+    transform: scale(1.1);
+}
+
+.forecasting-page .forecast-export-btn:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+.forecasting-page .forecast-toolbar-divider {
+    display: inline-block;
+    width: 1px;
+    height: 26px;
+    background: #e2e8f0;
+    margin: 0 2px;
+}
+
+@media (max-width: 768px) {
+    .forecasting-page .forecast-toolbar-divider {
+        display: none;
+    }
+    .forecasting-page .forecast-toolbar-controls {
+        gap: 10px;
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
 .forecasting-page .forecast-table th {
     padding: 14px 16px !important;
     font-size: 13px !important;
