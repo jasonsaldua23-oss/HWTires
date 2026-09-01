@@ -5,7 +5,7 @@
  */
 
 require_once __DIR__ . '/../../includes/config.php';
-if (session_status() === PHP_SESSION_NONE) {
+if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
     session_name(SESSION_NAME);
     session_start();
 }
@@ -111,6 +111,23 @@ if (!function_exists('audit_action_label')) {
     }
 }
 
+// Canonical Action Groups configuration for deduplicated filtering
+$canonical_action_groups = [
+    'stock_out' => ['stock_out', 'job_order_stock_out'],
+    'status_update' => ['status_update', 'update_status'],
+    'restore' => ['restore', 'unarchive'],
+];
+
+$raw_to_canonical_action = [
+    'stock_out' => 'stock_out',
+    'job_order_stock_out' => 'stock_out',
+    'status_update' => 'status_update',
+    'update_status' => 'status_update',
+    'restore' => 'restore',
+    'unarchive' => 'restore',
+    'reactivate' => 'reactivate',
+];
+
 // Helper: Human-readable attribute key label
 if (!function_exists('audit_field_label')) {
     function audit_field_label($key) {
@@ -200,7 +217,7 @@ if (!function_exists('audit_extract_technicians')) {
 
 // Helper: Human-readable attribute value formatter (safe for arrays, objects, scalars, nulls, booleans)
 if (!function_exists('audit_format_field_value')) {
-    function audit_format_field_value($key, $value, $branch_map = []) {
+    function audit_format_field_value($key, $value, $branch_map = [], $jo_map = [], $item_map = []) {
         if ($value === null || $value === '') {
             return '-';
         }
@@ -226,7 +243,8 @@ if (!function_exists('audit_format_field_value')) {
                         $name = $item['name'] ?? $item['title'] ?? $item['item_name'] ?? $item['service_name'] ?? null;
                         $id = $item['id'] ?? null;
                         if ($name !== null) {
-                            $formatted_items[] = (string)$name . ($id ? ' (#' . (int)$id . ')' : '');
+                            $clean_name = function_exists('app_display_item_name') ? app_display_item_name($name) : $name;
+                            $formatted_items[] = (string)$clean_name . ($id ? ' (#' . (int)$id . ')' : '');
                         } else {
                             $sub_parts = [];
                             foreach ($item as $sub_k => $sub_v) {
@@ -259,7 +277,7 @@ if (!function_exists('audit_format_field_value')) {
             $formatted_pairs = [];
             foreach ($value as $sub_k => $sub_v) {
                 $sub_lbl = audit_field_label($sub_k);
-                $sub_val = audit_format_field_value($sub_k, $sub_v, $branch_map);
+                $sub_val = audit_format_field_value($sub_k, $sub_v, $branch_map, $jo_map, $item_map);
                 $formatted_pairs[] = $sub_lbl . ': ' . $sub_val;
             }
             return !empty($formatted_pairs) ? implode('; ', $formatted_pairs) : '-';
@@ -270,6 +288,20 @@ if (!function_exists('audit_format_field_value')) {
         if ($key_lower === 'branch_id') {
             $b_id = (int)$value;
             return $branch_map[$b_id] ?? ('Branch #' . $b_id);
+        }
+
+        if ($key_lower === 'job_order_id') {
+            $j_id = (int)$value;
+            return $jo_map[$j_id] ?? ('#' . $j_id);
+        }
+
+        if (in_array($key_lower, ['item_id', 'inventory_item_id'], true)) {
+            $i_id = (int)$value;
+            return $item_map[$i_id] ?? ('#' . $i_id);
+        }
+
+        if ($key_lower === 'item_name' && is_string($value)) {
+            return function_exists('app_display_item_name') ? app_display_item_name($value) : $value;
         }
 
         if ($key_lower === 'role') {
@@ -287,7 +319,7 @@ if (!function_exists('audit_format_field_value')) {
             return ucwords(str_replace(['_', '-'], ' ', (string)$value));
         }
 
-        if (in_array($key_lower, ['job_order_id', 'quotation_id', 'quotation_item_id', 'customer_id', 'vehicle_id', 'id'], true) && is_numeric($value)) {
+        if (in_array($key_lower, ['quotation_id', 'quotation_item_id', 'customer_id', 'vehicle_id', 'id'], true) && is_numeric($value)) {
             return '#' . (int)$value;
         }
 
@@ -352,14 +384,14 @@ if (!function_exists('audit_role_badge')) {
 
 // Helper: Changed-fields-only summary (eliminates false transitions like active -> active, and safely normalizes rosters)
 if (!function_exists('audit_changes_summary')) {
-    function audit_changes_summary($old_json, $new_json, $action, $branch_map = [], $table_name = '') {
+    function audit_changes_summary($old_json, $new_json, $action, $branch_map = [], $table_name = '', $record_id = 0, $item_map = [], $jo_map = []) {
         $action_lower = strtolower(trim((string) $action));
         $table_lower = strtolower(trim((string) $table_name));
         $old_data = !empty($old_json) ? json_decode($old_json, true) : null;
         $new_data = !empty($new_json) ? json_decode($new_json, true) : null;
 
         if ($action_lower === 'login') {
-            $role_str = !empty($new_data['role']) ? audit_format_field_value('role', $new_data['role']) : 'User';
+            $role_str = !empty($new_data['role']) ? audit_format_field_value('role', $new_data['role'], $branch_map, $jo_map, $item_map) : 'User';
             $branch_str = '';
             if (isset($new_data['branch_id'])) {
                 $b_id = (int)$new_data['branch_id'];
@@ -372,6 +404,17 @@ if (!function_exists('audit_changes_summary')) {
 
         if ($action_lower === 'logout') {
             return 'Logged out from session';
+        }
+
+        // Dedicated human-readable summary for Job Order Stock Out
+        if ($action_lower === 'job_order_stock_out' || (!empty($new_data['job_order_id']) && isset($new_data['quantity']))) {
+            $item_id = (int) $record_id;
+            $item_label = !empty($item_map[$item_id]) ? $item_map[$item_id] : ('Item #' . $item_id);
+            $qty = (int) ($new_data['quantity'] ?? 1);
+            $jo_id = (int) ($new_data['job_order_id'] ?? 0);
+            $jo_ref = !empty($jo_map[$jo_id]) ? $jo_map[$jo_id] : ('#' . $jo_id);
+
+            return htmlspecialchars($item_label) . ' &mdash; <strong>' . $qty . ' unit' . ($qty > 1 ? 's' : '') . '</strong> used for ' . htmlspecialchars($jo_ref);
         }
 
         // Special handling for Technician Roster updates
@@ -410,7 +453,8 @@ if (!function_exists('audit_changes_summary')) {
                 return 'Created: ' . htmlspecialchars((string)$new_data['name']);
             }
             if (!empty($new_data['item_name'])) {
-                return 'Created item: ' . htmlspecialchars((string)$new_data['item_name']);
+                $clean_item = function_exists('app_display_item_name') ? app_display_item_name((string)$new_data['item_name']) : (string)$new_data['item_name'];
+                return 'Created item: ' . htmlspecialchars($clean_item);
             }
             if (!empty($new_data['job_number'])) {
                 return 'Created Job Order: ' . htmlspecialchars((string)$new_data['job_number']);
@@ -439,8 +483,8 @@ if (!function_exists('audit_changes_summary')) {
 
                 if ($is_different) {
                     $lbl = audit_field_label($k);
-                    $old_fmt = audit_format_field_value($k, $old_val, $branch_map);
-                    $new_fmt = audit_format_field_value($k, $new_val, $branch_map);
+                    $old_fmt = audit_format_field_value($k, $old_val, $branch_map, $jo_map, $item_map);
+                    $new_fmt = audit_format_field_value($k, $new_val, $branch_map, $jo_map, $item_map);
                     $changed_diffs[] = htmlspecialchars($lbl) . ': <span class="badge bg-light text-dark border">' . htmlspecialchars($old_fmt) . '</span> &rarr; <span class="badge bg-primary">' . htmlspecialchars($new_fmt) . '</span>';
                 }
             }
@@ -518,7 +562,25 @@ if ($end_date !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $end_date)) {
 // Fetch filter option dropdowns
 $filter_users = $pdo->query("SELECT id, name, role FROM users ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
 $filter_modules = $pdo->query("SELECT DISTINCT table_name FROM audit_logs WHERE table_name IS NOT NULL AND table_name <> '' ORDER BY table_name ASC")->fetchAll(PDO::FETCH_COLUMN);
-$filter_actions = $pdo->query("SELECT DISTINCT action FROM audit_logs WHERE action IS NOT NULL AND action <> '' ORDER BY action ASC")->fetchAll(PDO::FETCH_COLUMN);
+
+// Pre-load clean inventory item names map using app_display_item_name()
+$all_items_raw = $pdo->query("SELECT id, item_name, category FROM inventory_items")->fetchAll(PDO::FETCH_ASSOC);
+$item_map = [];
+foreach ($all_items_raw as $it) {
+    $item_map[(int)$it['id']] = function_exists('app_display_item_name') ? app_display_item_name($it['item_name'], $it['category'] ?? null) : $it['item_name'];
+}
+
+// Build deduplicated canonical Action filter options list
+$raw_actions = $pdo->query("SELECT DISTINCT action FROM audit_logs WHERE action IS NOT NULL AND action <> '' ORDER BY action ASC")->fetchAll(PDO::FETCH_COLUMN);
+$filter_actions = [];
+foreach ($raw_actions as $raw_act) {
+    $raw_lower = strtolower(trim((string)$raw_act));
+    $canonical_key = $raw_to_canonical_action[$raw_lower] ?? $raw_lower;
+    if (!isset($filter_actions[$canonical_key])) {
+        $filter_actions[$canonical_key] = audit_action_label($canonical_key);
+    }
+}
+asort($filter_actions);
 
 // Build WHERE SQL with prepared parameters
 $where = [];
@@ -528,7 +590,7 @@ if ($search_query !== '') {
     $search_int = is_numeric($search_query) ? (int)$search_query : null;
     $wildcard = '%' . $search_query . '%';
 
-    // Comprehensive search conditions: general audit fields + Job Order reference lookup via EXISTS
+    // Comprehensive search conditions: general audit fields + Job Order reference lookup via EXISTS (Direct + Option B Related Stock-Out)
     $search_conds = [
         "a.action LIKE :s_act",
         "a.table_name LIKE :s_tbl",
@@ -537,7 +599,8 @@ if ($search_query !== '') {
         "u.email LIKE :s_eml",
         "a.old_values LIKE :s_old",
         "a.new_values LIKE :s_new",
-        "(a.table_name = 'job_orders' AND EXISTS (SELECT 1 FROM job_orders jo WHERE jo.id = a.record_id AND jo.job_number LIKE :s_jo))"
+        "(a.table_name = 'job_orders' AND EXISTS (SELECT 1 FROM job_orders jo WHERE jo.id = a.record_id AND jo.job_number LIKE :s_jo1))",
+        "(a.table_name = 'inventory_items' AND a.action = 'job_order_stock_out' AND EXISTS (SELECT 1 FROM job_orders jo WHERE jo.job_number LIKE :s_jo2 AND (JSON_EXTRACT(a.new_values, '$.job_order_id') = jo.id OR JSON_EXTRACT(a.old_values, '$.job_order_id') = jo.id)))"
     ];
 
     $params[':s_act'] = $wildcard;
@@ -547,7 +610,8 @@ if ($search_query !== '') {
     $params[':s_eml'] = $wildcard;
     $params[':s_old'] = $wildcard;
     $params[':s_new'] = $wildcard;
-    $params[':s_jo'] = $wildcard;
+    $params[':s_jo1'] = $wildcard;
+    $params[':s_jo2'] = $wildcard;
 
     if ($search_int !== null) {
         $search_conds[] = "a.record_id = :search_int";
@@ -565,8 +629,19 @@ if ($module_filter !== '' && $module_filter !== 'all') {
 }
 
 if ($action_filter !== '' && $action_filter !== 'all') {
-    $where[] = "a.action = :filter_action";
-    $params[':filter_action'] = $action_filter;
+    $action_lower = strtolower($action_filter);
+    if (isset($canonical_action_groups[$action_lower])) {
+        $placeholders = [];
+        foreach ($canonical_action_groups[$action_lower] as $idx => $act_name) {
+            $p_key = ':filter_action_' . $idx;
+            $placeholders[] = $p_key;
+            $params[$p_key] = $act_name;
+        }
+        $where[] = "a.action IN (" . implode(', ', $placeholders) . ")";
+    } else {
+        $where[] = "a.action = :filter_action";
+        $params[':filter_action'] = $action_filter;
+    }
 }
 
 if ($user_filter !== '' && $user_filter !== 'all') {
@@ -630,6 +705,33 @@ $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
 $audit_records = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// Batch-resolve Job Order numbers for all records on the current page
+$needed_jo_ids = [];
+foreach ($audit_records as $rec) {
+    if ($rec['table_name'] === 'job_orders' && !empty($rec['record_id'])) {
+        $needed_jo_ids[] = (int)$rec['record_id'];
+    }
+    $nv = !empty($rec['new_values']) ? json_decode($rec['new_values'], true) : null;
+    if (!empty($nv['job_order_id'])) {
+        $needed_jo_ids[] = (int)$nv['job_order_id'];
+    }
+    $ov = !empty($rec['old_values']) ? json_decode($rec['old_values'], true) : null;
+    if (!empty($ov['job_order_id'])) {
+        $needed_jo_ids[] = (int)$ov['job_order_id'];
+    }
+}
+
+$jo_map = [];
+if (!empty($needed_jo_ids)) {
+    $unique_jo_ids = array_values(array_unique(array_filter($needed_jo_ids)));
+    $in_clause = implode(',', array_fill(0, count($unique_jo_ids), '?'));
+    $jo_stmt = $pdo->prepare("SELECT id, job_number FROM job_orders WHERE id IN ($in_clause)");
+    $jo_stmt->execute($unique_jo_ids);
+    foreach ($jo_stmt->fetchAll(PDO::FETCH_ASSOC) as $j_row) {
+        $jo_map[(int)$j_row['id']] = $j_row['job_number'];
+    }
+}
+
 $total_pages = max(1, (int) ceil($total_records / $per_page));
 $showing_from = $total_records > 0 ? $offset + 1 : 0;
 $showing_to = min($offset + $per_page, $total_records);
@@ -680,14 +782,14 @@ include __DIR__ . '/../../includes/sidebar.php';
                         </select>
                     </div>
 
-                    <!-- Action filter -->
+                    <!-- Action filter (Deduplicated Canonical Options) -->
                     <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                         <label class="form-label small fw-semibold text-secondary mb-1">Action</label>
                         <select name="action" class="form-select">
                             <option value="all">All Actions</option>
-                            <?php foreach ($filter_actions as $act): ?>
-                                <option value="<?php echo esc_attr($act); ?>" <?php echo $action_filter === $act ? 'selected' : ''; ?>>
-                                    <?php echo esc_html(audit_action_label($act)); ?>
+                            <?php foreach ($filter_actions as $act_key => $act_lbl): ?>
+                                <option value="<?php echo esc_attr($act_key); ?>" <?php echo strtolower($action_filter) === strtolower($act_key) ? 'selected' : ''; ?>>
+                                    <?php echo esc_html($act_lbl); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -731,10 +833,35 @@ include __DIR__ . '/../../includes/sidebar.php';
 
                 <!-- Row 2: Status Text on Left & Right-Aligned Search Box with Visible Button -->
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 pt-3 border-top mt-3">
-                    <div class="text-secondary small">
-                        <?php if ($search_query !== '' || ($module_filter !== '' && $module_filter !== 'all') || ($action_filter !== '' && $action_filter !== 'all') || ($user_filter !== '' && $user_filter !== 'all') || $start_date !== '' || $end_date !== ''): ?>
-                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary me-1"><i class="fas fa-filter me-1"></i>Filters Active</span>
-                            <span>Matching records: <strong><?php echo number_format($total_records); ?></strong></span>
+                    <div class="text-secondary small d-flex align-items-center flex-wrap gap-2">
+                        <?php 
+                        $has_filters = ($module_filter !== '' && $module_filter !== 'all') 
+                                    || ($action_filter !== '' && $action_filter !== 'all') 
+                                    || ($user_filter !== '' && $user_filter !== 'all') 
+                                    || $start_date !== '' 
+                                    || $end_date !== '';
+                        $has_search = ($search_query !== '');
+                        ?>
+                        <?php if ($has_filters || $has_search): ?>
+                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary">
+                                <i class="fas fa-filter me-1"></i>Filters Active
+                            </span>
+                            <?php if ($has_search): ?>
+                                <span class="badge bg-light text-dark border">
+                                    Search: "<strong><?php echo esc_html($search_query); ?></strong>"
+                                </span>
+                            <?php endif; ?>
+                            <?php if ($action_filter !== '' && $action_filter !== 'all'): ?>
+                                <span class="badge bg-light text-dark border">
+                                    Action: <strong><?php echo esc_html(audit_action_label($action_filter)); ?></strong>
+                                </span>
+                            <?php endif; ?>
+                            <?php if ($module_filter !== '' && $module_filter !== 'all'): ?>
+                                <span class="badge bg-light text-dark border">
+                                    Module: <strong><?php echo esc_html(audit_table_label($module_filter)); ?></strong>
+                                </span>
+                            <?php endif; ?>
+                            <span class="text-muted ms-1">Matching records: <strong><?php echo number_format($total_records); ?></strong></span>
                         <?php else: ?>
                             <span class="text-muted"><i class="fas fa-info-circle me-1"></i> Showing all system audit records</span>
                         <?php endif; ?>
@@ -838,8 +965,7 @@ include __DIR__ . '/../../includes/sidebar.php';
                                     <?php echo audit_action_badge($rec['action']); ?>
                                 </td>
                                 <td>
-                                    <div class="fw-semibold text-dark"><?php echo esc_html(audit_table_label($rec['table_name'])); ?></div>
-                                    <div class="small text-muted font-monospace" style="font-size: 0.75rem;"><?php echo esc_html($rec['table_name']); ?></div>
+                                    <span class="fw-semibold text-dark"><?php echo esc_html(audit_table_label($rec['table_name'])); ?></span>
                                 </td>
                                 <td>
                                     <?php if (!empty($rec['record_id'])): ?>
@@ -850,7 +976,7 @@ include __DIR__ . '/../../includes/sidebar.php';
                                 </td>
                                 <td>
                                     <div class="text-secondary small">
-                                        <?php echo audit_changes_summary($rec['old_values'], $rec['new_values'], $rec['action'], $branch_map, $rec['table_name']); ?>
+                                        <?php echo audit_changes_summary($rec['old_values'], $rec['new_values'], $rec['action'], $branch_map, $rec['table_name'], $rec['record_id'] ?? 0, $item_map, $jo_map); ?>
                                     </div>
                                 </td>
                                 <td class="text-center pe-4">
@@ -864,17 +990,30 @@ include __DIR__ . '/../../includes/sidebar.php';
                                     <!-- Hidden structured data payload for modal -->
                                     <script id="audit-payload-<?php echo (int) $rec['id']; ?>" type="application/json">
                                         <?php
+                                        $modal_new = !empty($rec['new_values']) ? json_decode($rec['new_values'], true) : null;
+                                        $modal_old = !empty($rec['old_values']) ? json_decode($rec['old_values'], true) : null;
+
+                                        // For job_order_stock_out, include clean Inventory Item name for clear display
+                                        if ($rec['action'] === 'job_order_stock_out' && !empty($rec['record_id'])) {
+                                            $item_id = (int)$rec['record_id'];
+                                            if (!empty($item_map[$item_id])) {
+                                                if (is_array($modal_new)) {
+                                                    $modal_new = array_merge(['inventory_item' => $item_map[$item_id]], $modal_new);
+                                                }
+                                            }
+                                        }
+
                                         echo json_encode([
                                             'id' => (int) $rec['id'],
                                             'created_at' => $datetime_full,
                                             'user_name' => $rec['user_name'] ?: 'System',
                                             'user_role' => $rec['user_role'] ?: '-',
                                             'action' => audit_action_label($rec['action']),
-                                            'table_name' => audit_table_label($rec['table_name']) . ' (' . $rec['table_name'] . ')',
+                                            'table_name' => audit_table_label($rec['table_name']),
                                             'record_id' => $rec['record_id'] ? '#' . (int)$rec['record_id'] : '-',
                                             'ip_address' => $rec['ip_address'] ?: 'Unknown',
-                                            'old_values' => !empty($rec['old_values']) ? json_decode($rec['old_values'], true) : null,
-                                            'new_values' => !empty($rec['new_values']) ? json_decode($rec['new_values'], true) : null,
+                                            'old_values' => $modal_old,
+                                            'new_values' => $modal_new,
                                         ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
                                         ?>
                                     </script>
@@ -994,13 +1133,15 @@ include __DIR__ . '/../../includes/sidebar.php';
 </div>
 
 <script>
-// Client-side branch dictionary from PHP
+// Client-side dictionaries from PHP
 const AUDIT_BRANCH_MAP = <?php echo json_encode($branch_map, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+const AUDIT_JO_MAP = <?php echo json_encode($jo_map, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+const AUDIT_ITEM_MAP = <?php echo json_encode($item_map, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 
 const AUDIT_LABEL_MAP = {
     'role': 'Role',
     'branch_id': 'Branch',
-    'job_order_id': 'Job Order #',
+    'job_order_id': 'Job Order',
     'quotation_id': 'Quotation #',
     'quotation_item_id': 'Quotation Item #',
     'customer_id': 'Customer #',
@@ -1014,6 +1155,7 @@ const AUDIT_LABEL_MAP = {
     'unit_price': 'Unit Price',
     'selling_price': 'Selling Price',
     'plate_number': 'Plate Number',
+    'inventory_item': 'Inventory Item',
     'item_name': 'Item Name',
     'service_name': 'Service Name',
     'base_price': 'Base Price',
@@ -1080,6 +1222,17 @@ function formatAuditFieldValue(key, val) {
         const bId = parseInt(val, 10);
         return AUDIT_BRANCH_MAP[bId] || ('Branch #' + bId);
     }
+    if (keyLower === 'job_order_id') {
+        const jId = parseInt(val, 10);
+        return escapeHtml(AUDIT_JO_MAP[jId] || ('#' + jId));
+    }
+    if (['item_id', 'inventory_item_id'].includes(keyLower)) {
+        const iId = parseInt(val, 10);
+        return escapeHtml(AUDIT_ITEM_MAP[iId] || ('#' + iId));
+    }
+    if (keyLower === 'inventory_item' || keyLower === 'item_name') {
+        return escapeHtml(String(val));
+    }
     if (keyLower === 'role') {
         const rStr = String(val).toLowerCase();
         if (rStr === 'admin') return 'Admin';
@@ -1092,7 +1245,7 @@ function formatAuditFieldValue(key, val) {
     if (keyLower === 'status') {
         return '<span class="badge bg-light text-dark border">' + escapeHtml(String(val).replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase())) + '</span>';
     }
-    if (['job_order_id', 'quotation_id', 'quotation_item_id', 'customer_id', 'vehicle_id', 'id'].includes(keyLower) && !isNaN(val)) {
+    if (['quotation_id', 'quotation_item_id', 'customer_id', 'vehicle_id', 'id'].includes(keyLower) && !isNaN(val)) {
         return '#' + val;
     }
     if (['unit_price', 'selling_price', 'base_price', 'total_amount'].includes(keyLower) && !isNaN(val)) {
