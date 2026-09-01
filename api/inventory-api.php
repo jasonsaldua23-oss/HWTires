@@ -744,5 +744,53 @@ if ($action === 'add') {
     }
 }
 
+// Handle Customer Search (Read-only autocomplete for stock out tagging)
+if ($action === 'search_customers') {
+    try {
+        $query = trim((string) ($_GET['query'] ?? $_POST['query'] ?? ''));
+        $customers = [];
+
+        if (mb_strlen($query) < 2) {
+            $stmt = $pdo->query("
+                SELECT DISTINCT
+                    c.id,
+                    c.name,
+                    COALESCE(NULLIF(c.phone_mobile, ''), NULLIF(c.contact, ''), '') AS phone,
+                    c.branch_id
+                FROM customers c
+                WHERE c.status = 'active'
+                ORDER BY c.name ASC
+                LIMIT 15
+            ");
+            $customers = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        } else {
+            $lower_query = '%' . mb_strtolower($query, 'UTF-8') . '%';
+            $stmt = $pdo->prepare("
+                SELECT DISTINCT
+                    c.id,
+                    c.name,
+                    COALESCE(NULLIF(c.phone_mobile, ''), NULLIF(c.contact, ''), '') AS phone,
+                    c.branch_id
+                FROM customers c
+                WHERE c.status = 'active'
+                  AND (
+                      LOWER(c.name) LIKE ?
+                      OR c.phone_mobile LIKE ?
+                      OR c.contact LIKE ?
+                  )
+                ORDER BY c.name ASC
+                LIMIT 15
+            ");
+            $stmt->execute([$lower_query, $lower_query, $lower_query]);
+            $customers = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        }
+
+        inventory_api_finish(true, 'Customers fetched', 200, ['customers' => $customers]);
+    } catch (Exception $e) {
+        error_log('Search customers error: ' . $e->getMessage());
+        inventory_api_finish(false, $e->getMessage(), 400);
+    }
+}
+
 inventory_api_finish(false, 'Invalid action', 400);
 ?>

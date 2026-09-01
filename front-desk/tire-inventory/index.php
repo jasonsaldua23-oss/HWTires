@@ -621,7 +621,7 @@ try {
         FROM customers c
         WHERE c.status = 'active'
         ORDER BY c.name ASC
-        LIMIT 500
+        LIMIT 15
     ");
     $stock_out_tag_customers = $tag_customer_stmt ? $tag_customer_stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 
@@ -2268,27 +2268,21 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('stockOutPreview').textContent = Math.max(0, stockOutCurrent - removeQty);
     }
 
-    function renderCustomerSuggestions(query = '') {
-        if (!stockOutCustomerDropdown) return;
-        const q = query.toLowerCase().trim();
-        const isDirectSale = stockOutReasonType && stockOutReasonType.value === 'direct_sale';
-        let matches = [];
-        if (q === '') {
-            matches = tagCustomers.slice(0, 15);
-        } else {
-            matches = tagCustomers.filter(c => {
-                const name = (c.name || '').toLowerCase();
-                const phone = (c.phone || '').toLowerCase();
-                return name.includes(q) || phone.includes(q);
-            }).slice(0, 15);
-        }
+    let customerSearchDebounceTimer = null;
+    let customerSearchAbortController = null;
+    let customerSearchSeq = 0;
+    let selectedCustomerName = '';
 
+    function renderCustomerDropdownHtml(matches, isDirectSale, isLoading = false) {
+        if (!stockOutCustomerDropdown) return;
         let html = '';
         if (!isDirectSale) {
             html += `<div class="tag-autocomplete-item tag-item-default" data-id="" style="font-weight: 600; color: #64748b; font-size: 0.8rem; background: #f8fafc;">-- Not Tagged --</div>`;
         }
 
-        if (matches.length === 0) {
+        if (isLoading) {
+            html += `<div style="padding: 10px 12px; color: #94a3b8; font-size: 0.82rem; text-align: center;"><i class="fas fa-spinner fa-spin" style="margin-right: 6px;"></i>Searching active customers...</div>`;
+        } else if (!matches || matches.length === 0) {
             html += `<div style="padding: 10px 12px; color: #94a3b8; font-size: 0.82rem; text-align: center;">No matching active customer found</div>`;
         } else {
             matches.forEach(c => {
@@ -2304,6 +2298,59 @@ document.addEventListener('DOMContentLoaded', function() {
 
         stockOutCustomerDropdown.innerHTML = html;
         stockOutCustomerDropdown.style.display = 'block';
+    }
+
+    function renderCustomerSuggestions(query = '') {
+        if (!stockOutCustomerDropdown) return;
+        const q = query.toLowerCase().trim();
+        const isDirectSale = stockOutReasonType && stockOutReasonType.value === 'direct_sale';
+
+        if (q.length < 2) {
+            if (customerSearchDebounceTimer) clearTimeout(customerSearchDebounceTimer);
+            if (customerSearchAbortController) customerSearchAbortController.abort();
+            let matches = tagCustomers.slice(0, 15);
+            if (q.length === 1) {
+                matches = tagCustomers.filter(c => {
+                    const name = (c.name || '').toLowerCase();
+                    const phone = (c.phone || '').toLowerCase();
+                    return name.includes(q) || phone.includes(q);
+                }).slice(0, 15);
+            }
+            renderCustomerDropdownHtml(matches, isDirectSale, false);
+            return;
+        }
+
+        renderCustomerDropdownHtml([], isDirectSale, true);
+
+        if (customerSearchDebounceTimer) {
+            clearTimeout(customerSearchDebounceTimer);
+        }
+        if (customerSearchAbortController) {
+            customerSearchAbortController.abort();
+        }
+
+        customerSearchAbortController = new AbortController();
+        const currentSeq = ++customerSearchSeq;
+
+        customerSearchDebounceTimer = setTimeout(async () => {
+            try {
+                const url = '/hwtires/api/inventory-api.php?action=search_customers&query=' + encodeURIComponent(q);
+                const response = await fetch(url, {
+                    signal: customerSearchAbortController.signal,
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (!response.ok) return;
+                const data = await response.json();
+                if (currentSeq !== customerSearchSeq) return; // Prevent race conditions
+
+                const remoteMatches = (data && Array.isArray(data.customers)) ? data.customers : [];
+                renderCustomerDropdownHtml(remoteMatches, isDirectSale, false);
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.error('Customer search error:', err);
+                }
+            }
+        }, 250);
     }
 
     function renderVehicleSuggestions(query = '') {
@@ -2357,10 +2404,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function selectCustomer(id, name, phone, syncVeh = true) {
         if (!id) {
+            selectedCustomerName = '';
             if (stockOutCustomerHidden) stockOutCustomerHidden.value = '';
             if (stockOutCustomerInput) stockOutCustomerInput.value = '';
             if (stockOutCustomerClearBtn) stockOutCustomerClearBtn.style.display = 'none';
         } else {
+            selectedCustomerName = name;
             if (stockOutCustomerHidden) stockOutCustomerHidden.value = id;
             if (stockOutCustomerInput) stockOutCustomerInput.value = name + (phone ? ' (' + phone + ')' : '');
             if (stockOutCustomerClearBtn) stockOutCustomerClearBtn.style.display = 'block';
@@ -2419,6 +2468,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function resetStockOutTagging() {
+        selectedCustomerName = '';
         if (stockOutCustomerHidden) stockOutCustomerHidden.value = '';
         if (stockOutCustomerInput) {
             stockOutCustomerInput.value = '';
@@ -2442,9 +2492,19 @@ document.addEventListener('DOMContentLoaded', function() {
             renderCustomerSuggestions(this.value);
         });
         stockOutCustomerInput.addEventListener('input', function() {
-            renderCustomerSuggestions(this.value);
-            if (stockOutCustomerHidden) stockOutCustomerHidden.value = '';
+            // If user manually changes text after selecting a customer, immediately clear stored ID and reset vehicle
+            if (stockOutCustomerHidden && stockOutCustomerHidden.value) {
+                stockOutCustomerHidden.value = '';
+                selectedCustomerName = '';
+                if (stockOutVehicleHidden) stockOutVehicleHidden.value = '';
+                if (stockOutVehicleInput) {
+                    stockOutVehicleInput.value = '';
+                    stockOutVehicleInput.placeholder = '🔍 Type plate # or car model...';
+                }
+                if (stockOutVehicleClearBtn) stockOutVehicleClearBtn.style.display = 'none';
+            }
             if (stockOutCustomerClearBtn) stockOutCustomerClearBtn.style.display = this.value ? 'block' : 'none';
+            renderCustomerSuggestions(this.value);
         });
     }
 
