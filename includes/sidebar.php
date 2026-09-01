@@ -436,6 +436,13 @@ if (($user['role'] ?? '') === 'admin') {
                     </a>
                 </li>
 
+                <li class="sidebar-menu-item <?php echo sidebar_is_active('audit-trail') ? 'active' : ''; ?>">
+                    <a href="<?php echo $base_url; ?>/audit-trail/">
+                        <i class="fas fa-shield-halved"></i>
+                        <span>Audit Trail</span>
+                    </a>
+                </li>
+
                 <li class="sidebar-menu-item <?php echo sidebar_is_active('settings') ? 'active' : ''; ?>">
                     <a href="<?php echo $base_url; ?>/settings/">
                         <i class="fas fa-gear"></i>
