@@ -80,6 +80,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($
                     'status' => (string)$user['status']
                 ];
 
+                log_audit('users', 'login', (int)$user['id'], null, [
+                    'role' => (string)$user['role'],
+                    'branch_id' => (int)$user['branch_id'],
+                ]);
+
                 // Force session save before redirect
                 session_write_close();
 
