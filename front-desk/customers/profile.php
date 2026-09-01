@@ -96,24 +96,38 @@ try {
 
     $branches = $pdo->query("SELECT id, name FROM branches WHERE status = 'active' ORDER BY id ASC")->fetchAll();
 
+    $branch_union_queries = [];
+    $branch_union_params = [];
+
+    if (app_table_exists('customer_branch_records')) {
+        $branch_union_queries[] = "SELECT branch_id FROM customer_branch_records WHERE customer_id = ? AND status = 'active'";
+        $branch_union_params[] = $customer_id;
+    }
+
+    $branch_union_queries[] = "SELECT branch_id FROM vehicles WHERE customer_id = ? AND status = 'active'";
+    $branch_union_params[] = $customer_id;
+
+    $branch_union_queries[] = "SELECT branch_id FROM quotations WHERE customer_id = ?";
+    $branch_union_params[] = $customer_id;
+
+    $branch_union_queries[] = "SELECT branch_id FROM job_orders WHERE customer_id = ?";
+    $branch_union_params[] = $customer_id;
+
+    $branch_union_queries[] = "SELECT branch_id FROM service_history WHERE customer_id = ?";
+    $branch_union_params[] = $customer_id;
+
+    $branch_union_sql = implode(' UNION ', $branch_union_queries);
+
     $customer_branches_stmt = $pdo->prepare("
         SELECT DISTINCT b.id, b.name
         FROM branches b
         INNER JOIN (
-            SELECT branch_id FROM customer_branch_records WHERE customer_id = ? AND status = 'active'
-            UNION
-            SELECT branch_id FROM vehicles WHERE customer_id = ? AND status = 'active'
-            UNION
-            SELECT branch_id FROM quotations WHERE customer_id = ?
-            UNION
-            SELECT branch_id FROM job_orders WHERE customer_id = ?
-            UNION
-            SELECT branch_id FROM service_history WHERE customer_id = ?
+            $branch_union_sql
         ) used_branches ON used_branches.branch_id = b.id
         WHERE b.status = 'active'
         ORDER BY b.id ASC
     ");
-    $customer_branches_stmt->execute([$customer_id, $customer_id, $customer_id, $customer_id, $customer_id]);
+    $customer_branches_stmt->execute($branch_union_params);
     $customer_branches = $customer_branches_stmt->fetchAll();
     $display_customer_branches = $customer_branches;
 

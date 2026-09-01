@@ -298,6 +298,13 @@ if (!function_exists('vehicle_profile_inventory_detail_fields')) {
 if (!function_exists('vehicle_profile_record_payload')) {
     function vehicle_profile_record_payload($role, array $record) {
         $items = vehicle_profile_split_lines($record['item_lines'] ?? '');
+        $services = vehicle_profile_split_lines($record['service_lines'] ?? '');
+        if (empty($services) && !empty($record['services']) && is_array($record['services'])) {
+            $services = array_values(array_filter(array_map('trim', $record['services'])));
+        }
+        if (empty($services) && ($record['record_type'] ?? '') === 'history' && !empty($record['summary'])) {
+            $services = array_values(array_filter(array_map('trim', preg_split('/[,;\r\n]+/', (string) $record['summary']))));
+        }
         $notes = app_format_record_notes($record['notes'] ?? '');
         $linked_records = is_array($record['linked_records'] ?? null) ? $record['linked_records'] : [];
         $record_type = $record['record_type'] ?? '';
@@ -349,9 +356,18 @@ if (!function_exists('vehicle_profile_record_payload')) {
 
         $record_count = (int) ($record['record_count'] ?? count($linked_records));
         $source_types = is_array($record['source_types'] ?? null) ? $record['source_types'] : [];
-        $linked_records = $is_inventory_record
-            ? vehicle_profile_inventory_source_links($role, $record, $linked_records)
-            : $linked_records;
+        if (empty($linked_records)) {
+            $linked_records = vehicle_profile_inventory_source_links($role, $record, $linked_records);
+            if ($record_type === 'job') {
+                $linked_records = array_values(array_filter($linked_records, function ($lr) {
+                    return ($lr['label'] ?? '') !== 'Job Order';
+                }));
+            } elseif ($record_type === 'quotation') {
+                $linked_records = array_values(array_filter($linked_records, function ($lr) {
+                    return ($lr['label'] ?? '') !== 'Service Operation';
+                }));
+            }
+        }
         $inventory_fields = $is_inventory_record
             ? vehicle_profile_inventory_detail_fields($record, $items, $inventory_amount, $linked_records)
             : [];
@@ -372,6 +388,7 @@ if (!function_exists('vehicle_profile_record_payload')) {
             'meta' => trim((string) ($record['meta_text'] ?? '')),
             'notes' => $notes,
             'items' => $items,
+            'services' => $services,
             'is_inventory' => $is_inventory_record,
             'is_job_order' => $is_job_record,
             'items_title' => $is_inventory_record ? 'Inventory Product' : ($is_job_record ? 'Materials Required' : 'Items Used'),
@@ -1984,7 +2001,10 @@ foreach ($record_sections as $record_section) {
                 <i class="fas fa-file-lines"></i>
                 <span>Vehicle History Summary</span>
             </a>
-            <a href="/hwtires/<?php echo esc_attr($role); ?>/customers/profile.php?id=<?php echo (int) ($vehicle['customer_id'] ?? 0); ?>" class="vehicle-workspace-btn primary">
+            <?php
+            $current_customer_id = (int) ($ownership_history[0]['customer_id'] ?? ($vehicle['customer_id'] ?? 0));
+            ?>
+            <a href="/hwtires/<?php echo esc_attr($role); ?>/customers/profile.php?id=<?php echo (int) $current_customer_id; ?>" class="vehicle-workspace-btn primary">
                 <i class="fas fa-user"></i>
                 <span>Customer Profile</span>
             </a>
@@ -2368,6 +2388,16 @@ foreach ($record_sections as $record_section) {
                                             </div>
                                         </div>
                                         <aside class="vehicle-workspace-items">
+                                            <section class="vehicle-workspace-detail-box <?php echo empty($section_first_payload['services']) ? 'is-hidden' : ''; ?>" data-detail-services-card>
+                                                <h3 data-detail-services-title><?php echo (!empty($section_first_payload['is_job_order']) ? 'Job Order Services' : 'Services Included'); ?></h3>
+                                                <ul data-detail-services>
+                                                    <?php if (!empty($section_first_payload['services'])): ?>
+                                                        <?php foreach ($section_first_payload['services'] as $service_line): ?>
+                                                            <?php echo vehicle_profile_item_line_html($service_line); ?>
+                                                        <?php endforeach; ?>
+                                                    <?php endif; ?>
+                                                </ul>
+                                            </section>
                                             <section class="vehicle-workspace-detail-box <?php echo !empty($section_first_payload['is_inventory']) ? 'is-hidden' : ''; ?>" data-detail-items-card>
                                                 <h3 data-detail-items-title><?php echo esc_html($section_first_payload['items_title']); ?></h3>
                                                 <ul data-detail-items>
@@ -2663,6 +2693,20 @@ document.addEventListener('DOMContentLoaded', function() {
         const notesBox = detail.querySelector('[data-detail-notes-box]');
         if (notesBox) {
             notesBox.classList.toggle('is-hidden', !payload.notes || payload.notes === '-' || payload.notes.trim() === '');
+        }
+
+        const servicesCard = detail.querySelector('[data-detail-services-card]');
+        const servicesList = detail.querySelector('[data-detail-services]');
+        if (servicesCard && servicesList) {
+            const hasServices = !isInventory && Array.isArray(payload.services) && payload.services.length > 0;
+            servicesCard.classList.toggle('is-hidden', !hasServices);
+            setText(detail, '[data-detail-services-title]', isJob ? 'Job Order Services' : 'Services Included');
+            servicesList.innerHTML = '';
+            if (hasServices) {
+                payload.services.forEach(function(serviceName) {
+                    appendDetailItem(servicesList, serviceName, false, true);
+                });
+            }
         }
 
         const itemsCard = detail.querySelector('[data-detail-items-card]');
