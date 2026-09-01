@@ -2111,6 +2111,120 @@ $tat_branch_stmt = $pdo->prepare("
 $tat_branch_stmt->execute([$date_from, $date_to]);
 $tat_branch_breakdown = $tat_branch_stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// Technician TAT Breakdown
+$tat_tech_stmt = $pdo->prepare("
+    SELECT 
+        jo.id,
+        jo.branch_id,
+        b.name AS branch_name,
+        jo.assigned_technician_id,
+        jo.assigned_technician_name,
+        TIMESTAMPDIFF(MINUTE, jo.created_at, jo.actual_end_time) AS tat_minutes
+    FROM job_orders jo
+    LEFT JOIN branches b ON b.id = jo.branch_id
+    WHERE (jo.status = 'completed' OR jo.status = 'archived')
+      AND jo.actual_end_time IS NOT NULL
+      AND jo.actual_end_time >= jo.created_at
+      AND DATE(COALESCE(jo.job_date, jo.created_at)) BETWEEN ? AND ?
+      $tat_branch_sql
+");
+$tat_tech_stmt->execute($tat_params);
+$tat_tech_rows = $tat_tech_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Map technicians by ID for fallback if name is empty
+$tech_id_lookup = [];
+$tech_id_stmt = $pdo->query("SELECT id, name FROM technicians");
+if ($tech_id_stmt) {
+    foreach ($tech_id_stmt->fetchAll(PDO::FETCH_ASSOC) as $t_row) {
+        $tech_id_lookup[(int) $t_row['id']] = $t_row['name'];
+    }
+}
+
+$tat_tech_map = [];
+foreach ($tat_tech_rows as $row) {
+    $tat_mins = (float) $row['tat_minutes'];
+    $b_id = (int) $row['branch_id'];
+    $b_name = $row['branch_name'] ?? ('Branch #' . $b_id);
+
+    $matched_names = [];
+    if (!empty($row['assigned_technician_name'])) {
+        foreach (explode(',', $row['assigned_technician_name']) as $t_name) {
+            $t_name = trim($t_name);
+            if ($t_name !== '') {
+                $matched_names[$t_name] = true;
+            }
+        }
+    }
+
+    if (empty($matched_names) && !empty($row['assigned_technician_id'])) {
+        $t_id = (int) $row['assigned_technician_id'];
+        if (!empty($tech_id_lookup[$t_id])) {
+            $matched_names[$tech_id_lookup[$t_id]] = true;
+        }
+    }
+
+    // Each unique technician on this Job Order gets counted exactly once
+    foreach (array_keys($matched_names) as $tech_name) {
+        $key = $tech_name . '|' . $b_id;
+        if (!isset($tat_tech_map[$key])) {
+            $tat_tech_map[$key] = [
+                'name' => $tech_name,
+                'branch_id' => $b_id,
+                'branch_name' => $b_name,
+                'completed_count' => 0,
+                'total_tat_minutes' => 0,
+                'avg_tat_minutes' => 0,
+            ];
+        }
+        $tat_tech_map[$key]['completed_count']++;
+        $tat_tech_map[$key]['total_tat_minutes'] += $tat_mins;
+    }
+}
+
+foreach ($tat_tech_map as &$tech_item) {
+    $tech_item['avg_tat_minutes'] = $tech_item['completed_count'] > 0
+        ? ($tech_item['total_tat_minutes'] / $tech_item['completed_count'])
+        : 0;
+}
+unset($tech_item);
+
+$tat_technician_breakdown = array_values($tat_tech_map);
+usort($tat_technician_breakdown, function ($a, $b) {
+    if ($b['completed_count'] !== $a['completed_count']) {
+        return $b['completed_count'] - $a['completed_count'];
+    }
+    return $a['avg_tat_minutes'] <=> $b['avg_tat_minutes'];
+});
+
+// Technician TAT Pagination
+$tat_tech_page = max(1, (int) ($_GET['tat_tech_page'] ?? 1));
+$tat_tech_per_page = (int) ($_GET['tat_tech_per_page'] ?? 10);
+if (!in_array($tat_tech_per_page, [10, 20, 50], true)) {
+    $tat_tech_per_page = 10;
+}
+
+$tat_tech_total_records = count($tat_technician_breakdown);
+$tat_tech_total_pages = max(1, (int) ceil($tat_tech_total_records / $tat_tech_per_page));
+$tat_tech_page = min($tat_tech_page, $tat_tech_total_pages);
+$tat_tech_offset = ($tat_tech_page - 1) * $tat_tech_per_page;
+$tat_tech_paged = array_slice($tat_technician_breakdown, $tat_tech_offset, $tat_tech_per_page);
+$tat_tech_showing_from = $tat_tech_total_records > 0 ? $tat_tech_offset + 1 : 0;
+$tat_tech_showing_to = min($tat_tech_offset + $tat_tech_per_page, $tat_tech_total_records);
+
+if (!function_exists('reports_tat_tech_url')) {
+    function reports_tat_tech_url($page, $per_page = null) {
+        global $report_tab, $branch_filter, $date_from, $date_to, $status_filter, $search_filter, $detail_per_page, $detail_page, $tat_tech_per_page;
+        $pp = $per_page !== null ? (int) $per_page : $tat_tech_per_page;
+        $extra = [
+            'per_page' => $detail_per_page,
+            'page' => $detail_page,
+            'tat_tech_page' => (int) $page,
+            'tat_tech_per_page' => $pp,
+        ];
+        return reports_detail_url($report_tab, $branch_filter, $date_from, $date_to, $status_filter, $search_filter, $extra) . '#technician-tat-section';
+    }
+}
+
 if (!function_exists('reports_format_tat_minutes')) {
     function reports_format_tat_minutes($minutes) {
         $mins = (int) round((float) $minutes);
@@ -2125,6 +2239,10 @@ if (!function_exists('reports_format_tat_minutes')) {
         return $rem_mins . ' min' . ($rem_mins > 1 ? 's' : '');
     }
 }
+$export_url = reports_detail_url($report_tab, $branch_filter, $date_from, $date_to, $status_filter, $search_filter, [
+    'per_page' => $detail_per_page,
+    'export' => 'csv',
+]);
 $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'all', '');
 ?>
 
@@ -2837,8 +2955,8 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
     <section class="reports-panel reports-tat-panel" style="margin-top: 18px;">
         <div class="reports-panel-title-row">
             <div>
-                <h2>Average Job Order Turnaround Time</h2>
-                <p>Elapsed time from Job Order creation until Job Order completion (completed jobs only).</p>
+                <h2>Job Order Turnaround Time (Creation to Completion)</h2>
+                <p>Elapsed time from Job Order creation until Job Order completion (completed and archived jobs only).</p>
             </div>
         </div>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-top: 14px;">
@@ -2872,6 +2990,104 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
                     </div>
                 </div>
             <?php endforeach; ?>
+        </div>
+
+        <div style="margin-top: 20px;" id="technician-tat-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+                <div>
+                    <h3 style="font-size: 14px; font-weight: 700; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-users-gear text-secondary"></i> Technician Turnaround Time Performance
+                    </h3>
+                    <?php if ($tat_tech_total_records > 0): ?>
+                        <small style="color: #64748b; font-size: 12px; margin-top: 2px; display: block;">
+                            Showing <?php echo number_format($tat_tech_showing_from); ?>–<?php echo number_format($tat_tech_showing_to); ?> of <?php echo number_format($tat_tech_total_records); ?> technicians
+                        </small>
+                    <?php endif; ?>
+                </div>
+                <?php if ($tat_tech_total_records > 10): ?>
+                    <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #64748b;">
+                        <span>Rows per page:</span>
+                        <?php foreach ([10, 20, 50] as $r_opt): ?>
+                            <?php if ($tat_tech_per_page === $r_opt): ?>
+                                <strong style="padding: 2px 8px; background: #0284c7; color: #fff; border-radius: 4px;"><?php echo $r_opt; ?></strong>
+                            <?php else: ?>
+                                <a href="<?php echo esc_attr(reports_tat_tech_url(1, $r_opt)); ?>" style="padding: 2px 8px; background: #f1f5f9; color: #334155; border-radius: 4px; text-decoration: none; border: 1px solid #e2e8f0;"><?php echo $r_opt; ?></a>
+                            <?php endif; ?>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <?php if (empty($tat_tech_paged)): ?>
+                <div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 14px; text-align: center; color: #64748b; font-size: 13px;">
+                    No technician turnaround records found for the selected filters.
+                </div>
+            <?php else: ?>
+                <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #fff;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <thead>
+                            <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #475569; text-align: left;">
+                                <th style="padding: 10px 14px; font-weight: 600;">Technician</th>
+                                <th style="padding: 10px 14px; font-weight: 600;">Branch</th>
+                                <th style="padding: 10px 14px; font-weight: 600; text-align: center;">Completed Jobs</th>
+                                <th style="padding: 10px 14px; font-weight: 600; text-align: right;">Average Turnaround Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($tat_tech_paged as $t_idx => $tech): ?>
+                                <tr style="border-bottom: 1px solid #f1f5f9; <?php echo $t_idx % 2 === 1 ? 'background: #fafbfc;' : ''; ?>">
+                                    <td style="padding: 10px 14px; font-weight: 600; color: #0f172a;">
+                                        <i class="fas fa-user-gear text-muted me-2" style="font-size: 11px;"></i><?php echo esc_html($tech['name']); ?>
+                                    </td>
+                                    <td style="padding: 10px 14px; color: #475569;">
+                                        <?php echo esc_html(reports_branch_label($tech['branch_name'])); ?>
+                                    </td>
+                                    <td style="padding: 10px 14px; text-align: center;">
+                                        <span style="display: inline-block; padding: 2px 8px; border-radius: 12px; background: #f1f5f9; color: #334155; font-size: 12px; font-weight: 600; font-family: monospace;">
+                                            <?php echo number_format((int) $tech['completed_count']); ?>
+                                        </span>
+                                    </td>
+                                    <td style="padding: 10px 14px; text-align: right; font-weight: 700; color: #0f172a;">
+                                        <?php echo esc_html(reports_format_tat_minutes($tech['avg_tat_minutes'])); ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <?php if ($tat_tech_total_pages > 1): ?>
+                    <nav class="records-pagination mt-3" aria-label="Technician Turnaround Time pages">
+                        <ul class="pagination justify-content-center mb-0" style="gap: 4px;">
+                            <?php if ($tat_tech_page > 1): ?>
+                                <li class="page-item">
+                                    <a class="page-link" href="<?php echo esc_attr(reports_tat_tech_url($tat_tech_page - 1)); ?>">Previous</a>
+                                </li>
+                            <?php else: ?>
+                                <li class="page-item disabled">
+                                    <span class="page-link">Previous</span>
+                                </li>
+                            <?php endif; ?>
+
+                            <?php for ($p = 1; $p <= $tat_tech_total_pages; $p++): ?>
+                                <li class="page-item <?php echo $p === $tat_tech_page ? 'active' : ''; ?>">
+                                    <a class="page-link" href="<?php echo esc_attr(reports_tat_tech_url($p)); ?>"><?php echo $p; ?></a>
+                                </li>
+                            <?php endfor; ?>
+
+                            <?php if ($tat_tech_page < $tat_tech_total_pages): ?>
+                                <li class="page-item">
+                                    <a class="page-link" href="<?php echo esc_attr(reports_tat_tech_url($tat_tech_page + 1)); ?>">Next</a>
+                                </li>
+                            <?php else: ?>
+                                <li class="page-item disabled">
+                                    <span class="page-link">Next</span>
+                                </li>
+                            <?php endif; ?>
+                        </ul>
+                    </nav>
+                <?php endif; ?>
+            <?php endif; ?>
         </div>
     </section>
             </div>
