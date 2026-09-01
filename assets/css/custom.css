@@ -14956,6 +14956,7 @@ a:hover {
 }
 
 .customer-records-page .customer-records-table thead th {
+    padding: 24px 24px 20px !important;
     color: #475467;
     font-size: 12px;
     font-weight: 750;
@@ -19843,6 +19844,11 @@ body {
     text-transform: uppercase;
 }
 
+.quotation-records-table-head span:nth-child(5),
+.quotation-records-table-head span:nth-child(6) {
+    text-align: right;
+}
+
 .quotation-record-card.quotation-record-row {
     margin: 0 !important;
     padding: 14px !important;
@@ -20465,6 +20471,10 @@ body {
     text-transform: uppercase;
 }
 
+.front-job-create-page .job-order-records-head span:nth-child(7) {
+    text-align: right;
+}
+
 .front-job-create-page .job-order-card.job-order-row {
     padding: 14px !important;
     background: #ffffff !important;
@@ -20882,6 +20892,10 @@ body {
     font-size: 12px;
     font-weight: 800;
     text-transform: uppercase;
+}
+
+.service-status-page .service-status-queue-columns span:nth-child(8) {
+    text-align: right;
 }
 
 .service-status-page .service-status-row {
@@ -21781,6 +21795,10 @@ body {
     font-size: 12px;
     font-weight: 800;
     text-transform: uppercase;
+}
+
+.admin-job-order-page .job-order-records-head span:nth-child(8) {
+    text-align: right;
 }
 
 .admin-job-order-page .job-order-card.admin-job-order-row {
