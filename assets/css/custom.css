@@ -20563,16 +20563,21 @@ body {
 }
 
 .front-job-create-page .job-order-row .job-details-button {
-    width: auto !important;
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 34px !important;
     min-height: 34px !important;
     margin: 0 !important;
-    padding: 7px 11px !important;
-    gap: 7px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     color: var(--job-accent) !important;
     background: #ffffff !important;
     border: 1px solid var(--job-border) !important;
     border-radius: 7px !important;
-    font-size: 13px !important;
+    font-size: 14px !important;
+    flex-shrink: 0 !important;
 }
 
 .front-job-create-page .job-order-row .job-details-button:hover,
@@ -21908,16 +21913,21 @@ body {
 }
 
 .admin-job-order-page .admin-job-order-row .job-details-button {
-    width: auto !important;
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 34px !important;
     min-height: 34px !important;
     margin: 0 !important;
-    padding: 7px 11px !important;
-    gap: 7px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     color: var(--admin-job-accent) !important;
     background: #ffffff !important;
     border: 1px solid var(--admin-job-border) !important;
     border-radius: 7px !important;
-    font-size: 13px !important;
+    font-size: 14px !important;
+    flex-shrink: 0 !important;
 }
 
 .admin-job-order-page .admin-job-order-row .job-details-button:hover,

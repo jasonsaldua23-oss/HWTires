@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/sms.php';
 require_once __DIR__ . '/../includes/job-order-inventory.php';
+require_once __DIR__ . '/../includes/job-order-progress.php';
 session_name(SESSION_NAME);
 session_start();
 
@@ -290,6 +291,113 @@ if ($action === 'update_status') {
         ");
 
         $stmt->execute([$status, $assigned_technician_name, $notes, $job_order_id]);
+
+        if ($status === 'completed') {
+            job_progress_sync($pdo, $job_order_id);
+            $mark_done = $pdo->prepare("
+                UPDATE job_order_progress
+                SET is_done = 1,
+                    completed_at = COALESCE(completed_at, NOW()),
+                    updated_by = COALESCE(updated_by, ?)
+                WHERE job_order_id = ?
+            ");
+            $mark_done->execute([$user['id'] ?? null, $job_order_id]);
+
+            try {
+                $details_stmt = $pdo->prepare("
+                    SELECT jo.*, q.total_amount AS quotation_total, v.last_mileage
+                    FROM job_orders jo
+                    LEFT JOIN quotations q ON q.id = jo.quotation_id
+                    LEFT JOIN vehicles v ON v.id = jo.vehicle_id
+                    WHERE jo.id = ?
+                ");
+                $details_stmt->execute([$job_order_id]);
+                $completed_job = $details_stmt->fetch();
+
+                if ($completed_job) {
+                    $service_names = [];
+                    if (!empty($completed_job['quotation_id'])) {
+                        $items_stmt = $pdo->prepare("SELECT item_name FROM quotation_items WHERE quotation_id = ? ORDER BY id ASC");
+                        $items_stmt->execute([(int) $completed_job['quotation_id']]);
+                        $service_names = array_column($items_stmt->fetchAll(), 'item_name');
+                    }
+
+                    $services_description = !empty($service_names) ? implode(', ', $service_names) : 'Service completed';
+                    $history_date = !empty($completed_job['job_date']) ? $completed_job['job_date'] : date('Y-m-d');
+                    $total_cost = (float) ($completed_job['quotation_total'] ?? 0);
+                    $mileage = !empty($completed_job['last_mileage']) ? (int) $completed_job['last_mileage'] : null;
+                    $history_notes = app_compose_record_notes(
+                        $user['name'] ?? 'Front Desk',
+                        $completed_job['assigned_technician_name'] ?? '',
+                        $completed_job['notes'] ?? ''
+                    );
+
+                    $history_stmt = $pdo->prepare("SELECT id FROM service_history WHERE job_order_id = ? LIMIT 1");
+                    $history_stmt->execute([$job_order_id]);
+                    $history_id = $history_stmt->fetchColumn();
+
+                    if ($history_id) {
+                        $save_history = $pdo->prepare("
+                            UPDATE service_history
+                            SET customer_id = ?, vehicle_id = ?, branch_id = ?, service_date = ?,
+                                services_description = ?, total_cost = ?, mileage_at_service = ?,
+                                quotation_id = ?, notes = ?
+                            WHERE id = ?
+                        ");
+                        $save_history->execute([
+                            (int) $completed_job['customer_id'],
+                            !empty($completed_job['vehicle_id']) ? (int) $completed_job['vehicle_id'] : null,
+                            (int) $completed_job['branch_id'],
+                            $history_date,
+                            $services_description,
+                            $total_cost,
+                            $mileage,
+                            !empty($completed_job['quotation_id']) ? (int) $completed_job['quotation_id'] : null,
+                            $history_notes,
+                            (int) $history_id,
+                        ]);
+                    } else {
+                        $save_history = $pdo->prepare("
+                            INSERT INTO service_history (
+                                customer_id, vehicle_id, branch_id, service_date, services_description,
+                                total_cost, mileage_at_service, job_order_id, quotation_id, notes
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ");
+                        $save_history->execute([
+                            (int) $completed_job['customer_id'],
+                            !empty($completed_job['vehicle_id']) ? (int) $completed_job['vehicle_id'] : null,
+                            (int) $completed_job['branch_id'],
+                            $history_date,
+                            $services_description,
+                            $total_cost,
+                            $mileage,
+                            $job_order_id,
+                            !empty($completed_job['quotation_id']) ? (int) $completed_job['quotation_id'] : null,
+                            $history_notes,
+                        ]);
+                    }
+
+                    if (!empty($completed_job['vehicle_id'])) {
+                        $vehicle_stmt = $pdo->prepare("UPDATE vehicles SET last_service_date = ? WHERE id = ?");
+                        $vehicle_stmt->execute([$history_date, (int) $completed_job['vehicle_id']]);
+                    }
+
+                    app_touch_customer_branch_record($completed_job['customer_id'], $completed_job['branch_id'], $user['id'] ?? null);
+                }
+            } catch (Exception $history_error) {
+                error_log('Service history sync error in job-orders-api: ' . $history_error->getMessage());
+            }
+        } elseif ($status === 'waiting') {
+            job_progress_sync($pdo, $job_order_id);
+            $mark_waiting = $pdo->prepare("
+                UPDATE job_order_progress
+                SET is_done = 0,
+                    completed_at = NULL,
+                    updated_by = ?
+                WHERE job_order_id = ?
+            ");
+            $mark_waiting->execute([$user['id'] ?? null, $job_order_id]);
+        }
 
         $sms_result = null;
         if ($status === 'completed') {
