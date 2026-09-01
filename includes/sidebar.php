@@ -380,6 +380,14 @@ if (($user['role'] ?? '') === 'admin') {
                     <span>Inventory</span>
                 </a>
             </li>
+            <?php if ($user['role'] === 'admin'): ?>
+            <li class="sidebar-menu-item <?php echo sidebar_is_active('transfers') ? 'active' : ''; ?>">
+                <a href="<?php echo $base_url; ?>/transfers/">
+                    <i class="fas fa-arrow-right-arrow-left"></i>
+                    <span>Branch Transfers</span>
+                </a>
+            </li>
+            <?php endif; ?>
             <?php if ($user['role'] === 'front-desk'): ?>
             <li class="sidebar-menu-item <?php echo sidebar_is_active('forecasting') ? 'active' : ''; ?>">
                 <a href="<?php echo $base_url; ?>/forecasting/">

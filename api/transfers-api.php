@@ -761,6 +761,151 @@ try {
             $response['data'] = ['transfer_id' => $transfer_id, 'status' => 'cancelled'];
             break;
 
+        case 'reject_before_shipment':
+            /**
+             * Admin rejects a pending or approved transfer request before shipment due to insufficient stock.
+             * 
+             * Enforces:
+             * 1. Admin authorization only.
+             * 2. Status must be 'pending' or 'approved'.
+             * 3. Current donor inventory quantity must be strictly less than the requested transfer quantity.
+             * 4. Rejection reason is mandatory.
+             * 5. Zero stock movement (0 donor deduction, 0 receiver addition, 0 inventory transactions).
+             * 6. Notification sent to requesting branch staff.
+             * 7. Audit log written to audit_logs.
+             * 
+             * POST: transfer_id, reason
+             */
+            $transfer_id = (int) ($_POST['transfer_id'] ?? 0);
+            $rejection_reason = trim((string) ($_POST['reason'] ?? ''));
+
+            if (!$transfer_id) {
+                throw new Exception('Invalid transfer ID');
+            }
+
+            // 1. Authorization: Admin only
+            $is_admin = in_array($user['role'] ?? '', ['admin', 'owner', 'admin_owner'], true);
+            if (!$is_admin) {
+                throw new Exception('Only administrators can reject transfer requests before shipment');
+            }
+
+            // 4. Mandatory reason
+            if ($rejection_reason === '') {
+                throw new Exception('A reason is required when rejecting a transfer request');
+            }
+
+            $pdo->beginTransaction();
+
+            $stmt = $pdo->prepare("
+                SELECT
+                    tr.*,
+                    COALESCE(donor_item.quantity, 0) AS donor_quantity,
+                    COALESCE(donor_item.item_name, tr.item_name) AS donor_item_name,
+                    rb.name AS requesting_branch_name,
+                    db.name AS donor_branch_name
+                FROM inter_branch_transfer_requests tr
+                LEFT JOIN inventory_items donor_item ON donor_item.id = tr.item_id AND donor_item.branch_id = tr.donor_branch_id
+                INNER JOIN branches rb ON rb.id = tr.requesting_branch_id
+                INNER JOIN branches db ON db.id = tr.donor_branch_id
+                WHERE tr.id = ?
+                FOR UPDATE
+            ");
+            $stmt->execute([$transfer_id]);
+            $transfer = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$transfer) {
+                throw new Exception('Transfer request not found');
+            }
+
+            // 2. Allowed transfer states: pending or approved
+            $current_status = strtolower($transfer['status'] ?? 'pending');
+            if (!in_array($current_status, ['pending', 'approved'], true)) {
+                throw new Exception("This transfer request cannot be rejected before shipment because its status is '{$current_status}'");
+            }
+
+            $transfer_qty = (int) ($transfer['approved_quantity'] ?? 0);
+            if ($transfer_qty <= 0) {
+                $transfer_qty = (int) ($transfer['requested_quantity'] ?? 0);
+            }
+            if ($transfer_qty <= 0) {
+                $transfer_qty = 1;
+            }
+
+            $donor_available = (int) ($transfer['donor_quantity'] ?? 0);
+
+            // 3. Server-side insufficient stock validation
+            if ($donor_available >= $transfer_qty) {
+                throw new Exception("Cannot reject for insufficient stock: donor branch has {$donor_available} unit(s) available for requested {$transfer_qty} unit(s)");
+            }
+
+            // 5. Compose note (pre-shipment cancellation, no [RETURN_PENDING])
+            $admin_name = $user['name'] ?? $user['username'] ?? 'Admin';
+            $existing_notes = trim((string) ($transfer['notes'] ?? ''));
+            $reject_note = "[REJECTED_PRE_SHIPMENT] Rejected by Admin ({$admin_name}) on " . date('Y-m-d H:i:s') . ". Available: {$donor_available}, Requested: {$transfer_qty}. Reason: {$rejection_reason}";
+            $new_notes = $existing_notes !== '' ? $existing_notes . "\n" . $reject_note : $reject_note;
+
+            // 6. Update status to 'cancelled' with notes (NO inventory modification)
+            $stmt = $pdo->prepare("
+                UPDATE inter_branch_transfer_requests
+                SET status = 'cancelled',
+                    notes = ?
+                WHERE id = ?
+            ");
+            $stmt->execute([$new_notes, $transfer_id]);
+
+            // 7. Send notification to requesting branch users
+            $notification_stmt = $pdo->prepare("
+                INSERT INTO transfer_notifications
+                (branch_id, user_id, transfer_request_id, title, message, type, action_url)
+                VALUES (?, ?, ?, ?, ?, 'warning', ?)
+            ");
+
+            $req_users_stmt = $pdo->prepare("
+                SELECT id, role FROM users
+                WHERE branch_id = ? AND status = 'active'
+            ");
+            $req_users_stmt->execute([$transfer['requesting_branch_id']]);
+
+            $notif_title = "Transfer Request Rejected — Insufficient Stock";
+            $notif_message = "Transfer request #{$transfer['request_number']} for {$transfer['item_name']} was rejected by Admin due to insufficient stock at {$transfer['donor_branch_name']} (Available: {$donor_available}, Requested: {$transfer_qty}). Reason: {$rejection_reason}";
+
+            foreach ($req_users_stmt->fetchAll(PDO::FETCH_ASSOC) as $req_user) {
+                $req_url = ($req_user['role'] ?? '') === 'admin'
+                    ? "/hwtires/admin/transfers/?request={$transfer_id}"
+                    : "/hwtires/front-desk/tire-inventory/?transfer_request={$transfer_id}#requested-items";
+
+                $notification_stmt->execute([
+                    $transfer['requesting_branch_id'],
+                    $req_user['id'],
+                    $transfer_id,
+                    $notif_title,
+                    $notif_message,
+                    $req_url
+                ]);
+            }
+
+            // 8. Audit logging
+            log_audit(
+                'inter_branch_transfer_requests',
+                'UPDATE',
+                $transfer_id,
+                ['status' => $current_status],
+                [
+                    'status' => 'cancelled',
+                    'rejection_type' => 'pre_shipment_insufficient_stock',
+                    'reason' => $rejection_reason,
+                    'requested_quantity' => $transfer_qty,
+                    'available_quantity' => $donor_available,
+                ]
+            );
+
+            $pdo->commit();
+
+            $response['success'] = true;
+            $response['message'] = "Transfer request #{$transfer['request_number']} rejected due to insufficient stock.";
+            $response['data'] = ['transfer_id' => $transfer_id, 'status' => 'cancelled'];
+            break;
+
         case 'confirm_return':
             /**
              * Confirm physical return by donor branch.
