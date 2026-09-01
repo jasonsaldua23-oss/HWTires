@@ -329,6 +329,20 @@ $hidden_for_date = [
 <?php require_once '../../includes/header.php'; ?>
 <?php require_once '../../includes/sidebar.php'; ?>
 
+<style>
+.admin-job-order-page .job-order-records-head,
+.admin-job-order-page .admin-job-order-row {
+    grid-template-columns: minmax(230px, 1.35fr) minmax(130px, 0.75fr) minmax(150px, 0.85fr) minmax(130px, 0.75fr) minmax(230px, 1.2fr) minmax(160px, 0.95fr) 140px 72px !important;
+}
+.admin-job-order-page .job-order-records-head span:nth-child(7),
+.admin-job-order-page .job-order-records-head span:nth-child(8) {
+    text-align: center !important;
+}
+.admin-job-order-page .job-order-card.admin-job-order-row .job-order-action {
+    justify-content: center !important;
+}
+</style>
+
 <main class="service-status-page admin-job-order-page" id="job-order-records">
     <header class="service-status-hero">
         <h1>Job Order</h1>
@@ -472,8 +486,8 @@ $hidden_for_date = [
                     <span>Technician</span>
                     <span>Services</span>
                     <span>Progress</span>
-                    <span>Status</span>
-                    <span>Action</span>
+                    <span style="text-align: center;">Status</span>
+                    <span style="text-align: center;">Action</span>
                 </div>
             <?php foreach ($job_orders as $job): ?>
                 <?php
@@ -532,12 +546,12 @@ $hidden_for_date = [
                             <span>(<?php echo (int) ($progress['done'] ?? 0); ?>/<?php echo (int) ($progress['total'] ?? 0); ?> done)</span>
                         </small>
                     </div>
-                    <div class="job-order-cell" role="cell">
+                    <div class="job-order-cell" role="cell" style="display: flex; justify-content: center; align-items: center; text-align: center;">
                         <span class="job-status-pill status-<?php echo esc_attr($status); ?>">
                             <?php echo esc_html(job_status_label($status)); ?>
                         </span>
                     </div>
-                    <div class="job-order-cell job-order-action" role="cell" style="display: flex; gap: 6px; align-items: center; justify-content: flex-end;">
+                    <div class="job-order-cell job-order-action" role="cell" style="display: flex; gap: 6px; align-items: center; justify-content: center;">
                         <button type="button" class="job-details-button admin-job-detail-trigger" data-bs-toggle="modal" data-bs-target="#jobDetailsModal<?php echo $job_id; ?>" title="View Job Order" aria-label="View Job Order">
                             <i class="fas fa-eye"></i>
                         </button>
