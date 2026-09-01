@@ -381,111 +381,132 @@ foreach ($movement_category_totals as $category_total) {
 
     <section class="forecast-secondary-filter-card" aria-label="Forecast filters">
         <form method="get" action="./#forecast-analysis" class="forecast-compact-filters">
-            <?php if ($search_filter !== ''): ?>
-                <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
-            <?php endif; ?>
             <input type="hidden" name="per_page" value="<?php echo (int) $per_page; ?>">
-            <label class="forecast-compact-field">
-                <span>Category</span>
-                <select name="category" id="adminForecastCategoryFilter">
-                    <?php foreach (['all' => 'All Items', 'tire' => 'Tires', 'accessory' => 'Accessories', 'part' => 'Parts'] as $category_value => $category_label): ?>
-                        <option value="<?php echo esc_attr($category_value); ?>" <?php echo $category_filter === $category_value ? 'selected' : ''; ?>>
-                            <?php echo esc_html($category_label); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-            <label class="forecast-compact-field" id="adminForecastBrandField" style="<?php echo ($category_filter === 'all' && $brand_filter === '') ? 'display: none;' : ''; ?>">
-                <span>Brand</span>
-                <select name="brand" id="adminForecastBrandFilter">
-                    <option value="">All Brands</option>
-                    <?php foreach ($available_brands as $brand_name): ?>
-                        <option value="<?php echo esc_attr($brand_name); ?>" <?php echo strcasecmp($brand_filter, $brand_name) === 0 ? 'selected' : ''; ?>>
-                            <?php echo esc_html($brand_name); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-            <label class="forecast-compact-field" id="adminForecastSizeField" style="<?php echo ($category_filter === 'all' && $size_filter === '') ? 'display: none;' : ''; ?>">
-                <span>Size / Spec</span>
-                <select name="size" id="adminForecastSizeFilter">
-                    <option value="">All Sizes</option>
-                    <?php foreach ($available_sizes as $size_val): ?>
-                        <option value="<?php echo esc_attr($size_val); ?>" <?php echo $size_filter === $size_val ? 'selected' : ''; ?>>
-                            <?php echo esc_html($size_val); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-            <label class="forecast-compact-field">
-                <span>Branch</span>
-                <select name="branch">
-                    <option value="all" <?php echo $branch_filter === 'all' ? 'selected' : ''; ?>>All Branches</option>
-                    <?php foreach ($inventory_branches as $branch): ?>
-                        <?php $branch_value = (string) (int) $branch['id']; ?>
-                        <option value="<?php echo esc_attr($branch_value); ?>" <?php echo $branch_filter === $branch_value ? 'selected' : ''; ?>>
-                            <?php echo esc_html(forecast_branch_label($branch['name'])); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-            <label class="forecast-compact-field">
-                <span>Status</span>
-                <select name="status">
-                    <?php foreach (['all' => 'All Statuses', 'critical' => 'Critical', 'warning' => 'Warning', 'watch' => 'Watch', 'good' => 'Good'] as $status_value => $status_label): ?>
-                        <option value="<?php echo esc_attr($status_value); ?>" <?php echo $status_filter === $status_value ? 'selected' : ''; ?>>
-                            <?php echo esc_html($status_label); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-            <label class="forecast-compact-field">
-                <span>Forecast</span>
-                <select name="view">
-                    <?php foreach ($forecast_view_tabs as $tab_key => $tab): ?>
-                        <option value="<?php echo esc_attr($tab_key); ?>" <?php echo $view_filter === $tab_key ? 'selected' : ''; ?>>
-                            <?php echo esc_html($tab['label']); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-            <label class="forecast-compact-field">
-                <span>Sort By</span>
-                <select name="sort">
-                    <?php
-                    $sort_options = [
-                        'urgency' => 'Highest Risk / Urgency',
-                        'demand' => 'Highest Demand (Fast Movers)',
-                        'growth' => 'Demand Surge (+% Growth)',
-                        'stock_asc' => 'Lowest Stock First',
-                        'name' => 'Product Name (A-Z)',
-                    ];
-                    foreach ($sort_options as $sort_val => $sort_label):
-                    ?>
-                        <option value="<?php echo esc_attr($sort_val); ?>" <?php echo $sort_filter === $sort_val ? 'selected' : ''; ?>>
-                            <?php echo esc_html($sort_label); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-            <label class="forecast-compact-field">
-                <span>Analysis Year</span>
-                <select name="year">
-                    <option value="latest" <?php echo $year_filter === 'latest' ? 'selected' : ''; ?>>Latest Available</option>
-                    <?php foreach ($available_years as $year): ?>
-                        <option value="<?php echo (int) $year; ?>" <?php echo $year_filter === (string) $year ? 'selected' : ''; ?>>
-                            <?php echo (int) $year; ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-            <button type="submit" class="forecast-compact-apply">Apply</button>
-            <?php if ($category_filter !== 'all' || $brand_filter !== '' || $size_filter !== '' || $branch_filter !== 'all' || $status_filter !== 'all' || $year_filter !== 'latest' || $view_filter !== 'weekly' || $sort_filter !== 'urgency'): ?>
-                <a class="forecast-compact-reset"
-                   href="<?php echo esc_attr(forecast_filter_url('all', 'all', 'all', $search_filter, $per_page, null, 'latest', 'weekly', 'urgency')); ?>#forecast-analysis">
-                    Reset
-                </a>
-            <?php endif; ?>
+
+            <!-- Row 1: Main Filters -->
+            <div class="forecast-filter-row forecast-filter-row-main">
+                <label class="forecast-compact-field">
+                    <span>Category</span>
+                    <select name="category" id="adminForecastCategoryFilter">
+                        <?php foreach (['all' => 'All Items', 'tire' => 'Tires', 'accessory' => 'Accessories', 'part' => 'Parts'] as $category_value => $category_label): ?>
+                            <option value="<?php echo esc_attr($category_value); ?>" <?php echo $category_filter === $category_value ? 'selected' : ''; ?>>
+                                <?php echo esc_html($category_label); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+                <label class="forecast-compact-field">
+                    <span>Branch</span>
+                    <select name="branch">
+                        <option value="all" <?php echo $branch_filter === 'all' ? 'selected' : ''; ?>>All Branches</option>
+                        <?php foreach ($inventory_branches as $branch): ?>
+                            <?php $branch_value = (string) (int) $branch['id']; ?>
+                            <option value="<?php echo esc_attr($branch_value); ?>" <?php echo $branch_filter === $branch_value ? 'selected' : ''; ?>>
+                                <?php echo esc_html(forecast_branch_label($branch['name'])); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+                <label class="forecast-compact-field">
+                    <span>Status</span>
+                    <select name="status">
+                        <?php foreach (['all' => 'All Statuses', 'critical' => 'Critical', 'warning' => 'Warning', 'watch' => 'Watch', 'good' => 'Good'] as $status_value => $status_label): ?>
+                            <option value="<?php echo esc_attr($status_value); ?>" <?php echo $status_filter === $status_value ? 'selected' : ''; ?>>
+                                <?php echo esc_html($status_label); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+                <label class="forecast-compact-field">
+                    <span>Forecast</span>
+                    <select name="view">
+                        <?php foreach ($forecast_view_tabs as $tab_key => $tab): ?>
+                            <option value="<?php echo esc_attr($tab_key); ?>" <?php echo $view_filter === $tab_key ? 'selected' : ''; ?>>
+                                <?php echo esc_html($tab['label']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+                <label class="forecast-compact-field">
+                    <span>Sort By</span>
+                    <select name="sort">
+                        <?php
+                        $sort_options = [
+                            'urgency' => 'Highest Risk / Urgency',
+                            'demand' => 'Highest Demand (Fast Movers)',
+                            'growth' => 'Demand Surge (+% Growth)',
+                            'stock_asc' => 'Lowest Stock First',
+                            'name' => 'Product Name (A-Z)',
+                        ];
+                        foreach ($sort_options as $sort_val => $sort_label):
+                        ?>
+                            <option value="<?php echo esc_attr($sort_val); ?>" <?php echo $sort_filter === $sort_val ? 'selected' : ''; ?>>
+                                <?php echo esc_html($sort_label); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+                <label class="forecast-compact-field">
+                    <span>Analysis Year</span>
+                    <select name="year">
+                        <option value="latest" <?php echo $year_filter === 'latest' ? 'selected' : ''; ?>>Latest Available</option>
+                        <?php foreach ($available_years as $year): ?>
+                            <option value="<?php echo (int) $year; ?>" <?php echo $year_filter === (string) $year ? 'selected' : ''; ?>>
+                                <?php echo (int) $year; ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+                <button type="submit" class="forecast-compact-apply">Apply</button>
+                <?php if ($category_filter !== 'all' || $brand_filter !== '' || $size_filter !== '' || $branch_filter !== 'all' || $status_filter !== 'all' || $year_filter !== 'latest' || $view_filter !== 'weekly' || $sort_filter !== 'urgency'): ?>
+                    <a class="forecast-compact-reset"
+                       href="<?php echo esc_attr(forecast_filter_url('all', 'all', 'all', $search_filter, $per_page, null, 'latest', 'weekly', 'urgency')); ?>#forecast-analysis">
+                        Reset
+                    </a>
+                <?php endif; ?>
+            </div>
+
+            <!-- Row 2: Category-Specific Filters (Left) + Search Group (Right) -->
+            <div class="forecast-filter-row forecast-filter-row-secondary">
+                <label class="forecast-compact-field" id="adminForecastBrandField" style="<?php echo ($category_filter === 'all' && $brand_filter === '') ? 'display: none;' : ''; ?>">
+                    <span>Brand</span>
+                    <select name="brand" id="adminForecastBrandFilter">
+                        <option value="">All Brands</option>
+                        <?php foreach ($available_brands as $brand_name): ?>
+                            <option value="<?php echo esc_attr($brand_name); ?>" <?php echo strcasecmp($brand_filter, $brand_name) === 0 ? 'selected' : ''; ?>>
+                                <?php echo esc_html($brand_name); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+                <label class="forecast-compact-field" id="adminForecastSizeField" style="<?php echo ($category_filter === 'all' && $size_filter === '') ? 'display: none;' : ''; ?>">
+                    <span>Size / Spec</span>
+                    <select name="size" id="adminForecastSizeFilter">
+                        <option value="">All Sizes</option>
+                        <?php foreach ($available_sizes as $size_val): ?>
+                            <option value="<?php echo esc_attr($size_val); ?>" <?php echo $size_filter === $size_val ? 'selected' : ''; ?>>
+                                <?php echo esc_html($size_val); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+                <div class="forecast-search-group">
+                    <label class="forecast-search-field">
+                        <i class="fas fa-search"></i>
+                        <input type="search"
+                               name="search"
+                               value="<?php echo esc_attr($search_filter); ?>"
+                               placeholder="Search item, brand, size, SKU...">
+                    </label>
+                    <button type="submit" class="forecast-search-btn">Search</button>
+                    <?php if ($search_filter !== ''): ?>
+                        <a class="forecast-search-clear"
+                           href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, '', $per_page, null, $year_filter, $view_filter, $sort_filter)); ?>#forecast-analysis">
+                            Clear
+                        </a>
+                    <?php endif; ?>
+                </div>
+            </div>
         </form>
 
         <script>
@@ -548,41 +569,6 @@ foreach ($movement_category_totals as $category_total) {
             });
         });
         </script>
-        <form class="forecast-analysis-search forecast-filter-search" method="get" action="./#forecast-analysis">
-            <?php if ($category_filter !== 'all'): ?>
-                <input type="hidden" name="category" value="<?php echo esc_attr($category_filter); ?>">
-            <?php endif; ?>
-            <?php if ($branch_filter !== 'all'): ?>
-                <input type="hidden" name="branch" value="<?php echo esc_attr($branch_filter); ?>">
-            <?php endif; ?>
-            <?php if ($status_filter !== 'all'): ?>
-                <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
-            <?php endif; ?>
-            <?php if ($sort_filter !== 'urgency'): ?>
-                <input type="hidden" name="sort" value="<?php echo esc_attr($sort_filter); ?>">
-            <?php endif; ?>
-            <?php if ($year_filter !== 'latest'): ?>
-                <input type="hidden" name="year" value="<?php echo esc_attr($year_filter); ?>">
-            <?php endif; ?>
-            <?php if ($view_filter !== 'weekly'): ?>
-                <input type="hidden" name="view" value="<?php echo esc_attr($view_filter); ?>">
-            <?php endif; ?>
-            <input type="hidden" name="per_page" value="<?php echo (int) $per_page; ?>">
-            <label class="forecast-search-field">
-                <i class="fas fa-search"></i>
-                <input type="search"
-                       name="search"
-                       value="<?php echo esc_attr($search_filter); ?>"
-                       placeholder="Search item, brand, size, SKU...">
-            </label>
-            <button type="submit" class="forecast-search-btn">Search</button>
-            <?php if ($search_filter !== ''): ?>
-                <a class="forecast-search-clear"
-                   href="<?php echo esc_attr(forecast_filter_url($category_filter, $branch_filter, $status_filter, '', $per_page, null, $year_filter, $view_filter, $sort_filter)); ?>#forecast-analysis">
-                    Clear
-                </a>
-            <?php endif; ?>
-        </form>
     </section>
 
     <nav class="forecast-view-tabs" aria-label="Forecast views">

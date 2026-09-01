@@ -24932,56 +24932,161 @@ button.customer-vehicle-status-pill.customer-status-action {
     display: none !important;
 }
 
-/* Forecasting filters */
+/* Forecasting filters - Clean Two-Row Layout */
 .main-content .content .forecasting-page .forecast-secondary-filter-card {
-    display: grid !important;
-    grid-template-columns: minmax(0, auto) minmax(360px, 1fr) !important;
-    gap: 12px !important;
-    align-items: end !important;
-    padding: 16px !important;
+    display: block !important;
+    padding: 16px 18px !important;
 }
 
 .main-content .content .forecasting-page .forecast-compact-filters {
     display: flex !important;
-    flex-wrap: nowrap !important;
-    gap: 10px !important;
-    align-items: end !important;
-    min-width: 0 !important;
+    flex-direction: column !important;
+    gap: 14px !important;
+    width: 100% !important;
+    margin: 0 !important;
 }
 
-.main-content .content .forecasting-page .forecast-compact-field {
-    flex: 0 1 175px !important;
-    min-width: 145px !important;
+.main-content .content .forecasting-page .forecast-filter-row {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 10px 12px !important;
+    width: 100% !important;
 }
 
-.main-content .content .forecasting-page .forecast-compact-field label {
+.main-content .content .forecasting-page .forecast-filter-row-main .forecast-compact-field {
+    flex: 1 1 150px !important;
+    min-width: 135px !important;
+    max-width: 220px !important;
+}
+
+.main-content .content .forecasting-page .forecast-filter-row-secondary .forecast-compact-field {
+    flex: 0 1 200px !important;
+    min-width: 165px !important;
+}
+
+.main-content .content .forecasting-page .forecast-compact-field label,
+.main-content .content .forecasting-page .forecast-compact-field span {
     margin-bottom: 6px !important;
     white-space: nowrap !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    color: var(--company-muted) !important;
+    line-height: 1.2 !important;
 }
 
 .main-content .content .forecasting-page .forecast-compact-field select {
     width: 100% !important;
+    min-height: 38px !important;
+    border-radius: 7px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    color: var(--company-ink) !important;
+    background: var(--company-surface) !important;
+    border: 1px solid var(--company-border) !important;
+    padding: 7px 10px !important;
 }
 
-.main-content .content .forecasting-page .forecast-filter-submit {
+.main-content .content .forecasting-page .forecast-compact-apply,
+.main-content .content .forecasting-page .forecast-compact-reset {
     flex: 0 0 auto !important;
+    min-height: 38px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 8px 16px !important;
+    border-radius: 7px !important;
+    font-size: 13px !important;
+    font-weight: 800 !important;
+    text-decoration: none !important;
 }
 
-.main-content .content .forecasting-page .forecast-filter-search {
+.main-content .content .forecasting-page .forecast-search-group {
+    margin-left: auto !important;
     display: flex !important;
-    justify-self: end !important;
-    width: 100% !important;
-    max-width: 600px !important;
-    gap: 10px !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex: 0 1 480px !important;
+    min-width: 260px !important;
 }
 
-.main-content .content .forecasting-page .forecast-filter-search .forecast-search-field {
+.main-content .content .forecasting-page .forecast-search-group .forecast-search-field {
     flex: 1 1 auto !important;
-    min-width: 0 !important;
+    min-width: 160px !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    position: relative !important;
 }
 
-.main-content .content .forecasting-page .forecast-filter-search input {
+.main-content .content .forecasting-page .forecast-search-group .forecast-search-field i {
+    position: absolute !important;
+    left: 12px !important;
+    color: var(--company-muted) !important;
+    pointer-events: none !important;
+    font-size: 13px !important;
+}
+
+.main-content .content .forecasting-page .forecast-search-group .forecast-search-field input {
     width: 100% !important;
+    min-height: 38px !important;
+    padding: 8px 12px 8px 34px !important;
+    border-radius: 7px !important;
+    font-size: 13px !important;
+    border: 1px solid var(--company-border) !important;
+    background: var(--company-surface) !important;
+    color: var(--company-ink) !important;
+}
+
+.main-content .content .forecasting-page .forecast-search-group .forecast-search-field input:focus {
+    border-color: var(--company-accent) !important;
+    outline: 2px solid rgba(12, 112, 105, 0.14) !important;
+    outline-offset: 0 !important;
+}
+
+.main-content .content .forecasting-page .forecast-search-btn,
+.main-content .content .forecasting-page .forecast-search-clear {
+    flex: 0 0 auto !important;
+    min-height: 38px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 8px 16px !important;
+    border-radius: 7px !important;
+    font-size: 13px !important;
+    font-weight: 800 !important;
+    text-decoration: none !important;
+}
+
+.main-content .content .forecasting-page .forecast-search-btn {
+    background: var(--company-surface-soft) !important;
+    color: var(--company-ink) !important;
+    border: 1px solid var(--company-border) !important;
+    cursor: pointer !important;
+}
+
+.main-content .content .forecasting-page .forecast-search-btn:hover {
+    background: #ffffff !important;
+    border-color: var(--company-border-strong) !important;
+}
+
+.main-content .content .forecasting-page .forecast-search-clear {
+    color: var(--company-muted) !important;
+    background: var(--company-surface-soft) !important;
+    border: 1px solid var(--company-border) !important;
+}
+
+.main-content .content .forecasting-page .forecast-search-clear:hover {
+    color: var(--company-ink) !important;
+    background: #ffffff !important;
+}
+
+@media (max-width: 900px) {
+    .main-content .content .forecasting-page .forecast-search-group {
+        margin-left: 0 !important;
+        flex: 1 1 100% !important;
+        width: 100% !important;
+    }
 }
 
 /* Service operations, quotations, and job order filters */
