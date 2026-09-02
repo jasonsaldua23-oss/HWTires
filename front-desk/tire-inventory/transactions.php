@@ -20,7 +20,7 @@ if ($user['role'] !== 'front-desk') {
     redirect('/hwtires/' . $user['role'] . '/');
 }
 
-$valid_types = ['all', 'stock_in', 'stock_out'];
+$valid_types = ['all', 'stock_in', 'stock_out', 'adjustment'];
 $transaction_type = strtolower(trim($_GET['type'] ?? 'all'));
 if (!in_array($transaction_type, $valid_types, true)) {
     $transaction_type = 'all';
@@ -32,7 +32,7 @@ $date_filter = record_date_filter_current('all');
 $page = max(1, intval($_GET['page'] ?? 1));
 $branch_id = (int) ($user['branch_id'] ?? 0);
 
-$where = ["LOWER(REPLACE(t.transaction_type, ' ', '_')) IN ('stock_in', 'stock_out')", 'i.branch_id = ?'];
+$where = ["LOWER(REPLACE(t.transaction_type, ' ', '_')) IN ('stock_in', 'stock_out', 'adjustment')", 'i.branch_id = ?'];
 $params = [$branch_id];
 
 if ($transaction_type !== 'all') {
@@ -252,6 +252,7 @@ if (!function_exists('inventory_transaction_vehicle_label')) {
                     <option value="all">All Types</option>
                     <option value="stock_in" <?php echo $transaction_type === 'stock_in' ? 'selected' : ''; ?>>Stock In</option>
                     <option value="stock_out" <?php echo $transaction_type === 'stock_out' ? 'selected' : ''; ?>>Stock Out</option>
+                    <option value="adjustment" <?php echo $transaction_type === 'adjustment' ? 'selected' : ''; ?>>Adjustment</option>
                 </select>
             </label>
 
@@ -356,7 +357,7 @@ if (!function_exists('inventory_transaction_vehicle_label')) {
                             $source_display_label = app_inventory_transaction_source_display($transaction);
                             ?>
                             <tr>
-                                <td><?php echo esc_html(date('M d, Y h:i A', strtotime($transaction['created_at']))); ?></td>
+                                <td><?php echo esc_html(app_format_datetime_pht($transaction['created_at'])); ?></td>
                                 <td><?php echo esc_html(app_branch_label($transaction['branch_name'] ?? '', '-')); ?></td>
                                 <td>
                                     <div class="inventory-item-cell">

@@ -15,7 +15,7 @@ if (!is_logged_in()) {
 $page_title = 'Inventory Transactions';
 $user = app_get_session_user();
 
-$valid_types = ['all', 'stock_in', 'stock_out'];
+$valid_types = ['all', 'stock_in', 'stock_out', 'adjustment'];
 $transaction_type = strtolower(trim($_GET['type'] ?? 'all'));
 if (!in_array($transaction_type, $valid_types, true)) {
     $transaction_type = 'all';
@@ -28,7 +28,7 @@ $page = max(1, intval($_GET['page'] ?? 1));
 $offset = ($page - 1) * RECORDS_PER_PAGE;
 $branch_filter = $user['role'] === 'admin' ? trim($_GET['branch'] ?? '') : (string) ($user['branch_id'] ?? '');
 
-$where = ["LOWER(REPLACE(t.transaction_type, ' ', '_')) IN ('stock_in', 'stock_out')"];
+$where = ["LOWER(REPLACE(t.transaction_type, ' ', '_')) IN ('stock_in', 'stock_out', 'adjustment')"];
 $params = [];
 
 if ($user['role'] !== 'admin') {
@@ -266,6 +266,7 @@ if (!function_exists('inventory_transaction_vehicle_label')) {
                     <option value="all">All Types</option>
                     <option value="stock_in" <?php echo $transaction_type === 'stock_in' ? 'selected' : ''; ?>>Stock In</option>
                     <option value="stock_out" <?php echo $transaction_type === 'stock_out' ? 'selected' : ''; ?>>Stock Out</option>
+                    <option value="adjustment" <?php echo $transaction_type === 'adjustment' ? 'selected' : ''; ?>>Adjustment</option>
                 </select>
             </label>
             <label class="inventory-branch-filter">
@@ -381,7 +382,7 @@ if (!function_exists('inventory_transaction_vehicle_label')) {
                             $source_display_label = app_inventory_transaction_source_display($transaction);
                             ?>
                             <tr>
-                                <td><?php echo esc_html(date('M d, Y h:i A', strtotime($transaction['created_at']))); ?></td>
+                                <td><?php echo esc_html(app_format_datetime_pht($transaction['created_at'])); ?></td>
                                 <td><?php echo esc_html(app_branch_label($transaction['branch_name'] ?? '', '-')); ?></td>
                                 <td>
                                     <div class="inventory-item-cell">

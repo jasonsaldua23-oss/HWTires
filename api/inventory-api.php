@@ -611,6 +611,120 @@ if ($action === 'stock_out') {
     }
 }
 
+// Handle Stock Quantity Correction / Physical Count Adjustment
+if ($action === 'adjust_stock') {
+    try {
+        if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+            throw new Exception('Invalid security token');
+        }
+
+        $user_role = $user['role'] ?? '';
+        if (!in_array($user_role, ['admin', 'front-desk'], true)) {
+            throw new Exception('Unauthorized to perform stock quantity adjustments');
+        }
+
+        $item_id = intval($_POST['inventory_id'] ?? $_POST['item_id'] ?? 0);
+        if ($item_id <= 0) {
+            throw new Exception('Invalid inventory item');
+        }
+
+        $physical_quantity = inventory_api_clean_int($_POST['physical_quantity'] ?? $_POST['quantity'] ?? 0, 'Physical quantity', 0, 100000);
+        $reason_category = trim((string) ($_POST['reason_category'] ?? ''));
+        $remarks = inventory_api_clean_text($_POST['remarks'] ?? $_POST['notes'] ?? '', 'Remarks', 500, true);
+
+        $category_labels = [
+            'physical_count' => 'Physical Count Discrepancy',
+            'damaged_stock' => 'Damaged / Defective Stock',
+            'missing_stock' => 'Missing / Unaccounted Stock',
+            'encoding_error' => 'Data Entry / Encoding Correction',
+            'found_stock' => 'Found Unrecorded Stock',
+            'other' => 'Other Adjustment',
+        ];
+
+        if (!array_key_exists($reason_category, $category_labels)) {
+            throw new Exception('Please select a valid reason category');
+        }
+
+        $category_label = $category_labels[$reason_category];
+
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare("
+            SELECT i.*, b.has_inventory, b.status AS branch_status, b.name AS branch_name
+            FROM inventory_items i
+            LEFT JOIN branches b ON b.id = i.branch_id
+            WHERE i.id = ? AND i.status = 'active'
+            FOR UPDATE
+        ");
+        $stmt->execute([$item_id]);
+        $item = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$item) {
+            throw new Exception('Inventory item not found or inactive');
+        }
+
+        if ((int) ($item['has_inventory'] ?? 0) !== 1 || ($item['branch_status'] ?? '') !== 'active') {
+            throw new Exception('Inventory is only available for active inventory branches');
+        }
+
+        $item_branch_id = (int) ($item['branch_id'] ?? 0);
+
+        // Branch Isolation: Admin can adjust any branch, Front Desk can only adjust own branch
+        if ($user_role === 'front-desk') {
+            $user_branch_id = (int) ($user['branch_id'] ?? 0);
+            if ($item_branch_id !== $user_branch_id) {
+                throw new Exception('Unauthorized: Front Desk can only adjust inventory for their assigned branch');
+            }
+        } elseif (!has_branch_access($item_branch_id)) {
+            throw new Exception('Unauthorized branch access');
+        }
+
+        $old_quantity = (int) $item['quantity'];
+        $new_quantity = (int) $physical_quantity;
+        $difference = $new_quantity - $old_quantity;
+
+        if ($difference === 0) {
+            $pdo->rollBack();
+            inventory_api_finish(false, 'Physical count matches the current system quantity (' . $old_quantity . '). No adjustment needed.', 400);
+        }
+
+        $diff_formatted = ($difference > 0 ? '+' : '') . $difference;
+        $final_notes = "Stock correction: {$old_quantity} → {$new_quantity} (Difference: {$diff_formatted}). Reason: {$category_label} | Remarks: {$remarks}";
+        $ref_type = $difference > 0 ? 'inventory_recount_up' : 'inventory_recount_down';
+
+        $update_stmt = $pdo->prepare("UPDATE inventory_items SET quantity = ?, updated_at = NOW() WHERE id = ?");
+        $update_stmt->execute([$new_quantity, $item_id]);
+
+        inventory_api_log_transaction($item_id, 'adjustment', abs($difference), $final_notes, $ref_type, null);
+
+        log_audit('inventory_items', 'stock_adjustment', $item_id, [
+            'quantity' => $old_quantity,
+        ], [
+            'quantity' => $new_quantity,
+            'physical_count' => $new_quantity,
+            'difference' => $difference,
+            'reason_category' => $reason_category,
+            'remarks' => $remarks,
+            'item_name' => $item['item_name'] ?? null,
+            'branch_id' => $item_branch_id,
+        ]);
+
+        $pdo->commit();
+
+        inventory_api_finish(true, "Stock quantity adjusted from {$old_quantity} to {$new_quantity} ({$diff_formatted} units)", 200, [
+            'old_quantity' => $old_quantity,
+            'new_quantity' => $new_quantity,
+            'difference' => $difference,
+        ]);
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log('Stock adjustment error: ' . $e->getMessage());
+        inventory_api_finish(false, $e->getMessage(), 400);
+    }
+}
+
 // Handle Add Inventory Item
 if ($action === 'add') {
     try {

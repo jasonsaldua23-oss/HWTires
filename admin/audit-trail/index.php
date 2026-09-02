@@ -93,6 +93,7 @@ if (!function_exists('audit_action_label')) {
             'update_status' => 'Status Update',
             'stock_in' => 'Stock In',
             'stock_out' => 'Stock Out',
+            'stock_adjustment' => 'Stock Adjustment',
             'inventory_transfer' => 'Transfer',
             'job_order_stock_out' => 'Stock Out',
             'archive' => 'Archive',

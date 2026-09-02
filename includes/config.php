@@ -233,6 +233,24 @@ if (!function_exists('format_date')) {
 }
 
 /**
+ * Format UTC datetime string in Philippine Time (PHT / Asia/Manila)
+ */
+if (!function_exists('app_format_datetime_pht')) {
+    function app_format_datetime_pht($utc_datetime_str, $format = 'M d, Y h:i A') {
+        if (empty($utc_datetime_str)) {
+            return '-';
+        }
+        try {
+            $dt = new DateTime($utc_datetime_str, new DateTimeZone('UTC'));
+            $dt->setTimezone(new DateTimeZone('Asia/Manila'));
+            return $dt->format($format);
+        } catch (Exception $e) {
+            return $utc_datetime_str;
+        }
+    }
+}
+
+/**
  * Log user action for audit trail
  */
 if (!function_exists('log_audit')) {

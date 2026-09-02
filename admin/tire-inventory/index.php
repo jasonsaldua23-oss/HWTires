@@ -1282,7 +1282,7 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                                 $transaction_value = (float) ($transaction['unit_price'] ?? 0) * (int) ($transaction['quantity'] ?? 0);
                                 ?>
                                 <tr>
-                                    <td><span class="inventory-transaction-date"><?php echo esc_html(format_date($transaction['created_at'], 'M d, Y h:i A')); ?></span></td>
+                                    <td><span class="inventory-transaction-date"><?php echo esc_html(app_format_datetime_pht($transaction['created_at'])); ?></span></td>
                                     <td>
                                         <span class="inventory-branch-pill inventory-branch-<?php echo (int) $transaction['branch_id']; ?>">
                                             <?php echo esc_html(inventory_branch_label($transaction['branch_name'] ?? '-')); ?>
@@ -1341,12 +1341,13 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                             <th>Quantity</th>
                             <th>Reorder Level</th>
                             <th>Unit Price</th>
+                            <th style="text-align: center; width: 140px;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($inventory)): ?>
                             <tr>
-                                <td colspan="7" class="inventory-table-empty"><?php echo esc_html($records_empty_message); ?></td>
+                                <td colspan="8" class="inventory-table-empty"><?php echo esc_html($records_empty_message); ?></td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($inventory as $item): ?>
@@ -1364,7 +1365,7 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                                     </td>
                                     <td>
                                         <span class="inventory-category category-<?php echo esc_attr($category); ?>">
-                                            <?php echo esc_html(inventory_category_label($category)); ?>
+                                             <?php echo esc_html(inventory_category_label($category)); ?>
                                         </span>
                                     </td>
                                     <td>
@@ -1395,6 +1396,21 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                                     </td>
                                     <td><?php echo (int) $item['reorder_level']; ?></td>
                                     <td><strong><?php echo inventory_money($item['unit_price'] ?? 0); ?></strong></td>
+                                    <td style="text-align: center;">
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-primary js-adjust-stock-btn"
+                                                data-item-id="<?php echo (int) $item['id']; ?>"
+                                                data-item-name="<?php echo esc_attr($item['item_name']); ?>"
+                                                data-brand="<?php echo esc_attr($item['brand'] ?: 'Unbranded'); ?>"
+                                                data-size="<?php echo esc_attr($item['size'] ?: ''); ?>"
+                                                data-category="<?php echo esc_attr($category); ?>"
+                                                data-branch-id="<?php echo $branch_id; ?>"
+                                                data-branch-name="<?php echo esc_attr($branch_label); ?>"
+                                                data-current-qty="<?php echo (int) $item['quantity']; ?>"
+                                                title="Correct stock quantity based on physical count">
+                                            <i class="fas fa-sliders me-1"></i> Correct Stock
+                                        </button>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>
@@ -1523,5 +1539,240 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
         </form>
     </div>
 </div>
+
+<!-- Adjust Stock Modal -->
+<div class="modal fade" id="adjustStockModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" action="/hwtires/api/inventory-api.php" class="modal-content" id="adjustStockForm">
+            <input type="hidden" name="csrf_token" value="<?php echo esc_attr(get_csrf_token()); ?>">
+            <input type="hidden" name="action" value="adjust_stock">
+            <input type="hidden" name="inventory_id" id="adjustItemId" value="">
+
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold text-dark">
+                    <i class="fas fa-sliders text-primary me-2"></i>Correct Stock Quantity
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body p-4">
+                <!-- Item Summary Card -->
+                <div class="bg-light p-3 rounded-3 border mb-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="fw-bold mb-1 text-dark" id="adjustItemName">-</h6>
+                            <div class="text-muted small" id="adjustItemMeta">-</div>
+                        </div>
+                        <span class="badge bg-secondary px-2 py-1" id="adjustBranchName">-</span>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold text-secondary mb-1">Current System Stock</label>
+                        <div class="form-control-plaintext fs-5 fw-bold text-dark px-2 bg-light rounded border text-center" id="adjustCurrentQty">
+                            0 units
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold text-secondary mb-1">Actual Physical Count <span class="text-danger">*</span></label>
+                        <input type="number" 
+                               name="physical_quantity" 
+                               id="adjustPhysicalQty" 
+                               class="form-control form-control-lg fw-bold text-center border-primary" 
+                               min="0" 
+                               max="100000" 
+                               required 
+                               placeholder="e.g., 18">
+                    </div>
+                </div>
+
+                <!-- Difference Preview Alert -->
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold text-secondary mb-1">Stock Adjustment Preview</label>
+                    <div class="p-2 rounded border text-center fw-bold" id="adjustDiffPreview" style="background: #f8fafc;">
+                        <span class="text-muted">Enter actual physical count above</span>
+                    </div>
+                </div>
+
+                <!-- Reason Category -->
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold text-secondary mb-1">Reason Category <span class="text-danger">*</span></label>
+                    <select name="reason_category" id="adjustReasonCategory" class="form-select" required>
+                        <option value="">-- Select Reason Category --</option>
+                        <option value="physical_count">Physical Count Discrepancy / Recount</option>
+                        <option value="damaged_stock">Damaged / Defective Stock Found</option>
+                        <option value="missing_stock">Missing / Unaccounted Stock</option>
+                        <option value="encoding_error">Data Entry / Encoding Correction</option>
+                        <option value="found_stock">Found Unrecorded Stock</option>
+                        <option value="other">Other Inventory Adjustment</option>
+                    </select>
+                </div>
+
+                <!-- Mandatory Remarks -->
+                <div class="mb-2">
+                    <label class="form-label small fw-semibold text-secondary mb-1">Remarks / Details <span class="text-danger">*</span></label>
+                    <textarea name="remarks" 
+                              id="adjustRemarks" 
+                              class="form-control" 
+                              rows="2" 
+                              required 
+                              placeholder="Describe why the count is being corrected (e.g. physical count reconciliation, found 2 damaged units)..."></textarea>
+                </div>
+            </div>
+
+            <div class="modal-footer border-top bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="adjustSubmitBtn">
+                    <i class="fas fa-check-circle me-1"></i> Confirm Adjustment
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const adjustModalEl = document.getElementById('adjustStockModal');
+    const adjustModal = adjustModalEl ? new bootstrap.Modal(adjustModalEl) : null;
+    const adjustForm = document.getElementById('adjustStockForm');
+    const adjustPhysicalInput = document.getElementById('adjustPhysicalQty');
+    const adjustDiffPreview = document.getElementById('adjustDiffPreview');
+    const adjustSubmitBtn = document.getElementById('adjustSubmitBtn');
+    let currentItemQty = 0;
+
+    function updateDiffPreview() {
+        if (!adjustPhysicalInput || !adjustDiffPreview) return;
+        const val = adjustPhysicalInput.value.trim();
+        if (val === '' || isNaN(val)) {
+            adjustDiffPreview.className = 'p-2 rounded border text-center fw-bold bg-light text-muted';
+            adjustDiffPreview.innerHTML = '<span class="text-muted">Enter actual physical count above</span>';
+            return;
+        }
+
+        const newQty = parseInt(val, 10);
+        if (newQty < 0) {
+            adjustDiffPreview.className = 'p-2 rounded border text-center fw-bold bg-danger-subtle text-danger border-danger-subtle';
+            adjustDiffPreview.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> Count cannot be negative';
+            return;
+        }
+
+        const diff = newQty - currentItemQty;
+        if (diff === 0) {
+            adjustDiffPreview.className = 'p-2 rounded border text-center fw-bold bg-secondary-subtle text-secondary border-secondary-subtle';
+            adjustDiffPreview.innerHTML = '<i class="fas fa-info-circle me-1"></i> 0 units (No Change - Count matches system)';
+        } else if (diff < 0) {
+            adjustDiffPreview.className = 'p-2 rounded border text-center fw-bold bg-danger-subtle text-danger border-danger-subtle';
+            adjustDiffPreview.innerHTML = '<i class="fas fa-arrow-trend-down me-1"></i> ' + diff + ' units (Reduction of ' + Math.abs(diff) + ' units)';
+        } else {
+            adjustDiffPreview.className = 'p-2 rounded border text-center fw-bold bg-success-subtle text-success border-success-subtle';
+            adjustDiffPreview.innerHTML = '<i class="fas fa-arrow-trend-up me-1"></i> +' + diff + ' units (Addition of ' + diff + ' units)';
+        }
+    }
+
+    if (adjustPhysicalInput) {
+        adjustPhysicalInput.addEventListener('input', updateDiffPreview);
+    }
+
+    document.querySelectorAll('.js-adjust-stock-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const itemId = this.dataset.itemId || '';
+            const itemName = this.dataset.itemName || '';
+            const brand = this.dataset.brand || '';
+            const size = this.dataset.size || '';
+            const branchName = this.dataset.branchName || '';
+            currentItemQty = parseInt(this.dataset.currentQty || '0', 10);
+
+            document.getElementById('adjustItemId').value = itemId;
+            document.getElementById('adjustItemName').textContent = itemName;
+            document.getElementById('adjustItemMeta').textContent = [brand, size].filter(Boolean).join(' • ');
+            document.getElementById('adjustBranchName').textContent = branchName;
+            document.getElementById('adjustCurrentQty').textContent = currentItemQty + ' units';
+            document.getElementById('adjustPhysicalQty').value = '';
+            document.getElementById('adjustReasonCategory').value = '';
+            document.getElementById('adjustRemarks').value = '';
+
+            updateDiffPreview();
+
+            if (adjustModal) {
+                adjustModal.show();
+                setTimeout(function() {
+                    if (adjustPhysicalInput) adjustPhysicalInput.focus();
+                }, 300);
+            }
+        });
+    });
+
+    if (adjustForm) {
+        adjustForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const itemId = document.getElementById('adjustItemId').value;
+            const physicalVal = adjustPhysicalInput.value.trim();
+            const reasonCat = document.getElementById('adjustReasonCategory').value;
+            const remarks = document.getElementById('adjustRemarks').value.trim();
+
+            if (!itemId) {
+                alert('Invalid inventory item.');
+                return;
+            }
+
+            if (physicalVal === '' || isNaN(physicalVal) || parseInt(physicalVal, 10) < 0) {
+                alert('Please enter a valid non-negative physical count.');
+                adjustPhysicalInput.focus();
+                return;
+            }
+
+            const newQty = parseInt(physicalVal, 10);
+            if (newQty === currentItemQty) {
+                alert('Physical count matches current system quantity (' + currentItemQty + '). No adjustment needed.');
+                return;
+            }
+
+            if (!reasonCat) {
+                alert('Please select a reason category.');
+                document.getElementById('adjustReasonCategory').focus();
+                return;
+            }
+
+            if (!remarks) {
+                alert('Please provide remarks/details for this stock correction.');
+                document.getElementById('adjustRemarks').focus();
+                return;
+            }
+
+            adjustSubmitBtn.disabled = true;
+            adjustSubmitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Saving...';
+
+            try {
+                const body = new URLSearchParams();
+                body.append('csrf_token', adjustForm.querySelector('input[name="csrf_token"]').value);
+                body.append('action', 'adjust_stock');
+                body.append('inventory_id', itemId);
+                body.append('physical_quantity', newQty);
+                body.append('reason_category', reasonCat);
+                body.append('remarks', remarks);
+
+                const response = await fetch('/hwtires/api/inventory-api.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body.toString()
+                });
+
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'Unable to adjust stock.');
+                }
+
+                if (adjustModal) adjustModal.hide();
+                window.location.reload();
+            } catch (err) {
+                alert(err.message || 'An error occurred while saving the stock adjustment.');
+                adjustSubmitBtn.disabled = false;
+                adjustSubmitBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Confirm Adjustment';
+            }
+        });
+    }
+});
+</script>
 
 <?php require_once '../../includes/footer.php'; ?>
