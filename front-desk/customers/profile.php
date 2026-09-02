@@ -598,7 +598,7 @@ if (!empty($primary_vehicle['id'])) {
                                     <?php foreach ($items as $item): ?>
                                         <div class="profile-line-item">
                                             <span>
-                                                <?php echo esc_html($item['item_name']); ?>
+                                                <?php echo esc_html(app_display_item_name($item['item_name'], $item['item_type'] ?? null)); ?>
                                                 <?php echo intval($item['quantity'] ?? 1) > 1 ? ' (x' . intval($item['quantity']) . ')' : ''; ?>
                                             </span>
                                             <span><?php echo front_profile_money(($item['subtotal'] ?? 0) ?: ((float) $item['quantity'] * (float) $item['unit_price'])); ?></span>
@@ -679,7 +679,7 @@ if (!empty($primary_vehicle['id'])) {
                                     <span class="profile-service-chip chip-cyan" style="font-size: 0.75rem;">Service Request</span>
                                 <?php else: ?>
                                     <?php foreach ($job_items as $item): ?>
-                                        <span class="profile-service-chip chip-cyan" style="font-size: 0.75rem;"><?php echo esc_html($item['item_name']); ?></span>
+                                        <span class="profile-service-chip chip-cyan" style="font-size: 0.75rem;"><?php echo esc_html(app_display_item_name($item['item_name'], $item['item_type'] ?? null)); ?></span>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
                             </div>

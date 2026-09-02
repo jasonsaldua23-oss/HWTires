@@ -428,7 +428,7 @@ if (!function_exists('reports_send_csv')) {
         fputcsv($out, ['Item', 'Category', 'Branch', 'Stock In', 'Stock Out', 'Last Movement']);
         foreach ($inventory_top_items as $item) {
             fputcsv($out, [
-                $item['item_name'],
+                app_display_item_name($item['item_name'], $item['category'] ?? null),
                 reports_category_label($item['category']),
                 reports_branch_label($item['branch_name']),
                 $item['stock_in_units'],
@@ -453,7 +453,7 @@ if (!function_exists('reports_send_csv')) {
             fputcsv($out, [
                 reports_short_date($movement['created_at'] ?? ''),
                 reports_branch_label($movement['branch_name'] ?? ''),
-                $movement['item_name'] ?? '-',
+                app_display_item_name($movement['item_name'] ?? '-', $movement['category'] ?? null),
                 reports_category_label($movement['category'] ?? ''),
                 reports_product_detail_text($movement),
                 $movement['quantity'] ?? 0,
@@ -567,7 +567,7 @@ if (!function_exists('reports_send_detail_csv')) {
                     reports_short_date($movement['created_at'] ?? ''),
                     reports_branch_label($movement['branch_name'] ?? ''),
                     reports_movement_type_label($movement['transaction_type'] ?? ''),
-                    $movement['item_name'] ?? '-',
+                    app_display_item_name($movement['item_name'] ?? '-', $movement['category'] ?? null),
                     reports_category_label($movement['category'] ?? ''),
                     reports_product_detail_text($movement),
                     abs((int) ($movement['quantity'] ?? 0)),
@@ -604,7 +604,7 @@ if (!function_exists('reports_send_detail_csv')) {
                 fputcsv($out, [
                     reports_short_date($movement['created_at'] ?? ''),
                     reports_branch_label($movement['branch_name'] ?? ''),
-                    $movement['item_name'] ?? '-',
+                    app_display_item_name($movement['item_name'] ?? '-', $movement['category'] ?? null),
                     reports_category_label($movement['category'] ?? ''),
                     reports_product_detail_text($movement),
                     abs((int) ($movement['quantity'] ?? 0)),
@@ -2564,7 +2564,7 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
                                     <td><?php echo esc_html(format_date($movement['created_at'] ?? '', 'M d, Y')); ?></td>
                                     <td><?php echo esc_html(reports_branch_label($movement['branch_name'] ?? '')); ?></td>
                                     <td>
-                                        <strong><?php echo esc_html($movement['item_name'] ?? '-'); ?></strong>
+                                        <strong><?php echo esc_html(app_display_item_name($movement['item_name'] ?? '-', $movement['category'] ?? null)); ?></strong>
                                         <small><?php echo esc_html(reports_category_label($movement['category'] ?? '')); ?></small>
                                     </td>
                                     <td><?php echo esc_html(reports_product_detail_text($movement)); ?></td>
@@ -2699,7 +2699,7 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
                                     <td><?php echo esc_html(reports_branch_label($movement['branch_name'] ?? '')); ?></td>
                                     <td><span class="reports-count-pill"><?php echo esc_html(reports_movement_type_label($movement['transaction_type'] ?? '')); ?></span></td>
                                     <td>
-                                        <strong><?php echo esc_html($movement['item_name'] ?? '-'); ?></strong>
+                                        <strong><?php echo esc_html(app_display_item_name($movement['item_name'] ?? '-', $movement['category'] ?? null)); ?></strong>
                                         <small><?php echo esc_html(reports_category_label($movement['category'] ?? '')); ?></small>
                                     </td>
                                     <td><?php echo esc_html(reports_product_detail_text($movement)); ?></td>
@@ -3191,7 +3191,7 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
                     <?php foreach ($inventory_top_items as $item): ?>
                         <div class="reports-inventory-item">
                             <div>
-                                <h3><?php echo esc_html($item['item_name']); ?></h3>
+                                <h3><?php echo esc_html(app_display_item_name($item['item_name'], $item['category'] ?? null)); ?></h3>
                                 <p>
                                     <?php echo esc_html(reports_branch_label($item['branch_name'] ?? '')); ?>
                                     <?php if (!empty($item['brand'])): ?>
@@ -3271,7 +3271,7 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
                                 <td><?php echo esc_html(format_date($movement['created_at'] ?? '', 'M d, Y')); ?></td>
                                 <td><?php echo esc_html(reports_branch_label($movement['branch_name'] ?? '')); ?></td>
                                 <td>
-                                    <strong><?php echo esc_html($movement['item_name'] ?? '-'); ?></strong>
+                                    <strong><?php echo esc_html(app_display_item_name($movement['item_name'] ?? '-', $movement['category'] ?? null)); ?></strong>
                                     <?php if ($item_meta !== ''): ?>
                                         <small><?php echo esc_html($item_meta); ?></small>
                                     <?php endif; ?>

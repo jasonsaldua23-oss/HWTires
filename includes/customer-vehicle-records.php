@@ -873,7 +873,7 @@ if (!function_exists('cv_records_load_job_order_details')) {
         if (!empty($quotation_ids)) {
             $quotation_placeholders = implode(',', array_fill(0, count($quotation_ids), '?'));
             $items_stmt = $pdo->prepare("
-                SELECT quotation_id, item_name
+                SELECT quotation_id, item_name, item_type
                 FROM quotation_items
                 WHERE quotation_id IN ($quotation_placeholders)
                 ORDER BY quotation_id ASC, id ASC
@@ -881,7 +881,7 @@ if (!function_exists('cv_records_load_job_order_details')) {
             $items_stmt->execute($quotation_ids);
 
             foreach ($items_stmt->fetchAll(PDO::FETCH_ASSOC) as $item) {
-                $services_by_quotation[(int) ($item['quotation_id'] ?? 0)][] = $item['item_name'];
+                $services_by_quotation[(int) ($item['quotation_id'] ?? 0)][] = app_display_item_name($item['item_name'], $item['item_type'] ?? null);
             }
         }
 
@@ -1611,7 +1611,7 @@ if (!function_exists('cv_records_render_history_modal')) {
                                                             ?>
                                                             <div class="customer-item-line">
                                                                 <div>
-                                                                    <strong><?php echo esc_html($item['item_name'] ?? 'Item'); ?></strong>
+                                                                    <strong><?php echo esc_html(app_display_item_name($item['item_name'] ?? 'Item', $item['item_type'] ?? null)); ?></strong>
                                                                     <span><?php echo esc_html(cv_records_item_type_label($item_type)); ?></span>
                                                                 </div>
                                                                 <div class="customer-item-line-price">

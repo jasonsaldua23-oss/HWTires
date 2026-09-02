@@ -125,7 +125,7 @@ foreach ($inventory_items as $item) {
         'id' => (int) $item['id'],
         'branch_id' => $item_branch_id,
         'branch_name' => quote_branch_label($item['branch_name'] ?? ''),
-        'name' => $item['item_name'],
+        'name' => app_display_item_name($item['item_name'], $item['category'] ?? null),
         'category' => $item['category'],
         'group' => quote_item_group($item),
         'brand' => $item['brand'],

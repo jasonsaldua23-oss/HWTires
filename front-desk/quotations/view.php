@@ -372,7 +372,7 @@ if ($flash_message && !$is_print):
                                         <div class="col-5">
                                             <label class="form-check-label">
                                                 <input type="checkbox" class="form-check-input me-2" name="keep_item_ids[]" value="<?php echo $iid; ?>" checked>
-                                                <strong><?php echo esc_html($item['item_name']); ?></strong>
+                                                <strong><?php echo esc_html(app_display_item_name($item['item_name'], $itype)); ?></strong>
                                                 <small class="text-muted"> &mdash; <?php echo esc_html(ucfirst($itype)); ?></small>
                                             </label>
                                         </div>

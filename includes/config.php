@@ -707,7 +707,7 @@ if (!function_exists('app_display_item_name')) {
         }
         $cat = strtolower(trim((string) $category));
         if ($cat === '' || $cat === 'tire' || $cat === 'tires') {
-            $cleaned = preg_replace('/\s+tire$/i', '', $name);
+            $cleaned = preg_replace('/\s+tires?$/i', '', $name);
             if ($cleaned !== null && $cleaned !== '') {
                 return $cleaned;
             }

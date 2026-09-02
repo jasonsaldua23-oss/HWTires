@@ -307,7 +307,7 @@ if (!function_exists('front_reports_send_detail_csv')) {
                     front_reports_short_date($movement['created_at'] ?? ''),
                     $filters['branch_label'] ?? 'Branch',
                     front_reports_movement_type_label($movement['transaction_type'] ?? ''),
-                    $movement['item_name'] ?? '-',
+                    app_display_item_name($movement['item_name'] ?? '-', $movement['category'] ?? null),
                     front_reports_category_label($movement['category'] ?? ''),
                     front_reports_product_detail_text($movement),
                     abs((int) ($movement['quantity'] ?? 0)),
@@ -344,7 +344,7 @@ if (!function_exists('front_reports_send_detail_csv')) {
                 fputcsv($out, [
                     front_reports_short_date($movement['created_at'] ?? ''),
                     $filters['branch_label'] ?? 'Branch',
-                    $movement['item_name'] ?? '-',
+                    app_display_item_name($movement['item_name'] ?? '-', $movement['category'] ?? null),
                     front_reports_category_label($movement['category'] ?? ''),
                     front_reports_product_detail_text($movement),
                     abs((int) ($movement['quantity'] ?? 0)),
@@ -2266,7 +2266,7 @@ if (!function_exists('front_reports_format_tat_minutes')) {
                                 <tr>
                                     <td><?php echo esc_html(format_date($movement['created_at'] ?? '', 'M d, Y')); ?></td>
                                     <td>
-                                        <strong><?php echo esc_html($movement['item_name'] ?? '-'); ?></strong>
+                                        <strong><?php echo esc_html(app_display_item_name($movement['item_name'] ?? '-', $movement['category'] ?? null)); ?></strong>
                                         <small><?php echo esc_html(front_reports_category_label($movement['category'] ?? '')); ?></small>
                                     </td>
                                     <td><?php echo esc_html(front_reports_product_detail_text($movement)); ?></td>
@@ -2403,7 +2403,7 @@ if (!function_exists('front_reports_format_tat_minutes')) {
                                     <td><?php echo esc_html($branch_label); ?></td>
                                     <td><span class="reports-count-pill"><?php echo esc_html(front_reports_movement_type_label($movement['transaction_type'] ?? '')); ?></span></td>
                                     <td>
-                                        <strong><?php echo esc_html($movement['item_name'] ?? '-'); ?></strong>
+                                        <strong><?php echo esc_html(app_display_item_name($movement['item_name'] ?? '-', $movement['category'] ?? null)); ?></strong>
                                         <small><?php echo esc_html(front_reports_category_label($movement['category'] ?? '')); ?></small>
                                     </td>
                                     <td><?php echo esc_html(front_reports_product_detail_text($movement)); ?></td>
@@ -2829,7 +2829,7 @@ if (!function_exists('front_reports_format_tat_minutes')) {
                         <?php foreach ($inventory_top_items as $item): ?>
                             <div class="reports-inventory-item">
                                 <div>
-                                    <h3><?php echo esc_html($item['item_name'] ?? '-'); ?></h3>
+                                    <h3><?php echo esc_html(app_display_item_name($item['item_name'] ?? '-', $item['category'] ?? null)); ?></h3>
                                     <p>
                                         <?php echo esc_html($item['brand'] ?? '-'); ?>
                                         <?php if (!empty($item['size'])): ?>

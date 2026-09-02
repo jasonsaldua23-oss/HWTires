@@ -198,8 +198,9 @@ if (!function_exists('app_line_item_product_details')) {
 
 if (!function_exists('app_line_item_description_html')) {
     function app_line_item_description_html($item, array $inventory_items_by_id, array $options = []) {
+        $category = $item['item_type'] ?? ($item['category'] ?? null);
         $name = trim((string) ($item['item_name'] ?? ''));
-        $name = $name !== '' ? $name : '-';
+        $name = $name !== '' ? app_display_item_name($name, $category) : '-';
         $details = app_line_item_product_details($item, $inventory_items_by_id, $options);
 
         $html = '<div class="record-line-item">';

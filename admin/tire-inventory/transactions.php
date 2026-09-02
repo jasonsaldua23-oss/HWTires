@@ -386,7 +386,7 @@ if (!function_exists('inventory_transaction_vehicle_label')) {
                                 <td><?php echo esc_html(app_branch_label($transaction['branch_name'] ?? '', '-')); ?></td>
                                 <td>
                                     <div class="inventory-item-cell">
-                                        <strong><?php echo esc_html($transaction['item_name']); ?></strong>
+                                        <strong><?php echo esc_html(app_display_item_name($transaction['item_name'], $transaction['category'] ?? null)); ?></strong>
                                         <small><?php echo esc_html(trim(($transaction['brand'] ?? '') . ' ' . ($transaction['size'] ?? ''))); ?></small>
                                     </div>
                                 </td>

@@ -317,7 +317,7 @@ if ($flash_message && !$is_print):
                                 <?php if (($item['item_type'] ?? '') === 'service'): ?>
                                     <label class="list-group-item">
                                         <input type="checkbox" name="keep_item_ids[]" value="<?php echo (int) $item['id']; ?>" checked>
-                                        <?php echo esc_html($item['item_name']); ?>
+                                        <?php echo esc_html(app_display_item_name($item['item_name'], $item['item_type'] ?? null)); ?>
                                     </label>
                                 <?php endif; ?>
                             <?php endforeach; ?>

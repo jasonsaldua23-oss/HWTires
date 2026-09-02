@@ -645,7 +645,7 @@ if ($view_filter === 'last_month_sales') {
         ],
         [
             'label' => 'Most Sold Item',
-            'value' => $top_item ? esc_html($top_item['item_name']) : 'None',
+            'value' => $top_item ? esc_html(app_display_item_name($top_item['item_name'], $top_item['category'] ?? null)) : 'None',
             'subtext' => $top_item ? (number_format((float) $top_item['total_sold_qty']) . ' units · ₱' . number_format((float) $top_item['total_sold_amount'])) : 'No sales recorded',
             'icon' => 'fas fa-fire',
             'icon_class' => 'icon-gold',
@@ -673,6 +673,7 @@ if ($view_filter === 'last_month_sales') {
     $top_item_stmt = $pdo->prepare("
         SELECT
             MAX(i.item_name) AS item_name,
+            MAX(i.category) AS category,
             COALESCE(SUM(t.quantity), 0) AS total_qty,
             COALESCE(SUM(t.quantity * i.unit_price), 0) AS total_amount
         FROM inventory_transactions t
@@ -708,7 +709,7 @@ if ($view_filter === 'last_month_sales') {
         ],
         [
             'label' => 'Most Dispatched Item',
-            'value' => $top_item ? esc_html($top_item['item_name']) : 'None',
+            'value' => $top_item ? esc_html(app_display_item_name($top_item['item_name'], $top_item['category'] ?? null)) : 'None',
             'subtext' => $top_item ? (number_format((float) $top_item['total_qty']) . ' units · ₱' . number_format((float) $top_item['total_amount'])) : 'No dispatches recorded',
             'icon' => 'fas fa-fire',
             'icon_class' => 'icon-gold',
@@ -771,7 +772,7 @@ if ($view_filter === 'last_month_sales') {
         ],
         [
             'label' => 'Most Restocked Item',
-            'value' => $top_item ? esc_html($top_item['item_name']) : 'None',
+            'value' => $top_item ? esc_html(app_display_item_name($top_item['item_name'], $top_item['category'] ?? null)) : 'None',
             'subtext' => $top_item ? (number_format((float) $top_item['total_qty']) . ' units · ₱' . number_format((float) $top_item['total_amount'])) : 'No restocks recorded',
             'icon' => 'fas fa-cubes',
             'icon_class' => 'icon-cyan',
@@ -790,7 +791,7 @@ if ($view_filter === 'last_month_sales') {
     $ls_summary = $low_stock_summary_stmt->fetch() ?: ['total_items' => 0, 'total_stock_value' => 0, 'out_of_stock_count' => 0];
 
     $lowest_item_stmt = $pdo->prepare("
-        SELECT i.item_name, i.quantity, i.reorder_level
+        SELECT i.item_name, i.category, i.quantity, i.reorder_level
         FROM inventory_items i
         WHERE $item_list_where_sql
         ORDER BY i.quantity ASC, i.reorder_level DESC, i.item_name ASC
@@ -816,7 +817,7 @@ if ($view_filter === 'last_month_sales') {
         ],
         [
             'label' => 'Lowest Stock Item',
-            'value' => $lowest_item ? esc_html($lowest_item['item_name']) : 'None',
+            'value' => $lowest_item ? esc_html(app_display_item_name($lowest_item['item_name'], $lowest_item['category'] ?? null)) : 'None',
             'subtext' => $lowest_item ? ((int) $lowest_item['quantity'] . ' unit' . ((int) $lowest_item['quantity'] === 1 ? '' : 's') . ' left · Reorder: ' . (int) $lowest_item['reorder_level']) : 'No low stock items',
             'icon' => 'fas fa-circle-exclamation',
             'icon_class' => 'icon-red',
@@ -1208,7 +1209,7 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                                         </span>
                                     </td>
                                     <td>
-                                        <strong><?php echo esc_html($top_item_row['item_name']); ?></strong>
+                                        <strong><?php echo esc_html(app_display_item_name($top_item_row['item_name'], $top_item_row['category'] ?? null)); ?></strong>
                                         <span class="inventory-item-sub">
                                             <?php echo esc_html($top_item_row['brand'] ?: 'Unbranded'); ?>
                                             <?php if ($item_detail !== '-'): ?>
@@ -1287,9 +1288,8 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                                         <span class="inventory-branch-pill inventory-branch-<?php echo (int) $transaction['branch_id']; ?>">
                                             <?php echo esc_html(inventory_branch_label($transaction['branch_name'] ?? '-')); ?>
                                         </span>
-                                    </td>
-                                    <td>
-                                        <strong><?php echo esc_html($transaction['item_name'] ?? '-'); ?></strong>
+                                                                   <td>
+                                        <strong><?php echo esc_html(app_display_item_name($transaction['item_name'] ?? '-', $transaction['category'] ?? null)); ?></strong>
                                         <small><?php echo esc_html(trim(($transaction['brand'] ?? '') . (!empty($transaction['size']) ? ' (' . $transaction['size'] . ')' : ''))); ?></small>
                                     </td>
                                     <td>
@@ -1380,7 +1380,7 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                                     </td>
                                     <td>
                                         <span class="inventory-branch-pill inventory-branch-<?php echo $branch_id; ?>">
-                                            <?php echo esc_html($branch_label); ?>
+                                             <?php echo esc_html($branch_label); ?>
                                         </span>
                                     </td>
                                     <td>
@@ -1400,7 +1400,7 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                                         <button type="button"
                                                 class="btn btn-sm btn-outline-primary js-adjust-stock-btn"
                                                 data-item-id="<?php echo (int) $item['id']; ?>"
-                                                data-item-name="<?php echo esc_attr($item['item_name']); ?>"
+                                                data-item-name="<?php echo esc_attr(app_display_item_name($item['item_name'], $category)); ?>"
                                                 data-brand="<?php echo esc_attr($item['brand'] ?: 'Unbranded'); ?>"
                                                 data-size="<?php echo esc_attr($item['size'] ?: ''); ?>"
                                                 data-category="<?php echo esc_attr($category); ?>"

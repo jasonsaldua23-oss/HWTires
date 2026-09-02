@@ -225,7 +225,7 @@ foreach ($approved_quotations as &$quote) {
         if (($item['item_type'] ?? '') !== 'service') {
             $items_total += max(1, (int) ($item['quantity'] ?? 1)) * (float) ($item['unit_price'] ?? 0);
         }
-        $service_names[] = (string) ($item['item_name'] ?? 'Service');
+        $service_names[] = app_display_item_name((string) ($item['item_name'] ?? 'Service'), $item['item_type'] ?? null);
     }
 
     $calculated_total = (float) ($quote['labor_cost'] ?? 0) + $items_total;
@@ -349,7 +349,7 @@ $services_by_quotation = [];
 if (!empty($job_quotation_ids)) {
     $placeholders = implode(',', array_fill(0, count($job_quotation_ids), '?'));
     $job_items_stmt = $pdo->prepare("
-        SELECT quotation_id, item_name
+        SELECT quotation_id, item_name, item_type
         FROM quotation_items
         WHERE quotation_id IN ($placeholders)
         ORDER BY quotation_id ASC, id ASC
@@ -357,7 +357,7 @@ if (!empty($job_quotation_ids)) {
     $job_items_stmt->execute($job_quotation_ids);
 
     foreach ($job_items_stmt->fetchAll() as $item) {
-        $services_by_quotation[(int) $item['quotation_id']][] = $item['item_name'];
+        $services_by_quotation[(int) $item['quotation_id']][] = app_display_item_name($item['item_name'], $item['item_type'] ?? null);
     }
 }
 ?>

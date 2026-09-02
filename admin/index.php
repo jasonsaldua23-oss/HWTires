@@ -245,7 +245,7 @@ try {
                     ?>
                     <article class="dashboard-inventory-item">
                         <div>
-                            <h3><?php echo esc_html($item['item_name']); ?></h3>
+                            <h3><?php echo esc_html(app_display_item_name($item['item_name'], $category)); ?></h3>
                             <p>
                                 <?php echo esc_html($item['brand'] ?: 'Unbranded'); ?>
                                 <?php if (!empty($descriptor)): ?>

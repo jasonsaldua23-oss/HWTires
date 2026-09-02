@@ -97,46 +97,46 @@ try {
     $todays_jobs_count = intval($count_stmt->fetchColumn());
 
     $jobs_stmt = $pdo->prepare("
-        SELECT jo.id, jo.job_number, jo.status, jo.assigned_technician_name, jo.notes,
+        SELECT jo.id, jo.job_number, jo.quotation_id, jo.status, jo.assigned_technician_name, jo.notes,
                c.name AS customer_name,
-               v.plate_number, v.make, v.model,
-               qi.service_items
+               v.plate_number, v.make, v.model
         FROM job_orders jo
         INNER JOIN customers c ON c.id = jo.customer_id
         LEFT JOIN vehicles v ON v.id = jo.vehicle_id
-        LEFT JOIN (
-            SELECT quotation_id,
-                   GROUP_CONCAT(
-                       CONCAT(item_name, CASE WHEN quantity > 1 THEN CONCAT(' (', quantity, 'x)') ELSE '' END)
-                       ORDER BY id SEPARATOR ', '
-                   ) AS service_items
-            FROM quotation_items
-            GROUP BY quotation_id
-        ) qi ON qi.quotation_id = jo.quotation_id
         WHERE jo.branch_id = ?
           AND jo.status IN ('waiting', 'pending', 'in-progress')
-                    AND DATE(COALESCE(jo.job_date, jo.created_at)) BETWEEN ? AND ?
+          AND DATE(COALESCE(jo.job_date, jo.created_at)) BETWEEN ? AND ?
         ORDER BY jo.scheduled_start_time IS NULL, jo.scheduled_start_time ASC, jo.id DESC
         LIMIT 5
     ");
-        $jobs_stmt->execute([$branch_id, $week_start, $week_end]);
+    $jobs_stmt->execute([$branch_id, $week_start, $week_end]);
     $todays_job_orders = $jobs_stmt->fetchAll();
+
+    $job_quotation_ids = array_filter(array_unique(array_column($todays_job_orders, 'quotation_id')));
+    $service_items_by_quote = [];
+    if (!empty($job_quotation_ids)) {
+        $q_placeholders = implode(',', array_fill(0, count($job_quotation_ids), '?'));
+        $qi_stmt = $pdo->prepare("
+            SELECT quotation_id, item_name, item_type, quantity
+            FROM quotation_items
+            WHERE quotation_id IN ($q_placeholders)
+            ORDER BY quotation_id ASC, id ASC
+        ");
+        $qi_stmt->execute(array_values($job_quotation_ids));
+        foreach ($qi_stmt->fetchAll() as $qi_row) {
+            $formatted_name = app_display_item_name($qi_row['item_name'], $qi_row['item_type'] ?? null);
+            if ((int) $qi_row['quantity'] > 1) {
+                $formatted_name .= ' (' . (int) $qi_row['quantity'] . 'x)';
+            }
+            $service_items_by_quote[(int) $qi_row['quotation_id']][] = $formatted_name;
+        }
+    }
 
     $quotes_stmt = $pdo->prepare("
         SELECT q.id, q.branch_id, q.quotation_number, q.quotation_date, q.created_at, q.status, q.total_amount,
-               c.name AS customer_name,
-               qi.service_items
+               c.name AS customer_name
         FROM quotations q
         INNER JOIN customers c ON c.id = q.customer_id
-        LEFT JOIN (
-            SELECT quotation_id,
-                   GROUP_CONCAT(
-                       CONCAT(item_name, CASE WHEN quantity > 1 THEN CONCAT(' (', quantity, 'x)') ELSE '' END)
-                       ORDER BY id SEPARATOR ', '
-                   ) AS service_items
-            FROM quotation_items
-            GROUP BY quotation_id
-        ) qi ON qi.quotation_id = q.id
         WHERE q.branch_id = ?
           AND q.status <> 'archived'
         ORDER BY COALESCE(q.quotation_date, DATE(q.created_at)) DESC, q.id DESC
@@ -231,7 +231,11 @@ try {
                             <p>
                                 <?php echo esc_html(trim(($job['plate_number'] ?? '') . ' ' . (($job['make'] ?? '') ?: '') . ' ' . (($job['model'] ?? '') ?: '')) ?: 'Vehicle not specified'); ?>
                             </p>
-                            <small><?php echo esc_html(front_dashboard_services($job['service_items'], $job['notes'] ?? 'No services listed')); ?></small>
+                            <?php
+                            $job_quote_id = (int) ($job['quotation_id'] ?? 0);
+                            $job_services_str = !empty($service_items_by_quote[$job_quote_id]) ? implode(', ', $service_items_by_quote[$job_quote_id]) : '';
+                            ?>
+                            <small><?php echo esc_html(front_dashboard_services($job_services_str, $job['notes'] ?? 'No services listed')); ?></small>
                         </div>
                         <div class="front-record-meta">
                             <span class="front-status-pill <?php echo esc_attr(front_dashboard_status_class($job['status'])); ?>">

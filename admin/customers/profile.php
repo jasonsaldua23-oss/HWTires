@@ -596,7 +596,7 @@ $customer_contact = ($customer['phone_mobile'] ?? '') ?: (($customer['contact'] 
                                 <?php foreach ($items as $item): ?>
                                     <div class="profile-line-item">
                                         <span>
-                                            <?php echo esc_html($item['item_name']); ?>
+                                            <?php echo esc_html(app_display_item_name($item['item_name'], $item['item_type'] ?? null)); ?>
                                             <?php echo intval($item['quantity'] ?? 1) > 1 ? ' (x' . intval($item['quantity']) . ')' : ''; ?>
                                         </span>
                                         <span><?php echo profile_money(($item['subtotal'] ?? 0) ?: ((float) $item['quantity'] * (float) $item['unit_price'])); ?></span>
@@ -664,7 +664,7 @@ $customer_contact = ($customer['phone_mobile'] ?? '') ?: (($customer['contact'] 
                                 <span class="profile-service-chip chip-cyan">Service Request</span>
                             <?php else: ?>
                                 <?php foreach ($job_items as $item): ?>
-                                    <span class="profile-service-chip chip-cyan"><?php echo esc_html($item['item_name']); ?></span>
+                                    <span class="profile-service-chip chip-cyan"><?php echo esc_html(app_display_item_name($item['item_name'], $item['item_type'] ?? null)); ?></span>
                                 <?php endforeach; ?>
                             <?php endif; ?>
                         </div>

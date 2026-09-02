@@ -301,7 +301,7 @@ $services_by_quotation = [];
 if (!empty($quotation_ids)) {
     $placeholders = implode(',', array_fill(0, count($quotation_ids), '?'));
     $items_stmt = $pdo->prepare("
-        SELECT quotation_id, item_name
+        SELECT quotation_id, item_name, item_type
         FROM quotation_items
         WHERE quotation_id IN ($placeholders)
         ORDER BY quotation_id ASC, id ASC
@@ -309,7 +309,7 @@ if (!empty($quotation_ids)) {
     $items_stmt->execute($quotation_ids);
 
     foreach ($items_stmt->fetchAll(PDO::FETCH_ASSOC) as $item) {
-        $services_by_quotation[(int) $item['quotation_id']][] = $item['item_name'];
+        $services_by_quotation[(int) $item['quotation_id']][] = app_display_item_name($item['item_name'], $item['item_type'] ?? null);
     }
 }
 

@@ -419,7 +419,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                             <?php else: ?>
                                 <?php foreach ($visible_items as $item): ?>
                                     <span class="quotation-service-chip">
-                                        <?php echo esc_html($item['item_name']); ?>
+                                        <?php echo esc_html(app_display_item_name($item['item_name'], $item['item_type'] ?? null)); ?>
                                         <?php echo ' (' . max(1, (int) ($item['quantity'] ?? 1)) . 'x)'; ?>
                                     </span>
                                 <?php endforeach; ?>
@@ -548,7 +548,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                                                 ?>
                                                 <article class="quotation-detail-item">
                                                     <div>
-                                                        <h4><?php echo esc_html($item['item_name']); ?></h4>
+                                                        <h4><?php echo esc_html(app_display_item_name($item['item_name'], $item['item_type'] ?? null)); ?></h4>
                                                         <p>Quantity: <?php echo $quantity; ?></p>
                                                     </div>
                                                     <div>
@@ -678,7 +678,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                                                                 <div class="col-5">
                                                                     <label class="form-check-label">
                                                                         <input type="checkbox" class="form-check-input me-2" name="keep_item_ids[]" value="<?php echo $iid; ?>" checked>
-                                                                        <strong><?php echo esc_html($item['item_name']); ?></strong>
+                                                                        <strong><?php echo esc_html(app_display_item_name($item['item_name'], $itype)); ?></strong>
                                                                         <small class="text-muted"> &mdash; <?php echo esc_html(ucfirst($itype)); ?></small>
                                                                     </label>
                                                                 </div>

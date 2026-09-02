@@ -449,7 +449,7 @@ function search_suggestions_inventory($like, $limit, $branch_filter, $category_f
             $suggestions,
             $seen,
             'Inventory',
-            $row['item_name'] ?? '',
+            app_display_item_name($row['item_name'] ?? '', $row['category'] ?? null),
             $detail,
             $row['item_name'] ?? ''
         );

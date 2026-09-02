@@ -733,7 +733,7 @@ if ($view_filter === 'last_month_sales') {
         ],
         [
             'label' => 'Most Sold Item',
-            'value' => $top_item ? esc_html($top_item['item_name']) : 'None',
+            'value' => $top_item ? esc_html(app_display_item_name($top_item['item_name'], $top_item['category'] ?? null)) : 'None',
             'subtext' => $top_item ? (number_format((float) $top_item['total_sold_qty']) . ' units · ₱' . number_format((float) $top_item['total_sold_amount'])) : 'No sales recorded',
             'icon' => 'fas fa-fire',
             'icon_class' => 'icon-gold',
@@ -761,6 +761,7 @@ if ($view_filter === 'last_month_sales') {
     $top_item_stmt = $pdo->prepare("
         SELECT
             MAX(i.item_name) AS item_name,
+            MAX(i.category) AS category,
             COALESCE(SUM(t.quantity), 0) AS total_qty,
             COALESCE(SUM(t.quantity * i.unit_price), 0) AS total_amount
         FROM inventory_transactions t
@@ -796,7 +797,7 @@ if ($view_filter === 'last_month_sales') {
         ],
         [
             'label' => 'Most Dispatched Item',
-            'value' => $top_item ? esc_html($top_item['item_name']) : 'None',
+            'value' => $top_item ? esc_html(app_display_item_name($top_item['item_name'], $top_item['category'] ?? null)) : 'None',
             'subtext' => $top_item ? (number_format((float) $top_item['total_qty']) . ' units · ₱' . number_format((float) $top_item['total_amount'])) : 'No dispatches recorded',
             'icon' => 'fas fa-fire',
             'icon_class' => 'icon-gold',
@@ -824,6 +825,7 @@ if ($view_filter === 'last_month_sales') {
     $top_item_stmt = $pdo->prepare("
         SELECT
             MAX(i.item_name) AS item_name,
+            MAX(i.category) AS category,
             COALESCE(SUM(t.quantity), 0) AS total_qty,
             COALESCE(SUM(t.quantity * i.unit_price), 0) AS total_amount
         FROM inventory_transactions t
@@ -859,7 +861,7 @@ if ($view_filter === 'last_month_sales') {
         ],
         [
             'label' => 'Most Restocked Item',
-            'value' => $top_item ? esc_html($top_item['item_name']) : 'None',
+            'value' => $top_item ? esc_html(app_display_item_name($top_item['item_name'], $top_item['category'] ?? null)) : 'None',
             'subtext' => $top_item ? (number_format((float) $top_item['total_qty']) . ' units · ₱' . number_format((float) $top_item['total_amount'])) : 'No restocks recorded',
             'icon' => 'fas fa-cubes',
             'icon_class' => 'icon-cyan',
@@ -878,7 +880,7 @@ if ($view_filter === 'last_month_sales') {
     $ls_summary = $low_stock_summary_stmt->fetch() ?: ['total_items' => 0, 'total_stock_value' => 0, 'out_of_stock_count' => 0];
 
     $lowest_item_stmt = $pdo->prepare("
-        SELECT i.item_name, i.quantity, i.reorder_level
+        SELECT i.item_name, i.category, i.quantity, i.reorder_level
         FROM inventory_items i
         WHERE $item_list_where_sql
         ORDER BY i.quantity ASC, i.reorder_level DESC, i.item_name ASC
@@ -904,7 +906,7 @@ if ($view_filter === 'last_month_sales') {
         ],
         [
             'label' => 'Lowest Stock Item',
-            'value' => $lowest_item ? esc_html($lowest_item['item_name']) : 'None',
+            'value' => $lowest_item ? esc_html(app_display_item_name($lowest_item['item_name'], $lowest_item['category'] ?? null)) : 'None',
             'subtext' => $lowest_item ? ((int) $lowest_item['quantity'] . ' unit' . ((int) $lowest_item['quantity'] === 1 ? '' : 's') . ' left · Reorder: ' . (int) $lowest_item['reorder_level']) : 'No low stock items',
             'icon' => 'fas fa-circle-exclamation',
             'icon_class' => 'icon-red',
@@ -1175,7 +1177,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                 <article class="inventory-service-request-card status-<?php echo esc_attr($request_status); ?>">
                                     <div class="inventory-service-request-card-top">
                                         <div>
-                                            <h3><?php echo esc_html($request['item_name'] ?? 'Requested item'); ?></h3>
+                                            <h3><?php echo esc_html(app_display_item_name($request['item_name'] ?? 'Requested item')); ?></h3>
                                             <p>
                                                 <?php if ($is_receiver): ?>
                                                     From: <strong><?php echo esc_html($request['donor_branch_name'] ?? 'Donor branch'); ?></strong>
@@ -1205,7 +1207,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                                         data-transfer-accept
                                                         data-transfer-id="<?php echo (int) ($request['id'] ?? 0); ?>"
                                                         data-request-number="<?php echo esc_attr($request['request_number'] ?? 'this request'); ?>"
-                                                        data-item-name="<?php echo esc_attr($request['item_name'] ?? 'this item'); ?>"
+                                                        data-item-name="<?php echo esc_attr(app_display_item_name($request['item_name'] ?? 'this item')); ?>"
                                                         data-donor-branch="<?php echo esc_attr($request['donor_branch_name'] ?? 'Donor branch'); ?>"
                                                         data-qty="<?php echo $display_quantity; ?>"
                                                         title="Accept transfer and add to inventory">
@@ -1218,7 +1220,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                                         data-transfer-reject
                                                         data-transfer-id="<?php echo (int) ($request['id'] ?? 0); ?>"
                                                         data-request-number="<?php echo esc_attr($request['request_number'] ?? 'this request'); ?>"
-                                                        data-item-name="<?php echo esc_attr($request['item_name'] ?? 'this item'); ?>"
+                                                        data-item-name="<?php echo esc_attr(app_display_item_name($request['item_name'] ?? 'this item')); ?>"
                                                         title="Reject transfer and initiate return">
                                                     <i class="fas fa-times-circle"></i>
                                                     <span>Reject</span>
@@ -1230,7 +1232,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                                     data-transfer-done
                                                     data-transfer-id="<?php echo (int) ($request['id'] ?? 0); ?>"
                                                     data-request-number="<?php echo esc_attr($request['request_number'] ?? 'this request'); ?>"
-                                                    data-item-name="<?php echo esc_attr($request['item_name'] ?? 'this item'); ?>"
+                                                    data-item-name="<?php echo esc_attr(app_display_item_name($request['item_name'] ?? 'this item')); ?>"
                                                     title="Mark item as transferred/shipped">
                                                 <i class="fas fa-truck"></i>
                                                 <span>Mark Shipped</span>
@@ -1242,7 +1244,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                                     data-transfer-return
                                                     data-transfer-id="<?php echo (int) ($request['id'] ?? 0); ?>"
                                                     data-request-number="<?php echo esc_attr($request['request_number'] ?? 'this request'); ?>"
-                                                    data-item-name="<?php echo esc_attr($request['item_name'] ?? 'this item'); ?>"
+                                                    data-item-name="<?php echo esc_attr(app_display_item_name($request['item_name'] ?? 'this item')); ?>"
                                                     title="Confirm receipt of returned stock and restore inventory">
                                                 <i class="fas fa-undo"></i>
                                                 <span>Confirm Returned Stock</span>
@@ -1286,7 +1288,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                 <article class="inventory-service-request-card <?php echo $is_returned ? 'status-cancelled' : 'status-received'; ?>">
                                     <div class="inventory-service-request-card-top">
                                         <div>
-                                            <h3><?php echo esc_html($request['item_name'] ?? 'Requested item'); ?></h3>
+                                            <h3><?php echo esc_html(app_display_item_name($request['item_name'] ?? 'Requested item')); ?></h3>
                                             <p>
                                                 <?php echo esc_html($request['requesting_branch_name'] ?? 'Requesting branch'); ?>
                                                 <?php if (!empty($request['quotation_number'])): ?>
@@ -1379,12 +1381,12 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                 <button type="button" class="js-stock-in"
                                     style="background: #00ad45; color: #ffffff; border: none; font-size: 0.78rem; font-weight: 700; padding: 5px 12px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);"
                                     data-id="<?php echo (int) $item['id']; ?>"
-                                    data-name="<?php echo esc_attr($item['item_name']); ?>"
+                                    data-name="<?php echo esc_attr(app_display_item_name($item['item_name'], $category)); ?>"
                                     data-current="<?php echo (int) $item['quantity']; ?>"
                                     data-reorder="<?php echo (int) $item['reorder_level']; ?>"
                                     data-supplier="<?php echo esc_attr($item['supplier_name'] ?? ''); ?>"
                                     data-default-qty="<?php echo max(1, (int) $item['reorder_level'] - (int) $item['quantity']); ?>"
-                                    title="Click to Stock In <?php echo esc_attr($item['item_name']); ?>">
+                                    title="Click to Stock In <?php echo esc_attr(app_display_item_name($item['item_name'], $category)); ?>">
                                     <i class="fas fa-plus"></i> Stock In (+<?php echo max(1, (int) $item['reorder_level'] - (int) $item['quantity']); ?>)
                                 </button>
                             </div>
@@ -1427,7 +1429,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                 <?php else: ?>
                     <?php foreach (array_slice($decision_support['high_priority'], 0, 3) as $support_item): ?>
                         <div class="forecast-dss-item">
-                            <strong><?php echo esc_html($support_item['item']['item_name']); ?></strong>
+                            <strong><?php echo esc_html(app_display_item_name($support_item['item']['item_name'], $support_item['item']['category'] ?? null)); ?></strong>
                             <p>
                                 Order <?php echo (int) $support_item['recommended_order']; ?> units.
                                 <?php if ($support_item['stock_duration'] !== null): ?>
@@ -1448,7 +1450,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                 <?php else: ?>
                     <?php foreach (array_slice($decision_support['medium_priority'], 0, 3) as $support_item): ?>
                         <div class="forecast-dss-item">
-                            <strong><?php echo esc_html($support_item['item']['item_name']); ?></strong>
+                            <strong><?php echo esc_html(app_display_item_name($support_item['item']['item_name'], $support_item['item']['category'] ?? null)); ?></strong>
                             <p>Order <?php echo (int) $support_item['recommended_order']; ?> units within the next week to maintain stock coverage.</p>
                         </div>
                     <?php endforeach; ?>
@@ -1551,7 +1553,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                         class="inventory-action-btn transfer-stock js-transfer-stock"
                                         data-source-id="<?php echo (int) $from_item['id']; ?>"
                                         data-target-id="<?php echo (int) $to_item['id']; ?>"
-                                        data-name="<?php echo esc_attr($item['item_name']); ?>"
+                                        data-name="<?php echo esc_attr(app_display_item_name($item['item_name'], $item['category'] ?? null)); ?>"
                                         data-from="<?php echo esc_attr(forecast_branch_label($from_item['branch_name'])); ?>"
                                         data-to="<?php echo esc_attr(forecast_branch_label($to_item['branch_name'])); ?>"
                                         data-current="<?php echo (int) $from_item['quantity']; ?>"
@@ -1667,7 +1669,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                         </span>
                                     </td>
                                     <td>
-                                        <strong><?php echo esc_html($top_item_row['item_name']); ?></strong>
+                                        <strong><?php echo esc_html(app_display_item_name($top_item_row['item_name'], $top_item_row['category'] ?? null)); ?></strong>
                                         <span class="inventory-item-sub">
                                             <?php echo esc_html($top_item_row['brand'] ?: 'Unbranded'); ?>
                                             <?php if ($item_detail !== '-'): ?>
@@ -1748,7 +1750,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                         </span>
                                     </td>
                                     <td>
-                                        <strong><?php echo esc_html($transaction['item_name'] ?? '-'); ?></strong>
+                                        <strong><?php echo esc_html(app_display_item_name($transaction['item_name'] ?? '-', $transaction['category'] ?? null)); ?></strong>
                                         <small><?php echo esc_html(trim(($transaction['brand'] ?? '') . (!empty($transaction['size']) ? ' (' . $transaction['size'] . ')' : ''))); ?></small>
                                     </td>
                                     <td>
@@ -1860,7 +1862,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                             <button type="button"
                                                     class="inventory-action-btn stock-in js-stock-in"
                                                     data-id="<?php echo (int) $item['id']; ?>"
-                                                    data-name="<?php echo esc_attr($item['item_name']); ?>"
+                                                    data-name="<?php echo esc_attr(app_display_item_name($item['item_name'], $category)); ?>"
                                                     data-current="<?php echo (int) $item['quantity']; ?>"
                                                     data-reorder="<?php echo (int) $item['reorder_level']; ?>"
                                                     data-supplier="<?php echo esc_attr($item['supplier_name'] ?? ''); ?>">
@@ -1869,7 +1871,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                             <button type="button"
                                                     class="inventory-action-btn stock-out js-stock-out"
                                                     data-id="<?php echo (int) $item['id']; ?>"
-                                                    data-name="<?php echo esc_attr($item['item_name']); ?>"
+                                                    data-name="<?php echo esc_attr(app_display_item_name($item['item_name'], $category)); ?>"
                                                     data-current="<?php echo (int) $item['quantity']; ?>"
                                                     data-reorder="<?php echo (int) $item['reorder_level']; ?>">
                                                 Stock Out
@@ -1878,7 +1880,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                                     class="inventory-action-btn js-adjust-stock"
                                                     style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;"
                                                     data-id="<?php echo (int) $item['id']; ?>"
-                                                    data-name="<?php echo esc_attr($item['item_name']); ?>"
+                                                    data-name="<?php echo esc_attr(app_display_item_name($item['item_name'], $category)); ?>"
                                                     data-brand="<?php echo esc_attr($item['brand'] ?: 'Unbranded'); ?>"
                                                     data-size="<?php echo esc_attr($item['size'] ?: ''); ?>"
                                                     data-category="<?php echo esc_attr($category); ?>"
@@ -3126,7 +3128,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <?php if (!empty($requested_stock_in_item)): ?>
         stockInCurrent = <?php echo (int) $requested_stock_in_item['quantity']; ?>;
         document.getElementById('stockInId').value = <?php echo (int) $requested_stock_in_item['id']; ?>;
-        document.getElementById('stockInName').textContent = <?php echo json_encode($requested_stock_in_item['item_name']); ?>;
+        document.getElementById('stockInName').textContent = <?php echo json_encode(app_display_item_name($requested_stock_in_item['item_name'], $requested_stock_in_item['category'] ?? null)); ?>;
         document.getElementById('stockInCurrent').textContent = stockInCurrent;
         document.getElementById('stockInReorder').textContent = <?php echo (int) $requested_stock_in_item['reorder_level']; ?>;
         stockInQty.value = <?php echo max(1, (int) ($_GET['quantity'] ?? 1)); ?>;

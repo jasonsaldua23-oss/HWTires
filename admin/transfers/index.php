@@ -221,7 +221,7 @@ include __DIR__ . '/../../includes/sidebar.php';
                                 ?>
                                 <tr>
                                     <td><strong><?= htmlspecialchars($t['request_number']) ?></strong></td>
-                                    <td><?= htmlspecialchars($t['item_name']) ?></td>
+                                    <td><?= htmlspecialchars(app_display_item_name($t['item_name'])) ?></td>
                                     <td>
                                         <small>
                                             <?= htmlspecialchars($t['donor_branch']) ?> →
@@ -276,7 +276,7 @@ include __DIR__ . '/../../includes/sidebar.php';
                                                     class="btn btn-sm btn-outline-danger js-admin-reject-btn"
                                                     data-transfer-id="<?= (int)$t['id'] ?>"
                                                     data-request-number="<?= htmlspecialchars($t['request_number'] ?? '') ?>"
-                                                    data-item-name="<?= htmlspecialchars($t['item_name'] ?? '') ?>"
+                                                    data-item-name="<?= htmlspecialchars(app_display_item_name($t['item_name'] ?? '')) ?>"
                                                     data-donor-branch="<?= htmlspecialchars($t['donor_branch'] ?? '') ?>"
                                                     data-requesting-branch="<?= htmlspecialchars($t['requesting_branch'] ?? '') ?>"
                                                     data-requested-qty="<?= $effective_qty ?>"

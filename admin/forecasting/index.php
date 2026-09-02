@@ -359,7 +359,7 @@ foreach ($movement_category_totals as $category_total) {
                     ?>
                     <article class="forecast-risk-row risk-<?php echo esc_attr($risk_status); ?>">
                         <div class="forecast-risk-main">
-                            <strong><?php echo esc_html($risk_inventory_item['item_name']); ?></strong>
+                            <strong><?php echo esc_html(app_display_item_name($risk_inventory_item['item_name'], $risk_inventory_item['category'] ?? null)); ?></strong>
                             <span>
                                 <?php echo esc_html(forecast_category_label($risk_inventory_item['category'])); ?>
                                 &middot;
@@ -669,7 +669,7 @@ foreach ($movement_category_totals as $category_total) {
                 <?php else: ?>
                     <?php foreach ($decision_support['high_priority'] as $item): ?>
                         <div class="forecast-dss-item">
-                            <strong><?php echo esc_html($item['item']['item_name']); ?></strong>
+                            <strong><?php echo esc_html(app_display_item_name($item['item']['item_name'], $item['item']['category'] ?? null)); ?></strong>
                             <p>
                                 URGENT: Order <?php echo (int) $item['recommended_order']; ?> units immediately.
                                 <?php if ($item['stock_duration'] !== null): ?>
@@ -690,7 +690,7 @@ foreach ($movement_category_totals as $category_total) {
                 <?php else: ?>
                     <?php foreach ($decision_support['medium_priority'] as $item): ?>
                         <div class="forecast-dss-item">
-                            <strong><?php echo esc_html($item['item']['item_name']); ?></strong>
+                            <strong><?php echo esc_html(app_display_item_name($item['item']['item_name'], $item['item']['category'] ?? null)); ?></strong>
                             <p>Order <?php echo (int) $item['recommended_order']; ?> units within the next week to maintain optimal stock levels.</p>
                         </div>
                     <?php endforeach; ?>

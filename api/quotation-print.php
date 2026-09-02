@@ -193,7 +193,7 @@ try {
                 : '';
             $rows_html .= '
                 <tr>
-                    <td colspan="2" style="padding-top:4px;font-weight:bold;">' . quote_pdf_text($item['item_name'] ?? '-') . $detail_html . '</td>
+                    <td colspan="2" style="padding-top:4px;font-weight:bold;">' . quote_pdf_text(app_display_item_name($item['item_name'] ?? '-', $item['item_type'] ?? null)) . $detail_html . '</td>
                 </tr>
                 <tr>
                     <td style="padding-bottom:4px;border-bottom:1px dashed #CBD5E1;color:#475569;">
