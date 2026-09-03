@@ -107,6 +107,9 @@ if (!function_exists('audit_action_label')) {
             'delete_permanent' => 'Permanent Delete',
             'merge_duplicates' => 'Merge Duplicates',
             'profile_update' => 'Profile Update',
+            'password_reset_admin' => 'Password Reset by Admin',
+            'password_change_first_login' => 'First Login Password Change',
+            'password_change_profile' => 'Password Change',
         ];
         return $labels[$action_lower] ?? ucwords(str_replace('_', ' ', (string) $action));
     }

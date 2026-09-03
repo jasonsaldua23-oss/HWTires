@@ -11,6 +11,9 @@ app_send_no_cache_headers();
 // If already logged in, redirect
 if (is_logged_in()) {
     $user = app_get_session_user();
+    if (!empty($user['must_change_password'])) {
+        redirect(APP_URL . '/force-change-password.php');
+    }
     $redirect = ($user['role'] === 'admin') ? (APP_URL . '/admin/') : (APP_URL . '/front-desk/');
     redirect($redirect);
 }
@@ -59,45 +62,79 @@ foreach ($login_background_candidates as $login_background_path) {
 // Handle login
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email']) && !empty($_POST['password'])) {
     $login_id = strtolower(trim($_POST['email']));
-    $password = $_POST['password'];
+    $password = (string) $_POST['password'];
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
 
-    try {
-        $sql = "SELECT id, name, email, password_hash, role, branch_id, status FROM users WHERE email = ?";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$login_id]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    // 1. Check rate-limiting / lockout
+    $lockout = app_check_login_lockout($pdo, $login_id, $ip);
+    if ($lockout['locked']) {
+        $remaining_mins = max(1, (int) ceil($lockout['remaining_seconds'] / 60));
+        $error = "Too many failed login attempts. Please try again in {$remaining_mins} minute(s).";
+    } else {
+        try {
+            $sql = "SELECT id, name, email, password_hash, role, branch_id, status, must_change_password FROM users WHERE email = ?";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$login_id]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($user) {
-            $pwd_check = password_verify($password, $user['password_hash']);
+            if ($user) {
+                $pwd_check = password_verify($password, $user['password_hash']);
 
-            if ($pwd_check && $user['status'] === 'active') {
-                $_SESSION['user'] = [
-                    'id' => (int)$user['id'],
-                    'name' => (string)$user['name'],
-                    'email' => (string)$user['email'],
-                    'role' => (string)$user['role'],
-                    'branch_id' => (int)$user['branch_id'],
-                    'status' => (string)$user['status']
-                ];
+                if ($pwd_check && $user['status'] === 'active') {
+                    // Clear failed attempts on successful login
+                    app_clear_failed_logins($pdo, $login_id, $ip);
 
-                log_audit('users', 'login', (int)$user['id'], null, [
-                    'role' => (string)$user['role'],
-                    'branch_id' => (int)$user['branch_id'],
-                ]);
+                    // Prevent session fixation
+                    session_regenerate_id(true);
 
-                // Force session save before redirect
-                session_write_close();
+                    $_SESSION['user'] = [
+                        'id' => (int) $user['id'],
+                        'name' => (string) $user['name'],
+                        'email' => (string) $user['email'],
+                        'role' => (string) $user['role'],
+                        'branch_id' => (int) $user['branch_id'],
+                        'status' => (string) $user['status'],
+                        'must_change_password' => (int) ($user['must_change_password'] ?? 0),
+                    ];
+                    $_SESSION['last_activity'] = time();
 
-                $redirect = ($user['role'] === 'admin') ? (APP_URL . '/admin/') : (APP_URL . '/front-desk/');
-                redirect($redirect);
+                    log_audit('users', 'login', (int) $user['id'], null, [
+                        'role' => (string) $user['role'],
+                        'branch_id' => (int) $user['branch_id'],
+                    ]);
+
+                    // Force session save before redirect
+                    session_write_close();
+
+                    if ((int) ($user['must_change_password'] ?? 0) === 1) {
+                        redirect(APP_URL . '/force-change-password.php');
+                    }
+
+                    $redirect = ($user['role'] === 'admin') ? (APP_URL . '/admin/') : (APP_URL . '/front-desk/');
+                    redirect($redirect);
+                } else {
+                    app_record_failed_login($pdo, $login_id, $ip);
+                    $check_after = app_check_login_lockout($pdo, $login_id, $ip);
+                    if ($check_after['locked']) {
+                        $remaining_mins = max(1, (int) ceil($check_after['remaining_seconds'] / 60));
+                        $error = "Too many failed login attempts. Please try again in {$remaining_mins} minute(s).";
+                    } else {
+                        $error = 'Invalid login credentials or temporarily unavailable.';
+                    }
+                }
             } else {
-                $error = 'Invalid login ID or password.';
+                app_record_failed_login($pdo, $login_id, $ip);
+                $check_after = app_check_login_lockout($pdo, $login_id, $ip);
+                if ($check_after['locked']) {
+                    $remaining_mins = max(1, (int) ceil($check_after['remaining_seconds'] / 60));
+                    $error = "Too many failed login attempts. Please try again in {$remaining_mins} minute(s).";
+                } else {
+                    $error = 'Invalid login credentials or temporarily unavailable.';
+                }
             }
-        } else {
-            $error = 'Invalid login ID or password.';
+        } catch (Exception $e) {
+            $error = 'Database error: ' . $e->getMessage();
         }
-    } catch (Exception $e) {
-        $error = 'Database error: ' . $e->getMessage();
     }
 }
 

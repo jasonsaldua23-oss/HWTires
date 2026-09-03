@@ -107,6 +107,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $fields[] = 'password_hash = ?';
             $params[] = password_hash($new_password, PASSWORD_DEFAULT);
+            $fields[] = 'password_changed_at = NOW()';
+            $fields[] = 'must_change_password = 0';
         }
 
         $params[] = $user_id;
@@ -115,6 +117,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $_SESSION['user']['name'] = $name;
         $_SESSION['user']['email'] = $login_id;
+        if ($password_requested) {
+            $_SESSION['user']['must_change_password'] = 0;
+        }
 
         log_audit('users', 'profile_update', $user_id, [
             'name' => $account['name'] ?? null,

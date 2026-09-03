@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS users (
     role ENUM('admin', 'front-desk') DEFAULT 'front-desk',
     branch_id INT,
     status ENUM('active', 'inactive') DEFAULT 'active',
+    must_change_password TINYINT(1) NOT NULL DEFAULT 0,
+    password_changed_at TIMESTAMP NULL DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL,
@@ -721,8 +723,21 @@ CREATE TABLE IF NOT EXISTS transfer_notifications (
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ===================================
+-- 18. LOGIN ATTEMPTS TABLE (Rate Limiting)
+-- ===================================
+CREATE TABLE IF NOT EXISTS login_attempts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    ip_address VARCHAR(45) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_login_lockout (email, ip_address, attempted_at),
+    INDEX idx_attempted_at (attempted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Create indexes for performance
 CREATE INDEX idx_quotations_status ON quotations(status);
 CREATE INDEX idx_quotations_branch ON quotations(branch_id);
 CREATE INDEX idx_job_orders_status ON job_orders(status);
 CREATE INDEX idx_inventory_items_quantity ON inventory_items(quantity);
+

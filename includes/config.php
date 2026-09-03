@@ -182,12 +182,175 @@ if (!function_exists('app_get_session_user')) {
 }
 
 /**
- * Check if user is logged in
+ * Generate cryptographically secure temporary password
+ */
+if (!function_exists('app_generate_temporary_password')) {
+    function app_generate_temporary_password($length = 12) {
+        $length = max(10, min(32, (int) $length));
+        
+        $uppers = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+        $lowers = 'abcdefghjkmnpqrstuvwxyz';
+        $digits = '23456789';
+        $symbols = '!@#$%&*+?';
+        
+        $pwd = [
+            $uppers[random_int(0, strlen($uppers) - 1)],
+            $uppers[random_int(0, strlen($uppers) - 1)],
+            $lowers[random_int(0, strlen($lowers) - 1)],
+            $lowers[random_int(0, strlen($lowers) - 1)],
+            $digits[random_int(0, strlen($digits) - 1)],
+            $digits[random_int(0, strlen($digits) - 1)],
+            $symbols[random_int(0, strlen($symbols) - 1)],
+            $symbols[random_int(0, strlen($symbols) - 1)],
+        ];
+        
+        $all = $uppers . $lowers . $digits . $symbols;
+        $all_len = strlen($all);
+        
+        while (count($pwd) < $length) {
+            $pwd[] = $all[random_int(0, $all_len - 1)];
+        }
+        
+        for ($i = count($pwd) - 1; $i > 0; $i--) {
+            $j = random_int(0, $i);
+            $temp = $pwd[$i];
+            $pwd[$i] = $pwd[$j];
+            $pwd[$j] = $temp;
+        }
+        
+        return implode('', $pwd);
+    }
+}
+
+/**
+ * Check login attempt lockout (rate limiting)
+ */
+if (!function_exists('app_check_login_lockout')) {
+    function app_check_login_lockout(PDO $pdo, $email, $ip) {
+        $email = strtolower(trim((string) $email));
+        $ip = trim((string) $ip);
+        if ($email === '' || $ip === '') {
+            return ['locked' => false, 'remaining_seconds' => 0, 'attempts' => 0];
+        }
+
+        try {
+            $stmt = $pdo->prepare("
+                SELECT COUNT(*) AS attempts, MIN(attempted_at) AS oldest_attempt
+                FROM login_attempts
+                WHERE email = ? AND ip_address = ?
+                  AND attempted_at >= DATE_SUB(NOW(), INTERVAL 15 MINUTE)
+            ");
+            $stmt->execute([$email, $ip]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            $attempts = (int) ($row['attempts'] ?? 0);
+            if ($attempts >= 5) {
+                $oldest = !empty($row['oldest_attempt']) ? strtotime($row['oldest_attempt']) : time();
+                $elapsed = time() - $oldest;
+                $remaining = max(1, 900 - $elapsed);
+                return ['locked' => true, 'remaining_seconds' => $remaining, 'attempts' => $attempts];
+            }
+
+            return ['locked' => false, 'remaining_seconds' => 0, 'attempts' => $attempts];
+        } catch (Exception $e) {
+            error_log('Login lockout check error: ' . $e->getMessage());
+            return ['locked' => false, 'remaining_seconds' => 0, 'attempts' => 0];
+        }
+    }
+}
+
+/**
+ * Record a failed login attempt
+ */
+if (!function_exists('app_record_failed_login')) {
+    function app_record_failed_login(PDO $pdo, $email, $ip) {
+        $email = strtolower(trim((string) $email));
+        $ip = trim((string) $ip);
+        if ($email === '' || $ip === '') {
+            return;
+        }
+
+        try {
+            $stmt = $pdo->prepare("INSERT INTO login_attempts (ip_address, email, attempted_at) VALUES (?, ?, NOW())");
+            $stmt->execute([$ip, $email]);
+
+            if (random_int(1, 10) === 1) {
+                $pdo->exec("DELETE FROM login_attempts WHERE attempted_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)");
+            }
+        } catch (Exception $e) {
+            error_log('Record failed login error: ' . $e->getMessage());
+        }
+    }
+}
+
+/**
+ * Clear failed login attempts for an account on success
+ */
+if (!function_exists('app_clear_failed_logins')) {
+    function app_clear_failed_logins(PDO $pdo, $email, $ip) {
+        $email = strtolower(trim((string) $email));
+        $ip = trim((string) $ip);
+        if ($email === '' || $ip === '') {
+            return;
+        }
+
+        try {
+            $stmt = $pdo->prepare("DELETE FROM login_attempts WHERE email = ? AND ip_address = ?");
+            $stmt->execute([$email, $ip]);
+        } catch (Exception $e) {
+            error_log('Clear failed logins error: ' . $e->getMessage());
+        }
+    }
+}
+
+/**
+ * Check if user is logged in and enforce session security
  */
 if (!function_exists('is_logged_in')) {
     function is_logged_in() {
         $user = app_get_session_user();
-        return is_array($user) && !empty($user) && !empty($user['id']);
+        if (!is_array($user) || empty($user) || empty($user['id'])) {
+            return false;
+        }
+
+        if (defined('SESSION_TIMEOUT') && SESSION_TIMEOUT > 0) {
+            $last_act = $_SESSION['last_activity'] ?? null;
+            if ($last_act !== null && (time() - (int) $last_act > SESSION_TIMEOUT)) {
+                if (function_exists('log_audit')) {
+                    log_audit('users', 'logout', (int) $user['id'], null, ['reason' => 'inactivity_timeout']);
+                }
+                $_SESSION = [];
+                if (ini_get("session.use_cookies")) {
+                    $params = session_get_cookie_params();
+                    setcookie(
+                        session_name(),
+                        '',
+                        time() - 42000,
+                        $params["path"] ?? '/',
+                        $params["domain"] ?? '',
+                        $params["secure"] ?? false,
+                        $params["httponly"] ?? true
+                    );
+                }
+                session_destroy();
+                if (!headers_sent() && php_sapi_name() !== 'cli') {
+                    redirect(APP_URL . '/index.php?timeout=1');
+                }
+                return false;
+            }
+            $_SESSION['last_activity'] = time();
+        }
+
+        if (!empty($user['must_change_password'])) {
+            $script = basename($_SERVER['SCRIPT_NAME'] ?? '');
+            $uri = $_SERVER['REQUEST_URI'] ?? '';
+            $is_allowed = ($script === 'force-change-password.php' || $script === 'logout.php' || strpos($uri, 'logout.php') !== false);
+            if (!$is_allowed && !headers_sent() && php_sapi_name() !== 'cli') {
+                redirect(APP_URL . '/force-change-password.php');
+            }
+        }
+
+        return true;
     }
 }
 
@@ -258,6 +421,29 @@ if (!function_exists('log_audit')) {
         global $pdo;
         $user = app_get_session_user();
 
+        // Automatically sanitize sensitive fields (passwords, hashes, tokens)
+        $sanitize_payload = function($payload) use (&$sanitize_payload) {
+            if (!is_array($payload)) {
+                return $payload;
+            }
+            $sensitive_keys = ['password', 'password_hash', 'password_confirm', 'temp_password', 'csrf_token'];
+            $clean = [];
+            foreach ($payload as $k => $v) {
+                if (in_array(strtolower((string) $k), $sensitive_keys, true)) {
+                    continue;
+                }
+                if (is_array($v)) {
+                    $clean[$k] = $sanitize_payload($v);
+                } else {
+                    $clean[$k] = $v;
+                }
+            }
+            return $clean;
+        };
+
+        $clean_old = $old_values ? $sanitize_payload($old_values) : null;
+        $clean_new = $new_values ? $sanitize_payload($new_values) : null;
+
         try {
             $stmt = $pdo->prepare("INSERT INTO audit_logs (user_id, action, table_name, record_id, old_values, new_values, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([
@@ -265,8 +451,8 @@ if (!function_exists('log_audit')) {
                 $action,
                 $table_name,
                 $record_id,
-                $old_values ? json_encode($old_values) : null,
-                $new_values ? json_encode($new_values) : null,
+                $clean_old ? json_encode($clean_old) : null,
+                $clean_new ? json_encode($clean_new) : null,
                 $_SERVER['REMOTE_ADDR'] ?? 'unknown'
             ]);
         } catch (Exception $e) {
