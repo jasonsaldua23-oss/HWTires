@@ -65,6 +65,8 @@ try {
         'contact_phone' => '(02) 8123-4567',
         'company_logo' => 'assets/images/logo.png',
         'primary_color' => '#06B6D4',
+        'company_address' => '',
+        'quotation_footer_note' => '',
     ];
 
     try {
@@ -233,6 +235,7 @@ try {
         <div class="center">
             <div class="company">' . quote_pdf_text($settings['company_name']) . '</div>
             <div class="muted">' . quote_pdf_text($settings['system_title']) . '</div>
+            ' . (!empty($settings['company_address']) ? '<div class="muted">' . quote_pdf_text($settings['company_address']) . '</div>' : '') . '
             <div class="muted">' . quote_pdf_text($settings['contact_phone']) . '</div>
             <div class="muted">' . quote_pdf_text($settings['contact_email']) . '</div>
             <div class="muted">' . quote_pdf_text($branch_label) . '</div>
@@ -341,6 +344,7 @@ try {
 
         <div class="dash"></div>
         <div class="center muted">
+            ' . (!empty($settings['quotation_footer_note']) ? quote_pdf_text($settings['quotation_footer_note']) . '<br>' : '') . '
             This is a service operation summary, not an official receipt.<br>
             Thank you.
         </div>

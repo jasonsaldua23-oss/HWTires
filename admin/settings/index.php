@@ -49,6 +49,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
     $system_title = trim($_POST['system_title'] ?? '');
     $contact_email = trim($_POST['contact_email'] ?? '');
     $contact_phone = settings_normalize_phone($_POST['contact_phone'] ?? '');
+    $company_address = trim($_POST['company_address'] ?? '');
+    $business_hours = trim($_POST['business_hours'] ?? '');
+    $quotation_footer_note = trim($_POST['quotation_footer_note'] ?? '');
     $primary_color = trim($_POST['primary_color'] ?? '#06B6D4');
 
     if ($primary_color !== '' && $primary_color[0] !== '#') {
@@ -119,6 +122,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
                 'system_title' => $system_title,
                 'contact_email' => $contact_email,
                 'contact_phone' => $contact_phone,
+                'company_address' => $company_address,
+                'business_hours' => $business_hours,
+                'quotation_footer_note' => $quotation_footer_note,
                 'company_logo' => $logo_path,
                 'primary_color' => strtoupper($primary_color),
             ];
@@ -156,6 +162,9 @@ $company_name_value = $settings['company_name'] ?? 'Highway Tires';
 $system_title_value = $settings['system_title'] ?? 'Branch Data Management System';
 $contact_email_value = $settings['contact_email'] ?? 'info@highwaytires.com';
 $contact_phone_value = $settings['contact_phone'] ?? '';
+$company_address_value = $settings['company_address'] ?? '';
+$business_hours_value = $settings['business_hours'] ?? '';
+$quotation_footer_value = $settings['quotation_footer_note'] ?? '';
 $primary_color_value = $settings['primary_color'] ?? '#06B6D4';
 $logo_path_value = $settings['company_logo'] ?? 'assets/images/logo.png';
 $logo_src = APP_URL . '/' . ltrim($logo_path_value, '/');
@@ -190,10 +199,11 @@ $logo_src = APP_URL . '/' . ltrim($logo_path_value, '/');
             </div>
         <?php endif; ?>
 
+        <!-- Company Information -->
         <section class="settings-panel">
             <div class="settings-section-heading">
                 <span><i class="fas fa-building"></i></span>
-                <h2>Company Information</h2>
+                <h2>Company & Business Information</h2>
             </div>
 
             <div class="settings-form-grid">
@@ -226,6 +236,7 @@ $logo_src = APP_URL . '/' . ltrim($logo_path_value, '/');
                         id="contact_email"
                         name="contact_email"
                         value="<?php echo esc_attr($contact_email_value); ?>"
+                        placeholder="e.g. info@highwaytires.com"
                     >
                 </label>
 
@@ -240,17 +251,64 @@ $logo_src = APP_URL . '/' . ltrim($logo_path_value, '/');
                         minlength="11"
                         maxlength="11"
                         pattern="09[0-9]{9}"
-                        placeholder="e.g., 09171234567"
+                        placeholder="e.g. 09171234567"
                         autocomplete="tel"
                         title="Enter 11 digits starting with 09, e.g. 09171234567"
                         data-phone-input
                     >
                 </label>
+
+                <label for="company_address" style="grid-column: span 2;">
+                    <span>Company Address</span>
+                    <input
+                        type="text"
+                        id="company_address"
+                        name="company_address"
+                        value="<?php echo esc_attr($company_address_value); ?>"
+                        placeholder="e.g. Lacson St. cor. B.S. Aquino Dr., Bacolod City"
+                    >
+                </label>
+
+                <label for="business_hours" style="grid-column: span 2;">
+                    <span>Business Hours <small class="text-muted" style="font-size: 11px; font-weight: normal; color: #94a3b8;">(Informational only — does not restrict system operation or employee logins)</small></span>
+                    <input
+                        type="text"
+                        id="business_hours"
+                        name="business_hours"
+                        value="<?php echo esc_attr($business_hours_value); ?>"
+                        placeholder="e.g. Monday–Saturday: 8:00 AM–5:00 PM"
+                    >
+                </label>
             </div>
         </section>
 
+        <!-- Document & Print Preferences -->
+        <section class="settings-panel">
+            <div class="settings-section-heading">
+                <span><i class="fas fa-file-invoice"></i></span>
+                <h2>Document & Print Preferences</h2>
+            </div>
+
+            <div class="settings-form-grid">
+                <label for="quotation_footer_note" style="grid-column: span 2;">
+                    <span>Quotation Footer Note <small class="text-muted" style="font-size: 13px; font-weight: normal; color: #64748b;">(Displayed at bottom of quotation PDF and print exports)</small></span>
+                    <textarea
+                        id="quotation_footer_note"
+                        name="quotation_footer_note"
+                        rows="2"
+                        class="settings-textarea"
+                        placeholder="e.g. Prices are subject to change without prior notice. Quotations valid for 15 days."
+                    ><?php echo esc_html($quotation_footer_value); ?></textarea>
+                </label>
+            </div>
+        </section>
+
+        <!-- Logo & Branding -->
         <section class="settings-panel branding-panel">
-            <h2>Logo & Branding</h2>
+            <div class="settings-section-heading">
+                <span><i class="fas fa-palette"></i></span>
+                <h2>Logo & Branding</h2>
+            </div>
 
             <div class="settings-brand-grid">
                 <label class="settings-logo-group" for="company_logo">
@@ -292,8 +350,147 @@ $logo_src = APP_URL . '/' . ltrim($logo_path_value, '/');
                 </label>
             </div>
         </section>
+
+        <!-- Security Information (Read-Only) -->
+        <section class="settings-panel security-status-panel">
+            <div class="settings-section-heading">
+                <span class="security-heading-icon"><i class="fas fa-shield-check"></i></span>
+                <h2>System Security Protections <small class="security-readonly-hint">(Read-Only Status)</small></h2>
+            </div>
+
+            <div class="security-status-grid">
+                <div class="security-status-card">
+                    <div class="security-status-icon"><i class="fas fa-clock"></i></div>
+                    <div>
+                        <strong>Session Inactivity Timeout</strong>
+                        <p>Active — 1 Hour</p>
+                    </div>
+                    <span class="security-badge-active"><i class="fas fa-check me-1"></i> Active</span>
+                </div>
+
+                <div class="security-status-card">
+                    <div class="security-status-icon"><i class="fas fa-user-lock"></i></div>
+                    <div>
+                        <strong>Login Rate Limiting</strong>
+                        <p>Active — 5 attempts / 15-minute lockout</p>
+                    </div>
+                    <span class="security-badge-active"><i class="fas fa-check me-1"></i> Active</span>
+                </div>
+
+                <div class="security-status-card">
+                    <div class="security-status-icon"><i class="fas fa-key"></i></div>
+                    <div>
+                        <strong>Temporary Password Generator</strong>
+                        <p>Enabled — Cryptographic High-Entropy</p>
+                    </div>
+                    <span class="security-badge-active"><i class="fas fa-check me-1"></i> Enabled</span>
+                </div>
+
+                <div class="security-status-card">
+                    <div class="security-status-icon"><i class="fas fa-lock"></i></div>
+                    <div>
+                        <strong>Forced First-Login Change</strong>
+                        <p>Enabled — Mandatory employee onboarding</p>
+                    </div>
+                    <span class="security-badge-active"><i class="fas fa-check me-1"></i> Enabled</span>
+                </div>
+
+                <div class="security-status-card">
+                    <div class="security-status-icon"><i class="fas fa-user-shield"></i></div>
+                    <div>
+                        <strong>Admin Password Reset</strong>
+                        <p>Enabled — Single-action secure reset</p>
+                    </div>
+                    <span class="security-badge-active"><i class="fas fa-check me-1"></i> Enabled</span>
+                </div>
+            </div>
+        </section>
     </form>
 </div>
+
+<style>
+.settings-textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 14px 20px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    color: #00183a;
+    font-size: 16px;
+    font-weight: 500;
+    outline: none;
+    resize: vertical;
+    transition: all 0.2s ease;
+}
+.settings-textarea:focus {
+    border-color: #0097b2;
+    box-shadow: 0 0 0 0.2rem rgba(0, 151, 178, 0.16);
+}
+.security-heading-icon {
+    background: #ecfdf5 !important;
+    color: #059669 !important;
+    border: 1px solid #a7f3d0 !important;
+}
+.security-readonly-hint {
+    font-size: 14px;
+    font-weight: normal;
+    color: #64748b;
+    margin-left: 8px;
+}
+.security-status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+}
+.security-status-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: relative;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+.security-status-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #059669;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    flex-shrink: 0;
+}
+.security-status-card strong {
+    font-size: 14px;
+    font-weight: 700;
+    color: #00183a;
+    display: block;
+    margin-bottom: 2px;
+}
+.security-status-card p {
+    margin: 0;
+    font-size: 12.5px;
+    color: #64748b;
+}
+.security-badge-active {
+    margin-left: auto;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 6px;
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+    white-space: nowrap;
+}
+</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {

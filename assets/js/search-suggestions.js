@@ -295,6 +295,10 @@
             return;
         }
 
+        if (input.dataset.noAutocomplete === 'true' || input.getAttribute('data-no-autocomplete') === 'true') {
+            return;
+        }
+
         if (input.id === 'stockOutCustomerInput' || input.id === 'stockOutVehicleInput' || input.id === 'addVehicleCustomerInput' || input.id === 'add_vehicle_customer_input') {
             return;
         }
@@ -432,17 +436,17 @@
 
     function initSearchSuggestions() {
         const searchSelectors = [
-            'input[name="search"]:not([type="hidden"])',
-            'input[type="search"]:not([type="hidden"])',
-            'input[name="q"]:not([type="hidden"])',
-            'input.records-search-input:not([type="hidden"])',
-            'input.inventory-search-input:not([type="hidden"])',
-            'input.customer-search-input:not([type="hidden"])',
-            'input[placeholder*="Search"]:not([type="hidden"])',
-            'input[placeholder*="search"]:not([type="hidden"])',
-            '#customerSearchInput',
-            '#inventorySearchInput',
-            '#recordsSearchInput'
+            'input[name="search"]:not([type="hidden"]):not([data-no-autocomplete="true"])',
+            'input[type="search"]:not([type="hidden"]):not([data-no-autocomplete="true"])',
+            'input[name="q"]:not([type="hidden"]):not([data-no-autocomplete="true"])',
+            'input.records-search-input:not([type="hidden"]):not([data-no-autocomplete="true"])',
+            'input.inventory-search-input:not([type="hidden"]):not([data-no-autocomplete="true"])',
+            'input.customer-search-input:not([type="hidden"]):not([data-no-autocomplete="true"])',
+            'input[placeholder*="Search"]:not([type="hidden"]):not([data-no-autocomplete="true"])',
+            'input[placeholder*="search"]:not([type="hidden"]):not([data-no-autocomplete="true"])',
+            '#customerSearchInput:not([data-no-autocomplete="true"])',
+            '#inventorySearchInput:not([data-no-autocomplete="true"])',
+            '#recordsSearchInput:not([data-no-autocomplete="true"])'
         ];
 
         document.querySelectorAll(searchSelectors.join(', ')).forEach(bindInput);
