@@ -80,7 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
         $errors[] = 'Primary color must be a valid hex color.';
     }
 
-    $logo_path = 'assets/images/logo.png';
+    $logo_path = 'assets/images/logo.svg';
     $candidate_existing_logo = ltrim((string) ($settings['company_logo'] ?? ''), '/');
     if ($candidate_existing_logo !== '' && is_file(dirname(__DIR__, 2) . '/' . $candidate_existing_logo)) {
         $logo_path = $candidate_existing_logo;
@@ -135,16 +135,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
 
             $pdo->beginTransaction();
 
-            $stmt = $pdo->prepare("
+            $update_stmt = $pdo->prepare("
+                UPDATE system_settings
+                SET setting_value = ?, updated_at = NOW()
+                WHERE setting_key = ?
+            ");
+
+            $check_stmt = $pdo->prepare("
+                SELECT 1
+                FROM system_settings
+                WHERE setting_key = ?
+                LIMIT 1
+            ");
+
+            $insert_stmt = $pdo->prepare("
                 INSERT INTO system_settings (setting_key, setting_value, updated_at)
                 VALUES (?, ?, NOW())
-                ON DUPLICATE KEY UPDATE
-                    setting_value = VALUES(setting_value),
-                    updated_at = NOW()
             ");
 
             foreach ($setting_values as $key => $value) {
-                $stmt->execute([$key, $value]);
+                $update_stmt->execute([$value, $key]);
+
+                if ($update_stmt->rowCount() === 0) {
+                    $check_stmt->execute([$key]);
+                    if (!$check_stmt->fetchColumn()) {
+                        $insert_stmt->execute([$key, $value]);
+                    }
+                }
             }
 
             $pdo->commit();
@@ -170,7 +187,7 @@ $company_address_value = $settings['company_address'] ?? '';
 $business_hours_value = $settings['business_hours'] ?? '';
 $quotation_footer_value = $settings['quotation_footer_note'] ?? '';
 $primary_color_value = $settings['primary_color'] ?? '#06B6D4';
-$logo_path_value = 'assets/images/logo.png';
+$logo_path_value = 'assets/images/logo.svg';
 $candidate_logo_setting = ltrim((string) ($settings['company_logo'] ?? ''), '/');
 if ($candidate_logo_setting !== '' && is_file(dirname(__DIR__, 2) . '/' . $candidate_logo_setting)) {
     $logo_path_value = $candidate_logo_setting;

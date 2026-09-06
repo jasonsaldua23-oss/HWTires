@@ -11,7 +11,7 @@ $is_admin_sidebar = ($user['role'] ?? '') === 'admin';
 $base_url = $is_admin_sidebar ? '/hwtires/admin' : '/hwtires/front-desk';
 $base_path = trim($base_url, '/');
 $sidebar_company_name = 'HW Tires';
-$sidebar_logo_path = APP_URL . '/assets/images/logo.png';
+$sidebar_logo_path = APP_URL . '/assets/images/logo.svg';
 $sidebar_role_label = ($user['role'] ?? '') === 'admin' ? 'Admin/Owner' : 'Front Desk';
 $sidebar_user_name = trim((string) ($user['name'] ?? 'User'));
 $sidebar_user_initial = strtoupper(substr($sidebar_user_name !== '' ? $sidebar_user_name : 'U', 0, 1));
@@ -30,13 +30,13 @@ try {
             if ($candidate_logo !== '' && is_file(dirname(__DIR__) . '/' . $candidate_logo)) {
                 $sidebar_logo_path = APP_URL . '/' . $candidate_logo;
             } else {
-                $sidebar_logo_path = APP_URL . '/assets/images/logo.png';
+                $sidebar_logo_path = APP_URL . '/assets/images/logo.svg';
             }
         }
     }
 } catch (Exception $e) {
     $sidebar_company_name = 'HW Tires';
-    $sidebar_logo_path = APP_URL . '/assets/images/logo.png';
+    $sidebar_logo_path = APP_URL . '/assets/images/logo.svg';
 }
 
 if (!function_exists('sidebar_is_active')) {
