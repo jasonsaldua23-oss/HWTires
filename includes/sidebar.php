@@ -26,7 +26,12 @@ try {
         }
 
         if ($setting['setting_key'] === 'company_logo' && trim((string) $setting['setting_value']) !== '') {
-            $sidebar_logo_path = APP_URL . '/' . ltrim((string) $setting['setting_value'], '/');
+            $candidate_logo = ltrim((string) $setting['setting_value'], '/');
+            if ($candidate_logo !== '' && is_file(dirname(__DIR__) . '/' . $candidate_logo)) {
+                $sidebar_logo_path = APP_URL . '/' . $candidate_logo;
+            } else {
+                $sidebar_logo_path = APP_URL . '/assets/images/logo.png';
+            }
         }
     }
 } catch (Exception $e) {
