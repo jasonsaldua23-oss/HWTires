@@ -143,7 +143,7 @@ if (!function_exists('inventory_transaction_source_links')) {
 }
 
 if (!function_exists('inventory_filter_url')) {
-    function inventory_filter_url($category, $branch, $search = '', $per_page = null, $page = null, $view = 'all', $sales_mode = 'all', $brand = '', $size = '') {
+    function inventory_filter_url($category, $branch, $search = '', $per_page = null, $page = null, $view = 'all', $sales_mode = 'all', $brand = '', $size = '', $status = 'active') {
         $query = [];
 
         if ($view !== 'all') {
@@ -152,6 +152,10 @@ if (!function_exists('inventory_filter_url')) {
 
         if ($view === 'last_month_sales' && $sales_mode === 'top10') {
             $query['sales_mode'] = 'top10';
+        }
+
+        if ($status !== 'active' && in_array($status, ['inactive', 'all'], true)) {
+            $query['status'] = $status;
         }
 
         if ($category !== 'all' && $category !== '') {
@@ -220,7 +224,7 @@ $size_filter = trim((string) ($_GET['size'] ?? ''));
 $filter_meta_stmt = $pdo->query("
     SELECT DISTINCT category, brand, size 
     FROM inventory_items 
-    WHERE status = 'active'
+    WHERE status IN ('active', 'inactive')
     ORDER BY category ASC, brand ASC, size ASC
 ");
 $raw_filter_meta = $filter_meta_stmt ? $filter_meta_stmt->fetchAll(PDO::FETCH_ASSOC) : [];
@@ -294,7 +298,19 @@ if (!in_array($per_page, $page_sizes, true)) {
 }
 $page = max(1, (int) ($_GET['page'] ?? 1));
 
-$where = ["i.status = 'active'"];
+$valid_statuses = ['active', 'inactive', 'all'];
+$status_filter = strtolower(trim($_GET['status'] ?? 'active'));
+if (!in_array($status_filter, $valid_statuses, true)) {
+    $status_filter = 'active';
+}
+
+if ($status_filter === 'active') {
+    $where = ["i.status = 'active'"];
+} elseif ($status_filter === 'inactive') {
+    $where = ["i.status = 'inactive'"];
+} else {
+    $where = ["i.status IN ('active', 'inactive')"];
+}
 $filter_params = [];
 
 if (empty($allowed_branch_ids)) {
@@ -849,7 +865,7 @@ if ($view_filter === 'last_month_sales') {
     ];
 }
 
-$active_filter_url = inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, $page, $view_filter, $sales_mode);
+$active_filter_url = inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, $page, $view_filter, $sales_mode, $brand_filter, $size_filter, $status_filter);
 $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' ? '' : $active_filter_url) . '#inventory-records';
 ?>
 
@@ -949,6 +965,14 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                 <?php endforeach; ?>
                 </select>
             </div>
+            <div class="inventory-filter-group" style="flex: 1; min-width: 130px;">
+                <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Status</h2>
+                <select name="status" aria-label="Filter inventory status" class="form-select" style="height: 42px; border-radius: 8px; border-color: #cbd5e1; font-weight: 500;">
+                    <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active</option>
+                    <option value="inactive" <?php echo $status_filter === 'inactive' ? 'selected' : ''; ?>>Inactive / Archived</option>
+                    <option value="all" <?php echo $status_filter === 'all' ? 'selected' : ''; ?>>All Statuses</option>
+                </select>
+            </div>
             <div class="inventory-filter-group inventory-view-group" style="flex: 1; min-width: 130px;">
                 <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Record View</h2>
                 <select name="view" aria-label="Select inventory record view" class="form-select" style="height: 42px; border-radius: 8px; border-color: #cbd5e1; font-weight: 500;">
@@ -974,9 +998,9 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                 <button type="submit" class="btn btn-primary" style="height: 42px; padding: 0 18px; font-weight: 600; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
                     <i class="fas fa-filter"></i> Apply
                 </button>
-                <?php if ($category_filter !== 'all' || $brand_filter !== '' || $size_filter !== '' || $branch_filter !== 'all' || $view_filter !== 'all' || $search_filter !== ''): ?>
+                <?php if ($category_filter !== 'all' || $brand_filter !== '' || $size_filter !== '' || $branch_filter !== 'all' || $view_filter !== 'all' || $search_filter !== '' || $status_filter !== 'active'): ?>
                     <a class="btn btn-outline-secondary"
-                       href="<?php echo esc_attr(inventory_filter_url('all', 'all', '', $per_page, null, 'all')); ?>#inventory-records"
+                       href="<?php echo esc_attr(inventory_filter_url('all', 'all', '', $per_page, null, 'all', 'all', '', '', 'active')); ?>#inventory-records"
                        style="height: 42px; padding: 0 14px; font-weight: 600; border-radius: 8px; display: inline-flex; align-items: center;">
                         Reset
                     </a>
@@ -1153,8 +1177,17 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                 <?php if ($category_filter !== 'all'): ?>
                     <input type="hidden" name="category" value="<?php echo esc_attr($category_filter); ?>">
                 <?php endif; ?>
+                <?php if ($brand_filter !== ''): ?>
+                    <input type="hidden" name="brand" value="<?php echo esc_attr($brand_filter); ?>">
+                <?php endif; ?>
+                <?php if ($size_filter !== ''): ?>
+                    <input type="hidden" name="size" value="<?php echo esc_attr($size_filter); ?>">
+                <?php endif; ?>
                 <?php if ($branch_filter !== 'all'): ?>
                     <input type="hidden" name="branch" value="<?php echo esc_attr($branch_filter); ?>">
+                <?php endif; ?>
+                <?php if ($status_filter !== 'active'): ?>
+                    <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
                 <?php endif; ?>
                 <?php if ($search_filter !== ''): ?>
                     <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
@@ -1288,7 +1321,8 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                                         <span class="inventory-branch-pill inventory-branch-<?php echo (int) $transaction['branch_id']; ?>">
                                             <?php echo esc_html(inventory_branch_label($transaction['branch_name'] ?? '-')); ?>
                                         </span>
-                                                                   <td>
+                                    </td>
+                                    <td>
                                         <strong><?php echo esc_html(app_display_item_name($transaction['item_name'] ?? '-', $transaction['category'] ?? null)); ?></strong>
                                         <small><?php echo esc_html(trim(($transaction['brand'] ?? '') . (!empty($transaction['size']) ? ' (' . $transaction['size'] . ')' : ''))); ?></small>
                                     </td>
@@ -1338,27 +1372,30 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                             <th>Category</th>
                             <th>Product Details</th>
                             <th>Branch</th>
+                            <th>Status</th>
                             <th>Quantity</th>
                             <th>Reorder Level</th>
                             <th>Unit Price</th>
-                            <th style="text-align: center; width: 140px;">Action</th>
+                            <th style="text-align: center; width: 170px;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($inventory)): ?>
                             <tr>
-                                <td colspan="8" class="inventory-table-empty"><?php echo esc_html($records_empty_message); ?></td>
+                                <td colspan="9" class="inventory-table-empty"><?php echo esc_html($records_empty_message); ?></td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($inventory as $item): ?>
                                 <?php
-                                $is_low_stock = (int) $item['quantity'] <= (int) $item['reorder_level'];
+                                $item_status = strtolower(trim((string) ($item['status'] ?? 'active')));
+                                $is_archived = ($item_status === 'inactive' || $item_status === 'discontinued');
+                                $is_low_stock = !$is_archived && ((int) $item['quantity'] <= (int) $item['reorder_level']);
                                 $category = $item['category'] ?? 'part';
                                 $branch_id = (int) ($item['branch_id'] ?? 0);
                                 $branch_label = inventory_branch_label($item['branch_name'] ?? '');
                                 $detail_lines = inventory_item_detail_lines($item);
                                 ?>
-                                <tr class="<?php echo $is_low_stock ? 'is-low-stock' : ''; ?>">
+                                <tr class="<?php echo $is_low_stock ? 'is-low-stock' : ($is_archived ? 'table-light text-muted' : ''); ?>">
                                     <td>
                                         <strong><?php echo esc_html(app_display_item_name($item['item_name'], $item['category'] ?? null)); ?></strong>
                                         <small class="inventory-item-brand"><?php echo esc_html($item['brand'] ?: 'Unbranded'); ?></small>
@@ -1384,6 +1421,17 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                                         </span>
                                     </td>
                                     <td>
+                                        <?php if ($is_archived): ?>
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="font-size: 11.5px; font-weight: 600;">
+                                                <i class="fas fa-box-archive me-1"></i>Archived
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 11.5px; font-weight: 600;">
+                                                <i class="fas fa-check-circle me-1"></i>Active
+                                            </span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
                                         <strong class="inventory-quantity <?php echo $is_low_stock ? 'is-low' : ''; ?>">
                                             <?php echo (int) $item['quantity']; ?>
                                             <?php if ($is_low_stock): ?>
@@ -1397,19 +1445,48 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                                     <td><?php echo (int) $item['reorder_level']; ?></td>
                                     <td><strong><?php echo inventory_money($item['unit_price'] ?? 0); ?></strong></td>
                                     <td style="text-align: center;">
-                                        <button type="button"
-                                                class="btn btn-sm btn-outline-primary js-adjust-stock-btn"
-                                                data-item-id="<?php echo (int) $item['id']; ?>"
-                                                data-item-name="<?php echo esc_attr(app_display_item_name($item['item_name'], $category)); ?>"
-                                                data-brand="<?php echo esc_attr($item['brand'] ?: 'Unbranded'); ?>"
-                                                data-size="<?php echo esc_attr($item['size'] ?: ''); ?>"
-                                                data-category="<?php echo esc_attr($category); ?>"
-                                                data-branch-id="<?php echo $branch_id; ?>"
-                                                data-branch-name="<?php echo esc_attr($branch_label); ?>"
-                                                data-current-qty="<?php echo (int) $item['quantity']; ?>"
-                                                title="Correct stock quantity based on physical count">
-                                            <i class="fas fa-sliders me-1"></i> Correct Stock
-                                        </button>
+                                        <div style="display: inline-flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: wrap;">
+                                        <?php if (!$is_archived): ?>
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-primary js-adjust-stock-btn"
+                                                    data-item-id="<?php echo (int) $item['id']; ?>"
+                                                    data-item-name="<?php echo esc_attr(app_display_item_name($item['item_name'], $category)); ?>"
+                                                    data-brand="<?php echo esc_attr($item['brand'] ?: 'Unbranded'); ?>"
+                                                    data-size="<?php echo esc_attr($item['size'] ?: ''); ?>"
+                                                    data-category="<?php echo esc_attr($category); ?>"
+                                                    data-branch-id="<?php echo $branch_id; ?>"
+                                                    data-branch-name="<?php echo esc_attr($branch_label); ?>"
+                                                    data-current-qty="<?php echo (int) $item['quantity']; ?>"
+                                                    title="Correct stock quantity based on physical count">
+                                                <i class="fas fa-sliders me-1"></i> Correct Stock
+                                            </button>
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-danger js-archive-item-btn"
+                                                    data-item-id="<?php echo (int) $item['id']; ?>"
+                                                    data-item-name="<?php echo esc_attr(app_display_item_name($item['item_name'], $category)); ?>"
+                                                    data-brand="<?php echo esc_attr($item['brand'] ?: 'Unbranded'); ?>"
+                                                    data-size="<?php echo esc_attr($item['size'] ?: ''); ?>"
+                                                    data-category="<?php echo esc_attr($category); ?>"
+                                                    data-branch-name="<?php echo esc_attr($branch_label); ?>"
+                                                    data-current-qty="<?php echo (int) $item['quantity']; ?>"
+                                                    title="Archive / Deactivate inventory item">
+                                                <i class="fas fa-box-archive me-1"></i> Archive
+                                            </button>
+                                        <?php else: ?>
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-success js-restore-item-btn"
+                                                    data-item-id="<?php echo (int) $item['id']; ?>"
+                                                    data-item-name="<?php echo esc_attr(app_display_item_name($item['item_name'], $category)); ?>"
+                                                    data-brand="<?php echo esc_attr($item['brand'] ?: 'Unbranded'); ?>"
+                                                    data-size="<?php echo esc_attr($item['size'] ?: ''); ?>"
+                                                    data-category="<?php echo esc_attr($category); ?>"
+                                                    data-branch-name="<?php echo esc_attr($branch_label); ?>"
+                                                    data-current-qty="<?php echo (int) $item['quantity']; ?>"
+                                                    title="Reactivate / Restore inventory item">
+                                                <i class="fas fa-rotate-left me-1"></i> Reactivate
+                                            </button>
+                                        <?php endif; ?>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -1423,23 +1500,23 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                 <ul class="pagination justify-content-center">
                     <?php if ($page > 1): ?>
                         <li class="page-item">
-                            <a class="page-link" href="<?php echo esc_attr(inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, 1, $view_filter, $sales_mode)); ?>#inventory-records">First</a>
+                            <a class="page-link" href="<?php echo esc_attr(inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, 1, $view_filter, $sales_mode, $brand_filter, $size_filter, $status_filter)); ?>#inventory-records">First</a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="<?php echo esc_attr(inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, $page - 1, $view_filter, $sales_mode)); ?>#inventory-records">Previous</a>
+                            <a class="page-link" href="<?php echo esc_attr(inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, $page - 1, $view_filter, $sales_mode, $brand_filter, $size_filter, $status_filter)); ?>#inventory-records">Previous</a>
                         </li>
                     <?php endif; ?>
                     <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
                         <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
-                            <a class="page-link" href="<?php echo esc_attr(inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, $i, $view_filter, $sales_mode)); ?>#inventory-records"><?php echo (int) $i; ?></a>
+                            <a class="page-link" href="<?php echo esc_attr(inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, $i, $view_filter, $sales_mode, $brand_filter, $size_filter, $status_filter)); ?>#inventory-records"><?php echo (int) $i; ?></a>
                         </li>
                     <?php endfor; ?>
                     <?php if ($page < $total_pages): ?>
                         <li class="page-item">
-                            <a class="page-link" href="<?php echo esc_attr(inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, $page + 1, $view_filter, $sales_mode)); ?>#inventory-records">Next</a>
+                            <a class="page-link" href="<?php echo esc_attr(inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, $page + 1, $view_filter, $sales_mode, $brand_filter, $size_filter, $status_filter)); ?>#inventory-records">Next</a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="<?php echo esc_attr(inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, $total_pages, $view_filter, $sales_mode)); ?>#inventory-records">Last</a>
+                            <a class="page-link" href="<?php echo esc_attr(inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, $total_pages, $view_filter, $sales_mode, $brand_filter, $size_filter, $status_filter)); ?>#inventory-records">Last</a>
                         </li>
                     <?php endif; ?>
                 </ul>
@@ -1631,6 +1708,120 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
     </div>
 </div>
 
+<!-- Archive Item Modal -->
+<div class="modal fade" id="archiveItemModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" action="/hwtires/api/inventory-api.php" class="modal-content" id="archiveItemForm">
+            <input type="hidden" name="csrf_token" value="<?php echo esc_attr(get_csrf_token()); ?>">
+            <input type="hidden" name="action" value="archive">
+            <input type="hidden" name="inventory_id" id="archiveItemId" value="">
+
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold text-dark">
+                    <i class="fas fa-box-archive text-danger me-2"></i>Archive Inventory Item
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body p-4">
+                <!-- Item Summary Card -->
+                <div class="bg-light p-3 rounded-3 border mb-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="fw-bold mb-1 text-dark" id="archiveItemName">-</h6>
+                            <div class="text-muted small" id="archiveItemMeta">-</div>
+                        </div>
+                        <span class="badge bg-secondary px-2 py-1" id="archiveBranchName">-</span>
+                    </div>
+                </div>
+
+                <!-- Positive Physical Stock Warning (Shown dynamically if qty > 0) -->
+                <div class="alert alert-warning border-warning d-none" id="archiveStockWarning" role="alert">
+                    <div class="d-flex gap-2">
+                        <i class="fas fa-triangle-exclamation text-warning mt-1 fs-5"></i>
+                        <div class="small">
+                            <strong>Remaining Stock Notice:</strong>
+                            <p class="mb-0 mt-1">
+                                This item currently has <strong id="archiveWarningQty">0 units</strong> in physical stock.
+                                Archiving this item will deactivate it from active counter lookups and future quotations, but <strong>will preserve all historical records, physical stock count, and transaction logs</strong>.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Archive Reason (Required) -->
+                <div class="mb-2">
+                    <label class="form-label small fw-semibold text-secondary mb-1">Reason for Archiving <span class="text-danger">*</span></label>
+                    <textarea name="archive_reason" 
+                              id="archiveReason" 
+                              class="form-control" 
+                              rows="3" 
+                              required 
+                              placeholder="Please state why this inventory item is being archived / deactivated (e.g., discontinued product, supplier phase-out)..."></textarea>
+                    <div class="form-text small text-muted">A valid reason is required for the audit trail.</div>
+                </div>
+            </div>
+
+            <div class="modal-footer border-top bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-danger" id="archiveSubmitBtn">
+                    <i class="fas fa-box-archive me-1"></i> Confirm Archive
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Restore / Reactivate Item Modal -->
+<div class="modal fade" id="restoreItemModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" action="/hwtires/api/inventory-api.php" class="modal-content" id="restoreItemForm">
+            <input type="hidden" name="csrf_token" value="<?php echo esc_attr(get_csrf_token()); ?>">
+            <input type="hidden" name="action" value="restore">
+            <input type="hidden" name="inventory_id" id="restoreItemId" value="">
+
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold text-dark">
+                    <i class="fas fa-rotate-left text-success me-2"></i>Reactivate Inventory Item
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body p-4">
+                <!-- Item Summary Card -->
+                <div class="bg-light p-3 rounded-3 border mb-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="fw-bold mb-1 text-dark" id="restoreItemName">-</h6>
+                            <div class="text-muted small" id="restoreItemMeta">-</div>
+                        </div>
+                        <span class="badge bg-secondary px-2 py-1" id="restoreBranchName">-</span>
+                    </div>
+                </div>
+
+                <div class="alert alert-info border-info" role="alert">
+                    <div class="d-flex gap-2">
+                        <i class="fas fa-info-circle text-info mt-1 fs-5"></i>
+                        <div class="small">
+                            <strong>Reactivation Notice:</strong>
+                            <p class="mb-0 mt-1">
+                                Reactivating this item will return its status to <strong>Active</strong>. It will immediately reappear in active counter lookups and future Quotation item selection.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer border-top bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-success" id="restoreSubmitBtn">
+                    <i class="fas fa-rotate-left me-1"></i> Confirm Reactivation
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const adjustModalEl = document.getElementById('adjustStockModal');
@@ -1769,6 +1960,161 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert(err.message || 'An error occurred while saving the stock adjustment.');
                 adjustSubmitBtn.disabled = false;
                 adjustSubmitBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Confirm Adjustment';
+            }
+        });
+    }
+
+    // Archive Modal & Form Handling
+    const archiveModalEl = document.getElementById('archiveItemModal');
+    const archiveModal = archiveModalEl ? new bootstrap.Modal(archiveModalEl) : null;
+    const archiveForm = document.getElementById('archiveItemForm');
+    const archiveReasonInput = document.getElementById('archiveReason');
+    const archiveSubmitBtn = document.getElementById('archiveSubmitBtn');
+    const archiveStockWarning = document.getElementById('archiveStockWarning');
+    const archiveWarningQty = document.getElementById('archiveWarningQty');
+
+    document.querySelectorAll('.js-archive-item-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const itemId = this.dataset.itemId || '';
+            const itemName = this.dataset.itemName || '';
+            const brand = this.dataset.brand || '';
+            const size = this.dataset.size || '';
+            const branchName = this.dataset.branchName || '';
+            const currentQty = parseInt(this.dataset.currentQty || '0', 10);
+
+            document.getElementById('archiveItemId').value = itemId;
+            document.getElementById('archiveItemName').textContent = itemName;
+            document.getElementById('archiveItemMeta').textContent = [brand, size].filter(Boolean).join(' • ');
+            document.getElementById('archiveBranchName').textContent = branchName;
+            if (archiveReasonInput) archiveReasonInput.value = '';
+
+            if (archiveStockWarning && archiveWarningQty) {
+                if (currentQty > 0) {
+                    archiveWarningQty.textContent = currentQty + ' unit' + (currentQty === 1 ? '' : 's');
+                    archiveStockWarning.classList.remove('d-none');
+                } else {
+                    archiveStockWarning.classList.add('d-none');
+                }
+            }
+
+            if (archiveModal) {
+                archiveModal.show();
+                setTimeout(function() {
+                    if (archiveReasonInput) archiveReasonInput.focus();
+                }, 300);
+            }
+        });
+    });
+
+    if (archiveForm) {
+        archiveForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const itemId = document.getElementById('archiveItemId').value;
+            const reason = archiveReasonInput ? archiveReasonInput.value.trim() : '';
+
+            if (!itemId) {
+                alert('Invalid inventory item.');
+                return;
+            }
+
+            if (!reason) {
+                alert('Please provide a reason for archiving this item.');
+                if (archiveReasonInput) archiveReasonInput.focus();
+                return;
+            }
+
+            archiveSubmitBtn.disabled = true;
+            archiveSubmitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Archiving...';
+
+            try {
+                const body = new URLSearchParams();
+                body.append('csrf_token', archiveForm.querySelector('input[name="csrf_token"]').value);
+                body.append('action', 'archive');
+                body.append('inventory_id', itemId);
+                body.append('archive_reason', reason);
+
+                const response = await fetch('/hwtires/api/inventory-api.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body.toString()
+                });
+
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'Unable to archive inventory item.');
+                }
+
+                if (archiveModal) archiveModal.hide();
+                window.location.reload();
+            } catch (err) {
+                alert(err.message || 'An error occurred while archiving the inventory item.');
+                archiveSubmitBtn.disabled = false;
+                archiveSubmitBtn.innerHTML = '<i class="fas fa-box-archive me-1"></i> Confirm Archive';
+            }
+        });
+    }
+
+    // Restore / Reactivate Modal & Form Handling
+    const restoreModalEl = document.getElementById('restoreItemModal');
+    const restoreModal = restoreModalEl ? new bootstrap.Modal(restoreModalEl) : null;
+    const restoreForm = document.getElementById('restoreItemForm');
+    const restoreSubmitBtn = document.getElementById('restoreSubmitBtn');
+
+    document.querySelectorAll('.js-restore-item-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const itemId = this.dataset.itemId || '';
+            const itemName = this.dataset.itemName || '';
+            const brand = this.dataset.brand || '';
+            const size = this.dataset.size || '';
+            const branchName = this.dataset.branchName || '';
+
+            document.getElementById('restoreItemId').value = itemId;
+            document.getElementById('restoreItemName').textContent = itemName;
+            document.getElementById('restoreItemMeta').textContent = [brand, size].filter(Boolean).join(' • ');
+            document.getElementById('restoreBranchName').textContent = branchName;
+
+            if (restoreModal) {
+                restoreModal.show();
+            }
+        });
+    });
+
+    if (restoreForm) {
+        restoreForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const itemId = document.getElementById('restoreItemId').value;
+
+            if (!itemId) {
+                alert('Invalid inventory item.');
+                return;
+            }
+
+            restoreSubmitBtn.disabled = true;
+            restoreSubmitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Reactivating...';
+
+            try {
+                const body = new URLSearchParams();
+                body.append('csrf_token', restoreForm.querySelector('input[name="csrf_token"]').value);
+                body.append('action', 'restore');
+                body.append('inventory_id', itemId);
+
+                const response = await fetch('/hwtires/api/inventory-api.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body.toString()
+                });
+
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'Unable to reactivate inventory item.');
+                }
+
+                if (restoreModal) restoreModal.hide();
+                window.location.reload();
+            } catch (err) {
+                alert(err.message || 'An error occurred while reactivating the inventory item.');
+                restoreSubmitBtn.disabled = false;
+                restoreSubmitBtn.innerHTML = '<i class="fas fa-rotate-left me-1"></i> Confirm Reactivation';
             }
         });
     }

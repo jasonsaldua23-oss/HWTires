@@ -322,7 +322,7 @@ if (!function_exists('front_reports_send_detail_csv')) {
             fputcsv($out, ['Archived Date', 'Branch', 'Record Type', 'Record', 'Customer/Owner', 'Vehicle', 'Archived By', 'Reason', 'Original Status']);
             foreach ($detail_records as $record) {
                 fputcsv($out, [
-                    front_reports_short_date($record['archived_at'] ?? ''),
+                    app_format_datetime_pht($record['archived_at'] ?? '', 'Y-m-d'),
                     $record['branch_name'] ?? ($filters['branch_label'] ?? 'Branch'),
                     front_reports_archive_type_label($record['archive_type'] ?? ''),
                     $record['record_label'] ?? '-',
@@ -510,8 +510,12 @@ try {
     $report_date_bounds = [];
 }
 
-$default_from = !empty($report_date_bounds['first_date']) ? $report_date_bounds['first_date'] : date('Y-m-d');
-$default_to = !empty($report_date_bounds['last_date']) ? $report_date_bounds['last_date'] : $default_from;
+$default_from = !empty($report_date_bounds['first_date']) ? date('Y-m-d', strtotime($report_date_bounds['first_date'])) : date('Y-m-d');
+$pht_now = new DateTimeImmutable('now', new DateTimeZone(APP_TIMEZONE));
+$default_to = $pht_now->format('Y-m-d');
+if ($default_from > $default_to) {
+    $default_from = $default_to;
+}
 $date_from = front_reports_valid_date($_GET['date_from'] ?? $default_from, $default_from);
 $date_to = front_reports_valid_date($_GET['date_to'] ?? $default_to, $default_to);
 
@@ -1696,13 +1700,13 @@ $active_report = $report_tab_options[$report_tab];
 $branch_label = app_branch_label($branch['name'] ?? 'Branch', 'Branch');
 $active_status_label = $active_status_options[$status_filter] ?? 'All Records';
 $report_range_label = format_date($date_from, 'M d, Y') . ' - ' . format_date($date_to, 'M d, Y');
-$range_anchor = new DateTime($default_to ?: date('Y-m-d'));
-$this_month = clone $range_anchor;
-$last_month = clone $range_anchor;
-$this_year = clone $range_anchor;
-$last_year = clone $range_anchor;
-$last_month->modify('first day of previous month');
-$last_year->modify('-1 year');
+$range_anchor = new DateTimeImmutable($default_to, new DateTimeZone(APP_TIMEZONE));
+$this_month = $range_anchor;
+$last_month = $range_anchor;
+$this_year = $range_anchor;
+$last_year = $range_anchor;
+$last_month = $range_anchor->modify('first day of previous month');
+$last_year = $range_anchor->modify('-1 year');
 $quick_report_ranges = [
     'all' => [
         'label' => 'All History',
@@ -2455,7 +2459,7 @@ if (!function_exists('front_reports_format_tat_minutes')) {
                                 $vehicle_label = front_reports_vehicle_label($record);
                                 ?>
                                 <tr>
-                                    <td><?php echo esc_html(format_date($record['archived_at'] ?? '', 'M d, Y')); ?></td>
+                                    <td><?php echo esc_html(app_format_datetime_pht($record['archived_at'] ?? '', 'M d, Y')); ?></td>
                                     <td><?php echo esc_html($record['branch_name'] ?? $branch_label); ?></td>
                                     <td><span class="reports-count-pill"><?php echo esc_html(front_reports_archive_type_label($record['archive_type'] ?? '')); ?></span></td>
                                     <td>

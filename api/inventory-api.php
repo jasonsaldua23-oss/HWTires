@@ -906,5 +906,186 @@ if ($action === 'search_customers') {
     }
 }
 
+// Handle Archive Inventory Item (Admin-only)
+if ($action === 'archive') {
+    try {
+        if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+            throw new Exception('Invalid security token');
+        }
+
+        if (($user['role'] ?? '') !== 'admin') {
+            throw new Exception('Only administrators can archive inventory items.');
+        }
+
+        $item_id = intval($_POST['inventory_id'] ?? $_POST['item_id'] ?? $_POST['id'] ?? 0);
+        if ($item_id <= 0) {
+            throw new Exception('Invalid inventory item.');
+        }
+
+        $stmt = $pdo->prepare("SELECT * FROM inventory_items WHERE id = ?");
+        $stmt->execute([$item_id]);
+        $item = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$item) {
+            throw new Exception('Inventory item not found.');
+        }
+
+        if (strtolower((string) ($item['status'] ?? '')) === 'inactive') {
+            throw new Exception('This inventory item is already archived.');
+        }
+
+        $reason = inventory_api_clean_text($_POST['archive_reason'] ?? $_POST['reason'] ?? '', 'Archive reason', 500, true);
+
+        // Guard 1: Active Job Orders referencing this item
+        $meta_pattern = '%"inventory_item_id":' . $item_id . '%';
+        $job_check_stmt = $pdo->prepare("
+            SELECT jo.id, jo.job_number, jo.status
+            FROM job_orders jo
+            INNER JOIN quotations q ON q.id = jo.quotation_id
+            INNER JOIN quotation_items qi ON qi.quotation_id = q.id
+            WHERE jo.status IN ('waiting', 'pending', 'in-progress')
+              AND (
+                  (qi.item_name = ? AND jo.branch_id = ?)
+                  OR qi.notes LIKE ?
+              )
+            LIMIT 1
+        ");
+        $job_check_stmt->execute([$item['item_name'], (int) $item['branch_id'], $meta_pattern]);
+        $active_job = $job_check_stmt->fetch(PDO::FETCH_ASSOC);
+        if ($active_job) {
+            $jo_ref = !empty($active_job['job_number']) ? $active_job['job_number'] : ('JO #' . $active_job['id']);
+            throw new Exception('Cannot archive this item: It is currently assigned to active Job Order ' . $jo_ref . '. Complete or cancel the Job Order first.');
+        }
+
+        // Guard 2: Open Quotations referencing this item
+        $quote_check_stmt = $pdo->prepare("
+            SELECT q.id, q.quotation_number, q.status
+            FROM quotations q
+            INNER JOIN quotation_items qi ON qi.quotation_id = q.id
+            LEFT JOIN job_orders jo ON jo.quotation_id = q.id
+            WHERE q.status IN ('pending', 'approved')
+              AND (jo.id IS NULL OR jo.status IN ('waiting', 'pending', 'in-progress'))
+              AND (
+                  (qi.item_name = ? AND q.branch_id = ?)
+                  OR qi.notes LIKE ?
+              )
+            LIMIT 1
+        ");
+        $quote_check_stmt->execute([$item['item_name'], (int) $item['branch_id'], $meta_pattern]);
+        $open_quote = $quote_check_stmt->fetch(PDO::FETCH_ASSOC);
+        if ($open_quote) {
+            $quote_ref = !empty($open_quote['quotation_number']) ? $open_quote['quotation_number'] : ('Quotation #' . $open_quote['id']);
+            throw new Exception('Cannot archive this item: It is currently included in open Service Operation / Quotation ' . $quote_ref . '. Complete, reject, or cancel the quotation first.');
+        }
+
+        // Guard 3: Unresolved Transfers
+        $transfer_check_stmt = $pdo->prepare("
+            SELECT id, request_number, status
+            FROM inter_branch_transfer_requests
+            WHERE item_id = ?
+              AND status IN ('pending', 'approved', 'shipped')
+            LIMIT 1
+        ");
+        $transfer_check_stmt->execute([$item_id]);
+        $open_transfer = $transfer_check_stmt->fetch(PDO::FETCH_ASSOC);
+        if ($open_transfer) {
+            $transfer_ref = !empty($open_transfer['request_number']) ? $open_transfer['request_number'] : ('Transfer #' . $open_transfer['id']);
+            throw new Exception('Cannot archive this item: It is currently part of an active transfer request ' . $transfer_ref . ' (Status: ' . ucfirst($open_transfer['status']) . '). Complete or cancel the transfer first.');
+        }
+
+        $pdo->beginTransaction();
+
+        $update_stmt = $pdo->prepare("
+            UPDATE inventory_items
+            SET status = 'inactive',
+                archived_at = NOW(),
+                archived_by = ?,
+                archive_reason = ?
+            WHERE id = ?
+        ");
+        $update_stmt->execute([$user['id'] ?? null, $reason, $item_id]);
+
+        log_audit('inventory_items', 'archive', $item_id, $item, [
+            'status' => 'inactive',
+            'archive_reason' => $reason,
+            'item_name' => $item['item_name'] ?? null,
+            'sku' => $item['sku'] ?? null,
+            'branch_id' => (int) ($item['branch_id'] ?? 0),
+            'quantity' => (int) ($item['quantity'] ?? 0),
+            'records_preserved' => true,
+        ]);
+
+        $pdo->commit();
+
+        inventory_api_finish(true, 'Inventory item archived successfully', 200, ['id' => $item_id]);
+    } catch (Exception $e) {
+        if ($pdo instanceof PDO && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log('Archive inventory item error: ' . $e->getMessage());
+        inventory_api_finish(false, $e->getMessage(), 400);
+    }
+}
+
+// Handle Restore / Reactivate Inventory Item (Admin-only)
+if ($action === 'restore' || $action === 'reactivate') {
+    try {
+        if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+            throw new Exception('Invalid security token');
+        }
+
+        if (($user['role'] ?? '') !== 'admin') {
+            throw new Exception('Only administrators can reactivate inventory items.');
+        }
+
+        $item_id = intval($_POST['inventory_id'] ?? $_POST['item_id'] ?? $_POST['id'] ?? 0);
+        if ($item_id <= 0) {
+            throw new Exception('Invalid inventory item.');
+        }
+
+        $stmt = $pdo->prepare("SELECT * FROM inventory_items WHERE id = ?");
+        $stmt->execute([$item_id]);
+        $item = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$item) {
+            throw new Exception('Inventory item not found.');
+        }
+
+        if (strtolower((string) ($item['status'] ?? '')) === 'active') {
+            throw new Exception('This inventory item is already active.');
+        }
+
+        $pdo->beginTransaction();
+
+        $update_stmt = $pdo->prepare("
+            UPDATE inventory_items
+            SET status = 'active',
+                restored_at = NOW(),
+                restored_by = ?
+            WHERE id = ?
+        ");
+        $update_stmt->execute([$user['id'] ?? null, $item_id]);
+
+        log_audit('inventory_items', 'restore', $item_id, $item, [
+            'status' => 'active',
+            'item_name' => $item['item_name'] ?? null,
+            'sku' => $item['sku'] ?? null,
+            'branch_id' => (int) ($item['branch_id'] ?? 0),
+            'quantity' => (int) ($item['quantity'] ?? 0),
+            'records_restored' => true,
+        ]);
+
+        $pdo->commit();
+
+        inventory_api_finish(true, 'Inventory item reactivated successfully', 200, ['id' => $item_id]);
+    } catch (Exception $e) {
+        if ($pdo instanceof PDO && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log('Restore inventory item error: ' . $e->getMessage());
+        inventory_api_finish(false, $e->getMessage(), 400);
+    }
+}
+
 inventory_api_finish(false, 'Invalid action', 400);
 ?>

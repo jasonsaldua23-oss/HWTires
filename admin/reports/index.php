@@ -264,6 +264,9 @@ if (!function_exists('reports_archive_record_url')) {
         if ($type === 'job_order') {
             return reports_record_url('job', $record_id);
         }
+        if ($type === 'inventory_item') {
+            return '/hwtires/admin/tire-inventory/?status=inactive#inventory-records';
+        }
 
         return '';
     }
@@ -582,7 +585,7 @@ if (!function_exists('reports_send_detail_csv')) {
             fputcsv($out, ['Archived Date', 'Branch', 'Record Type', 'Record', 'Customer/Owner', 'Vehicle', 'Archived By', 'Reason', 'Original Status']);
             foreach ($detail_records as $record) {
                 fputcsv($out, [
-                    reports_short_date($record['archived_at'] ?? ''),
+                    app_format_datetime_pht($record['archived_at'] ?? '', 'Y-m-d'),
                     reports_branch_label($record['branch_name'] ?? ''),
                     reports_archive_type_label($record['archive_type'] ?? ''),
                     $record['record_label'] ?? '-',
@@ -695,8 +698,12 @@ try {
     $report_date_bounds = [];
 }
 
-$default_from = !empty($report_date_bounds['first_date']) ? $report_date_bounds['first_date'] : date('Y-m-d');
-$default_to = !empty($report_date_bounds['last_date']) ? $report_date_bounds['last_date'] : $default_from;
+$default_from = !empty($report_date_bounds['first_date']) ? date('Y-m-d', strtotime($report_date_bounds['first_date'])) : date('Y-m-d');
+$pht_now = new DateTimeImmutable('now', new DateTimeZone(APP_TIMEZONE));
+$default_to = $pht_now->format('Y-m-d');
+if ($default_from > $default_to) {
+    $default_from = $default_to;
+}
 
 $date_from = reports_valid_date($_GET['date_from'] ?? $default_from, $default_from);
 $date_to = reports_valid_date($_GET['date_to'] ?? $default_to, $default_to);
@@ -1885,7 +1892,7 @@ if ($report_tab === 'archives') {
         FROM inventory_items i
         LEFT JOIN branches b ON b.id = i.branch_id
         LEFT JOIN users archived_user ON archived_user.id = i.archived_by
-        WHERE (i.archived_at IS NOT NULL OR i.status = 'archived')
+        WHERE (i.archived_at IS NOT NULL OR i.status = 'inactive')
           AND DATE(COALESCE(i.archived_at, i.updated_at, i.created_at)) BETWEEN ? AND ?" . $archive_branch_item;
     $archive_params = array_merge($archive_params, [$date_from, $date_to]);
     if ($branch_filter !== '') {
@@ -1987,13 +1994,13 @@ $summary = [
 
 $active_status_label = $active_status_options[$status_filter] ?? 'All Records';
 $report_range_label = format_date($date_from, 'M d, Y') . ' - ' . format_date($date_to, 'M d, Y');
-$range_anchor = new DateTime($default_to ?: date('Y-m-d'));
-$this_month = clone $range_anchor;
-$last_month = clone $range_anchor;
-$this_year = clone $range_anchor;
-$last_year = clone $range_anchor;
-$last_month->modify('first day of previous month');
-$last_year->modify('-1 year');
+$range_anchor = new DateTimeImmutable($default_to, new DateTimeZone(APP_TIMEZONE));
+$this_month = $range_anchor;
+$last_month = $range_anchor;
+$this_year = $range_anchor;
+$last_year = $range_anchor;
+$last_month = $range_anchor->modify('first day of previous month');
+$last_year = $range_anchor->modify('-1 year');
 $quick_report_ranges = [
     [
         'label' => 'All History',
@@ -2751,7 +2758,7 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
                                 $vehicle_label = reports_vehicle_label($record);
                                 ?>
                                 <tr>
-                                    <td><?php echo esc_html(format_date($record['archived_at'] ?? '', 'M d, Y')); ?></td>
+                                    <td><?php echo esc_html(app_format_datetime_pht($record['archived_at'] ?? '', 'M d, Y')); ?></td>
                                     <td><?php echo esc_html(reports_branch_label($record['branch_name'] ?? '')); ?></td>
                                     <td><span class="reports-count-pill"><?php echo esc_html(reports_archive_type_label($record['archive_type'] ?? '')); ?></span></td>
                                     <td>
