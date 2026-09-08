@@ -49,11 +49,16 @@ if (isset($_GET['action']) && in_array($_GET['action'], ['delete', 'archive'], t
 }
 
 $search = trim($_GET['search'] ?? '');
-$branch_filter = $_GET['branch'] ?? '';
-$branch_filter = $branch_filter !== '' ? intval($branch_filter) : '';
+$raw_branch_filter = array_key_exists('branch', $_GET)
+    ? trim((string) $_GET['branch'])
+    : ($user_branch_id > 0 ? (string) $user_branch_id : '');
+$branch_filter = ($raw_branch_filter === 'all' || $raw_branch_filter === '')
+    ? (array_key_exists('branch', $_GET) ? '' : ($user_branch_id > 0 ? $user_branch_id : ''))
+    : intval($raw_branch_filter);
 if ($branch_filter !== '' && $branch_filter <= 0) {
-    $branch_filter = '';
+    $branch_filter = $user_branch_id > 0 ? $user_branch_id : '';
 }
+$branch_query_value = $branch_filter === '' ? 'all' : (string) $branch_filter;
 $status_filter = cv_records_status_filter_current();
 $operation_status_filter = cv_records_operation_filter_current();
 $record_filter = record_archive_filter_current();
@@ -343,8 +348,8 @@ $pagination_params = '';
 if ($search !== '') {
     $pagination_params .= '&search=' . urlencode($search);
 }
-if ($branch_filter !== '') {
-    $pagination_params .= '&branch=' . urlencode((string) $branch_filter);
+if (array_key_exists('branch', $_GET) || $branch_filter !== '') {
+    $pagination_params .= '&branch=' . urlencode($branch_query_value);
 }
 if ($status_filter !== 'all') {
     $pagination_params .= '&status=' . urlencode((string) $status_filter);
@@ -388,7 +393,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
             <label class="customer-filter-field customer-branch-field">
                 <span>Branch</span>
                 <select name="branch" class="customer-branch-select">
-                    <option value="">All Branches</option>
+                    <option value="all" <?php echo $branch_filter === '' ? 'selected' : ''; ?>>All Branches</option>
                     <?php foreach ($branches as $branch): ?>
                         <?php $branch_label = front_customer_branch_label($branch['name']); ?>
                         <option value="<?php echo (int) $branch['id']; ?>" <?php echo $branch_filter === (int) $branch['id'] ? 'selected' : ''; ?>>
@@ -469,7 +474,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                 <input id="customerSearchInput" type="text" name="search" placeholder="Search by vehicle, plate number, customer, or branch..." value="<?php echo esc_attr($search); ?>">
             </label>
             <button type="submit" class="customer-records-search-btn btn btn-primary">Search</button>
-            <?php if ($search !== '' || $branch_filter !== '' || $status_filter !== 'all' || $operation_status_filter !== 'all' || $record_filter !== 'active' || ($date_filter['scope'] ?? 'all') !== 'all'): ?>
+            <?php if ($search !== '' || (array_key_exists('branch', $_GET) && $branch_filter !== $user_branch_id) || $status_filter !== 'all' || $operation_status_filter !== 'all' || $record_filter !== 'active' || ($date_filter['scope'] ?? 'all') !== 'all'): ?>
                 <a href="./#customer-records" class="btn btn-outline-secondary customer-records-clear">Clear</a>
             <?php endif; ?>
         </form>
