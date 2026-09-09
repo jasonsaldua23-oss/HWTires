@@ -26513,6 +26513,1032 @@ button.customer-vehicle-status-pill.customer-status-action {
     border-color: #fde68a !important;
 }
 
+/* ==========================================================================
+   SYSTEM-WIDE FILTER READABILITY, TYPOGRAPHY & UI CONSISTENCY (CONSOLIDATED)
+   ========================================================================== */
 
+/* --- 1. Global Typography, Hierarchy & Comfortable Scaling --- */
+html,
+body {
+    font-size: 15px !important;
+    line-height: 1.48 !important;
+    color: #1e293b !important;
+}
 
+p,
+label,
+input,
+select,
+textarea {
+    font-size: 15px;
+    line-height: 1.45;
+}
+
+.main-content,
+.content,
+.page-wrapper {
+    font-size: 15px !important;
+}
+
+/* --- 2. Data Tables Typography & Scaling --- */
+.table td,
+.table-responsive table td,
+.customer-records-table td,
+.quotation-table td,
+.inventory-table td,
+.audit-table td,
+.service-status-table td,
+.reports-detail-table td,
+.reports-page .reports-detail-table td {
+    font-size: 15px !important;
+    line-height: 1.45 !important;
+    vertical-align: middle !important;
+}
+
+.table th,
+.table-responsive table th,
+.customer-records-table th,
+.quotation-table th,
+.inventory-table th,
+.audit-table th,
+.service-status-queue-columns,
+.service-status-queue-columns span,
+.reports-detail-table th,
+.reports-page .reports-detail-table th {
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+    color: #344054 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.03em !important;
+    background-color: #f8fafc !important;
+}
+
+/* --- 3. Secondary Table Data, Meta Text & Contact Information --- */
+.customer-plate-pill {
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+    padding: 2px 9px !important;
+    border-radius: 6px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    letter-spacing: 0.04em !important;
+}
+
+.customer-branch-pill {
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    padding: 2px 9px !important;
+    border-radius: 6px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    color: #475467 !important;
+}
+
+.vehicle-record-facts span,
+.vehicle-workspace-facts span,
+.vehicle-workspace-detail-grid dt,
+.vehicle-workspace-detail-amounts dt,
+.vehicle-workspace-inventory-grid dt,
+.vehicle-workspace-inventory-fields dt,
+.vehicle-workspace-notes span,
+.profile-record-notes span {
+    font-size: 13.5px !important;
+    font-weight: 650 !important;
+    color: #475467 !important;
+}
+
+.vehicle-record-facts strong,
+.vehicle-workspace-facts strong,
+.vehicle-workspace-detail-grid dd,
+.vehicle-workspace-detail-amounts dd,
+.vehicle-workspace-inventory-grid dd {
+    font-size: 14.5px !important;
+    font-weight: 600 !important;
+    color: #0f1f3d !important;
+}
+
+.table td .text-muted,
+.table td small,
+.reports-cell-subtext,
+.report-cell-subtext,
+.service-status-cell span,
+.service-status-cell small,
+.contact-number,
+.table-meta-text {
+    font-size: 13.5px !important;
+    line-height: 1.4 !important;
+    color: #475467 !important;
+}
+
+.vehicle-workspace-sku-pill,
+.vehicle-summary-spec-chip,
+.vehicle-workspace-detail-head span[data-detail-type],
+.inventory-detail-pill {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+}
+
+/* --- 4. Status Pills & Badges Normalization --- */
+.badge,
+.job-status-pill,
+.quotation-status-pill,
+.profile-status-pill,
+.vehicle-workspace-status,
+.vehicle-summary-status,
+.users-role-pill,
+.users-branch-pill,
+.users-status-pill,
+.transfer-priority,
+.transfer-direction,
+.profile-service-chip,
+.quotation-service-chip,
+.job-service-chip-list span,
+.customer-vehicle-status-pill,
+.service-progress-status,
+.inventory-transaction-type,
+.priority-badge {
+    font-size: 13px !important;
+    font-weight: 650 !important;
+    line-height: 1.35 !important;
+    padding: 3px 10px !important;
+    border-radius: 999px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+    min-height: 26px !important;
+    max-height: 32px !important;
+    min-width: 0 !important;
+    width: auto !important;
+    box-shadow: none !important;
+}
+
+/* Neutral & No-Service Status Scale */
+:is(
+    .customer-vehicle-status-pill.status-no-service,
+    .customer-vehicle-status-pill.status-cancelled,
+    .customer-vehicle-status-pill.status-archived,
+    .customer-records-page .customer-vehicle-status-pill.status-no-service,
+    .main-content .content .customer-vehicle-status-pill.status-no-service,
+    .status-no-service,
+    .badge.bg-secondary
+) {
+    color: #475467 !important;
+    background-color: #f2f4f7 !important;
+    border: 1px solid #d0d5dd !important;
+    font-size: 13px !important;
+    font-weight: 650 !important;
+    min-width: 0 !important;
+}
+
+/* Standard Status Badge Colors */
+:is(.status-approved, .status-completed, .status-active, .badge.bg-success, .customer-vehicle-status-pill.status-completed, .customer-vehicle-status-pill.status-approved, .quotation-status-pill.status-approved, .job-status-pill.status-completed, .service-progress-status.status-completed) {
+    color: #067647 !important;
+    background-color: #ecfdf3 !important;
+    border: 1px solid #abefc6 !important;
+}
+
+:is(.status-pending, .status-waiting, .badge.bg-warning, .customer-vehicle-status-pill.status-pending, .quotation-status-pill.status-pending, .job-status-pill.status-pending, .service-progress-status.status-waiting) {
+    color: #b54708 !important;
+    background-color: #fffaeb !important;
+    border: 1px solid #fedf89 !important;
+}
+
+:is(.status-ongoing, .status-in-progress, .badge.bg-info, .badge.bg-primary, .customer-vehicle-status-pill.status-ongoing, .job-status-pill.status-in-progress, .service-progress-status.status-in-progress) {
+    color: #026aa2 !important;
+    background-color: #f0f9ff !important;
+    border: 1px solid #b2ddff !important;
+}
+
+:is(.status-rejected, .status-cancelled, .status-archived, .badge.bg-danger, .customer-vehicle-status-pill.status-rejected, .customer-vehicle-status-pill.status-archived, .quotation-status-pill.status-rejected, .service-progress-status.status-cancelled) {
+    color: #b42318 !important;
+    background-color: #fef3f2 !important;
+    border: 1px solid #fecdca !important;
+}
+
+/* --- 5. Headings & Titles --- */
+.card-title,
+.panel-title,
+.quotation-panel-header h2,
+.customer-records-hero h1,
+.vehicle-records-hero h1,
+.profile-record-card h2,
+.vehicle-workspace-panel-head h2,
+.service-status-hero h1,
+.inventory-hero h1,
+.reports-hero h1 {
+    font-size: 18px !important;
+    font-weight: 750 !important;
+    line-height: 1.25 !important;
+    color: #0f172a !important;
+}
+
+/* --- 6. Form Controls & Buttons Shared Sizing --- */
+.form-select,
+.form-control,
+.search-input-wrap input,
+.customer-records-filter select,
+.customer-records-filter input,
+.vehicle-records-filter select,
+.vehicle-records-filter input,
+.quotation-branch-filter select,
+.records-select-filter select,
+.admin-job-order-page select,
+.service-status-page select,
+.inventory-unified-filter-form select,
+.inventory-unified-filter-form input,
+.transfers-unified-filter-form select,
+.transfers-unified-filter-form input,
+.users-filter-form select,
+.users-filter-form input,
+.reports-detail-filter-form select,
+.reports-detail-filter-form input,
+.audit-filter-field select,
+.audit-filter-field input {
+    height: 42px !important;
+    min-height: 42px !important;
+    font-size: 15px !important;
+    font-weight: 500 !important;
+    border-radius: 8px !important;
+    border: 1px solid #cbd5e1 !important;
+    box-sizing: border-box !important;
+    color: #0f1f3d !important;
+    background-color: #ffffff !important;
+}
+
+.form-label,
+.field-label,
+.filter-label,
+.customer-records-filter span,
+.vehicle-records-filter span,
+.inventory-filter-group h2,
+.inventory-search-group h2,
+.users-filter-item label,
+.users-search-group label,
+.reports-detail-filter-form span,
+.audit-filter-field label,
+.admin-job-order-page label,
+.service-status-page label {
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: #344054 !important;
+    margin-bottom: 3px !important;
+    display: block !important;
+}
+
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-outline-primary,
+.btn-outline-secondary,
+.customer-records-submit,
+.customer-records-search-btn,
+.customer-records-clear,
+.vehicle-records-submit,
+.vehicle-records-search-btn,
+.vehicle-records-clear,
+.records-search-btn,
+.inventory-filter-apply-btn,
+.inventory-search-btn,
+.inventory-filter-reset-btn,
+.transfers-search-btn,
+.transfers-reset-btn,
+.users-filter-btn,
+.users-search-btn,
+.users-reset-btn,
+.reports-filter-apply,
+.reports-search-submit,
+.front-reports-filter-submit,
+.front-reports-search-submit {
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 0 18px !important;
+    font-size: 14.5px !important;
+    font-weight: 650 !important;
+    border-radius: 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
+}
+
+/* --- 7. Search Inputs & Icons System-Wide Consistency --- */
+:is(
+    .customer-search-field,
+    .vehicle-search-field,
+    .records-search-field,
+    .inventory-search-field,
+    .inventory-search-input-wrap,
+    .reports-search-filter,
+    .reports-search-input-wrap,
+    .users-search-input-wrap,
+    .search-input-wrap,
+    .transfers-search-input-wrap,
+    .forecast-search-field
+) {
+    position: relative !important;
+}
+
+:is(
+    .customer-search-field,
+    .vehicle-search-field,
+    .records-search-field,
+    .inventory-search-field,
+    .reports-search-filter,
+    .reports-search-input-wrap,
+    .users-search-input-wrap,
+    .search-input-wrap,
+    .transfers-search-input-wrap,
+    .forecast-search-field
+) input {
+    padding-left: 42px !important;
+    padding-right: 14px !important;
+    width: 100% !important;
+}
+
+:is(
+    .customer-search-field,
+    .vehicle-search-field,
+    .records-search-field,
+    .inventory-search-field,
+    .reports-search-filter,
+    .reports-search-input-wrap,
+    .users-search-input-wrap,
+    .search-input-wrap,
+    .transfers-search-input-wrap,
+    .forecast-search-field
+) i {
+    position: absolute !important;
+    left: 14px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    font-size: 15px !important;
+    color: #64748b !important;
+    pointer-events: none !important;
+    z-index: 2 !important;
+}
+
+/* --- 8. Customer Records Filter Toolbar --- */
+.main-content .content .customer-records-page .customer-records-filter-card,
+.customer-records-filter-card {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 14px 16px !important;
+    padding: 18px 24px !important;
+    margin-bottom: 24px !important;
+}
+
+.main-content .content .customer-records-page .customer-records-filter,
+.customer-records-filter {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 14px 16px !important;
+    width: 100% !important;
+    grid-template-columns: none !important;
+}
+
+.customer-branch-field {
+    flex: 0 1 230px !important;
+    min-width: 190px !important;
+    max-width: 270px !important;
+}
+
+.customer-operation-field {
+    flex: 0 1 250px !important;
+    min-width: 210px !important;
+    max-width: 290px !important;
+}
+
+.customer-status-field {
+    flex: 0 1 230px !important;
+    min-width: 200px !important;
+    max-width: 270px !important;
+}
+
+.customer-record-field,
+.customer-date-scope-field {
+    flex: 0 1 190px !important;
+    min-width: 165px !important;
+    max-width: 230px !important;
+}
+
+.customer-search-field {
+    flex: 0 1 380px !important;
+    min-width: 260px !important;
+    margin-left: auto !important;
+}
+
+/* --- 9. Vehicle Records Filter Toolbar --- */
+.main-content .content .vehicle-records-page .vehicle-records-filter-card,
+.vehicle-records-filter-card {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px !important;
+    padding: 18px 24px !important;
+    margin-bottom: 24px !important;
+}
+
+.vehicle-records-filter {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 14px 16px !important;
+    width: 100% !important;
+    grid-template-columns: none !important;
+}
+
+.vehicle-branch-select {
+    flex: 0 1 230px !important;
+    min-width: 190px !important;
+    max-width: 270px !important;
+}
+
+.vehicle-status-select {
+    flex: 0 1 230px !important;
+    min-width: 200px !important;
+    max-width: 270px !important;
+}
+
+.vehicle-record-select {
+    flex: 0 1 190px !important;
+    min-width: 165px !important;
+    max-width: 230px !important;
+}
+
+.vehicle-search-field {
+    flex: 0 1 380px !important;
+    min-width: 260px !important;
+    margin-left: auto !important;
+}
+
+/* --- 10. Service Operations / Quotations (Neutralize Grid Override) --- */
+.main-content .content :is(.quotation-records-page, .front-job-create-page) :is(.quotation-panel-controls, .job-orders-panel-controls),
+.quotation-records-page .quotation-panel-controls,
+.quotation-panel-controls {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 14px 16px !important;
+    width: 100% !important;
+    grid-template-columns: none !important;
+}
+
+.main-content .content :is(.quotation-records-page, .front-job-create-page) :is(.quotation-branch-filter, .records-select-filter),
+.quotation-branch-filter,
+.records-select-filter {
+    flex: 0 1 220px !important;
+    min-width: 180px !important;
+    max-width: 260px !important;
+    margin: 0 !important;
+    display: block !important;
+}
+
+.main-content .content :is(.quotation-records-page, .front-job-create-page) :is(.quotation-branch-filter, .records-select-filter) select,
+.quotation-branch-filter select,
+.records-select-filter select {
+    width: 100% !important;
+}
+
+.main-content .content :is(.quotation-records-page, .front-job-create-page) :is(.quotation-branch-filter, .records-select-filter) button,
+.quotation-branch-filter button,
+.records-select-filter button {
+    display: none !important;
+}
+
+.main-content .content :is(.quotation-records-page, .front-job-create-page) .records-search-form,
+.quotation-records-page .records-search-form,
+.records-search-form {
+    display: flex !important;
+    align-items: flex-end !important;
+    gap: 10px !important;
+    margin-left: auto !important;
+    flex: 0 1 380px !important;
+    min-width: 260px !important;
+    max-width: 440px !important;
+}
+
+.records-search-field {
+    flex: 1 1 auto !important;
+    position: relative !important;
+}
+
+/* --- 11. Admin Job Orders & Service Status (Neutralize Grid Override) --- */
+.main-content .content .admin-job-order-page .service-status-filter-toolbar,
+.service-status-filter-toolbar {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 14px 16px !important;
+    width: 100% !important;
+}
+
+.main-content .content .admin-job-order-page .service-filter-left,
+.admin-job-order-page .service-filter-left,
+.service-status-page .service-filter-left {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 14px 16px !important;
+    width: auto !important;
+    flex: 1 1 auto !important;
+    grid-template-columns: none !important;
+}
+
+.admin-job-order-page .service-branch-filter,
+.service-status-page .service-branch-filter {
+    flex: 0 1 220px !important;
+    min-width: 180px !important;
+    max-width: 260px !important;
+    margin: 0 !important;
+}
+
+.admin-job-order-page .service-branch-filter button,
+.service-status-page .service-branch-filter button {
+    display: none !important;
+}
+
+.admin-job-order-page .service-search-form,
+.service-status-page .service-search-form {
+    display: flex !important;
+    align-items: flex-end !important;
+    gap: 10px !important;
+    margin-left: auto !important;
+    flex: 0 1 380px !important;
+    min-width: 260px !important;
+}
+
+/* --- 12. Service Status Table & Action Column Spacing --- */
+.service-status-page .service-status-queue-columns,
+.service-status-page .service-status-row {
+    display: grid !important;
+    grid-template-columns: minmax(150px, 1fr) minmax(150px, 1fr) minmax(210px, 1.4fr) minmax(130px, 0.85fr) minmax(135px, 0.85fr) 140px 115px minmax(145px, 155px) !important;
+    align-items: center !important;
+    gap: 14px !important;
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+}
+
+.service-status-page .service-status-queue-columns span:nth-child(8) {
+    text-align: center !important;
+}
+
+.service-status-page .service-status-action-cell {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: 100% !important;
+}
+
+.service-status-page .service-status-update-btn,
+.service-status-page .service-status-secondary-link,
+.service-status-page .service-status-close-btn {
+    min-height: 38px !important;
+    padding: 6px 14px !important;
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+    border-radius: 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    white-space: nowrap !important;
+    margin: 0 auto !important;
+}
+
+/* --- 13. Admin Inventory Filter & Search Groups --- */
+.inventory-records-page .inventory-unified-filter-form,
+.front-inventory-page .inventory-unified-filter-form,
+.inventory-unified-filter-form {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 14px 16px !important;
+    width: 100% !important;
+}
+
+.inventory-filter-group-wrap {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 14px 16px !important;
+    flex: 1 1 auto !important;
+}
+
+.inventory-filter-group {
+    flex: 0 1 175px !important;
+    min-width: 145px !important;
+    max-width: 220px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+}
+
+.inventory-filter-actions-group {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+.inventory-search-group {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    margin-left: auto !important;
+    flex: 0 1 380px !important;
+    min-width: 260px !important;
+}
+
+.inventory-search-input-wrap {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+}
+
+.inventory-search-input-wrap .inventory-search-field {
+    flex: 1 1 auto !important;
+}
+
+/* --- 14. Branch Transfers Filter & Search Groups --- */
+.transfers-unified-filter-form {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 14px 16px !important;
+    width: 100% !important;
+}
+
+.transfers-filter-group-wrap {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 14px 16px !important;
+    flex: 1 1 auto !important;
+}
+
+.transfers-filter-item {
+    flex: 0 1 180px !important;
+    min-width: 150px !important;
+}
+
+.transfers-filter-actions {
+    display: flex !important;
+    align-items: center !important;
+}
+
+.transfers-search-group {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    margin-left: auto !important;
+    flex: 0 1 380px !important;
+    min-width: 260px !important;
+}
+
+.transfers-search-input-wrap {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+}
+
+/* --- 15. User Management Filter & Search Toolbar --- */
+.users-filter-form {
+    width: 100% !important;
+}
+
+.users-filter-grid {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 14px 16px !important;
+    width: 100% !important;
+}
+
+.users-filter-group-wrap {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 14px 16px !important;
+    flex: 1 1 auto !important;
+}
+
+.users-filter-item {
+    flex: 0 1 180px !important;
+    min-width: 150px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+}
+
+.users-filter-actions {
+    display: flex !important;
+    align-items: center !important;
+}
+
+.users-search-group {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    margin-left: auto !important;
+    flex: 0 1 380px !important;
+    min-width: 260px !important;
+}
+
+.users-search-input-wrap {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+}
+
+/* --- 16. Reports (Admin & Front Desk) Filter & Search Groups --- */
+.main-content .content .reports-page .reports-detail-filter-form,
+.main-content .content .front-reports-filter-form.reports-detail-filter-form,
+.reports-detail-filter-form {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 14px 16px !important;
+    width: 100% !important;
+    margin: 0 !important;
+}
+
+.reports-type-filter {
+    flex: 0 1 220px !important;
+    min-width: 180px !important;
+    max-width: 260px !important;
+}
+
+.reports-branch-filter,
+.reports-status-filter {
+    flex: 0 1 200px !important;
+    min-width: 170px !important;
+    max-width: 250px !important;
+}
+
+.reports-quick-range-filter {
+    flex: 0 1 190px !important;
+    min-width: 165px !important;
+    max-width: 240px !important;
+}
+
+.reports-search-group {
+    display: flex !important;
+    align-items: flex-end !important;
+    gap: 8px !important;
+    margin-left: auto !important;
+    flex: 0 1 380px !important;
+    min-width: 260px !important;
+}
+
+.reports-search-group .reports-search-filter {
+    flex: 1 1 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    margin: 0 !important;
+}
+
+/* --- 17. Inventory Transactions Filter --- */
+.inventory-transactions-filter .inventory-transaction-filter-grid {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 14px 16px !important;
+    width: 100% !important;
+}
+
+.inventory-transactions-filter .inventory-type-filter,
+.inventory-transactions-filter .inventory-branch-filter {
+    flex: 0 1 190px !important;
+    min-width: 160px !important;
+}
+
+.inventory-transactions-filter .inventory-search-filter {
+    margin-left: auto !important;
+    flex: 0 1 320px !important;
+    min-width: 240px !important;
+}
+
+/* --- 18. Audit Trail & Profile Filters --- */
+.audit-filter-row {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 14px 16px !important;
+}
+
+.audit-filter-field {
+    flex: 0 1 210px !important;
+    min-width: 180px !important;
+    max-width: 260px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+}
+
+.customer-profile-branch-select,
+#filter_branch,
+#filter_period {
+    min-width: 210px !important;
+    max-width: 270px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    font-size: 15px !important;
+    font-weight: 500 !important;
+    border-radius: 8px !important;
+    border: 1px solid #cbd5e1 !important;
+    padding: 8px 14px !important;
+}
+
+/* --- 19. Historical Transaction & Service Operation Detail Typography --- */
+.service-operation-detail-card .card-body,
+.service-operation-detail-card .card-body p,
+.service-operation-detail-card .service-operation-detail-lines,
+.quotation-inspection-record p,
+.job-inspection-section .quotation-inspection-record p {
+    font-size: 14.5px !important;
+    line-height: 1.5 !important;
+    color: #1d2939 !important;
+}
+
+.service-operation-detail-card .card-body h6,
+.service-operation-detail-card h6.text-muted,
+.job-detail-section h3,
+.service-status-detail-section h3,
+.job-inspection-section h3 {
+    font-size: 13.5px !important;
+    font-weight: 750 !important;
+    color: #344054 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.04em !important;
+}
+
+.service-operation-detail-card .card-body small.text-muted,
+.service-operation-detail-card small.text-muted,
+.quotation-inspection-record span,
+.job-inspection-section span,
+.job-detail-summary span,
+.job-detail-grid span {
+    font-size: 13px !important;
+    font-weight: 650 !important;
+    color: #475467 !important;
+    line-height: 1.4 !important;
+}
+
+.service-operation-items-table th {
+    color: #344054 !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.03em !important;
+}
+
+.service-operation-items-table td {
+    color: #1d2939 !important;
+    font-size: 14px !important;
+    line-height: 1.45 !important;
+    vertical-align: middle !important;
+}
+
+.service-operation-detail-card .border-top p {
+    font-size: 14.5px !important;
+    line-height: 1.5 !important;
+    color: #1d2939 !important;
+}
+
+.service-operation-detail-card .border-top.text-muted,
+.service-operation-detail-card .border-top.text-muted p {
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+    color: #475467 !important;
+}
+
+/* --- 20. Historical & Service Operation Modals Typography --- */
+.customer-vehicle-history-modal .modal-title,
+.service-status-detail-modal .modal-title,
+.service-status-detail-modal .modal-header h2,
+.admin-job-order-page .job-modal-head h2 {
+    font-size: 19px !important;
+    font-weight: 750 !important;
+    color: #101828 !important;
+    line-height: 1.3 !important;
+}
+
+.job-detail-summary strong,
+.job-detail-grid strong,
+.customer-item-entry strong,
+.vehicle-history-entry strong {
+    font-size: 14.5px !important;
+    font-weight: 650 !important;
+    color: #101828 !important;
+}
+
+.customer-item-entry p,
+.vehicle-history-entry p,
+.customer-ownership-entry p {
+    font-size: 14px !important;
+    line-height: 1.45 !important;
+    color: #344054 !important;
+}
+
+.customer-item-entry span,
+.vehicle-history-entry span,
+.customer-ownership-entry span {
+    font-size: 13px !important;
+    color: #475467 !important;
+}
+
+.service-progress-copy,
+.service-progress-copy strong,
+.service-progress-copy span {
+    font-size: 13.5px !important;
+    line-height: 1.4 !important;
+}
+
+/* --- 21. Shared Service Task Checklist Alignment --- */
+.service-task-check,
+.service-status-page .service-task-check,
+.admin-job-order-page .service-task-check {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+    min-height: 40px !important;
+    padding: 8px 12px !important;
+    box-sizing: border-box !important;
+    font-size: 14px !important;
+    font-weight: 650 !important;
+    cursor: pointer !important;
+    width: 100% !important;
+}
+
+.service-task-check input[type="checkbox"],
+.service-task-check input,
+.service-status-page .service-task-check input,
+.admin-job-order-page .service-task-check input {
+    display: inline-block !important;
+    flex: 0 0 18px !important;
+    width: 18px !important;
+    height: 18px !important;
+    margin: 0 !important;
+    vertical-align: middle !important;
+    flex-shrink: 0 !important;
+    accent-color: #0096b6 !important;
+}
+
+.service-task-check span,
+.service-status-page .service-task-check span,
+.admin-job-order-page .service-task-check span {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex: 1 1 auto !important;
+    line-height: 1.35 !important;
+    font-size: 14px !important;
+    white-space: normal !important;
+}
+
+.service-task-check small,
+.service-status-page .service-task-check small,
+.admin-job-order-page .service-task-check small {
+    font-size: 12.5px !important;
+    font-weight: 750 !important;
+    color: #475467 !important;
+}
+
+/* --- 22. Header Hamburger / Sidebar Toggle Responsive Visibility --- */
+#sidebarToggle,
+.header #sidebarToggle {
+    display: none !important;
+}
+
+@media (max-width: 768px) {
+    #sidebarToggle,
+    .header #sidebarToggle {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        color: var(--text-dark, #344054) !important;
+        padding: 6px 10px !important;
+    }
+}
 

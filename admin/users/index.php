@@ -533,61 +533,68 @@ $current_view_url = $_SERVER['REQUEST_URI'] ?? '/hwtires/admin/users/';
         <form method="GET" action="/hwtires/admin/users/" class="users-filter-form">
             <input type="hidden" name="per_page" value="<?php echo (int) $per_page; ?>">
             <div class="users-filter-grid">
-                <div class="users-filter-item search-item">
-                    <label for="userSearch">Search</label>
-                    <div class="users-search-input-wrap">
-                        <i class="fas fa-search"></i>
-                        <input
-                            type="text"
-                            id="userSearch"
-                            name="search"
-                            autocomplete="off"
-                            data-no-autocomplete="true"
-                            value="<?php echo esc_attr($search_query); ?>"
-                            placeholder="Search by name or login ID..."
-                        >
+                <div class="users-filter-group-wrap">
+                    <div class="users-filter-item">
+                        <label for="branchFilter">Branch</label>
+                        <select id="branchFilter" name="branch_id" onchange="this.form.submit()">
+                            <option value="all">All Branches</option>
+                            <?php foreach ($branches as $branch): ?>
+                                <option value="<?php echo (int) $branch['id']; ?>" <?php echo $branch_filter !== '' && (int) $branch_filter === (int) $branch['id'] ? 'selected' : ''; ?>>
+                                    <?php echo esc_html(users_branch_label($branch['name'])); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="users-filter-item">
+                        <label for="roleFilter">Role</label>
+                        <select id="roleFilter" name="role" onchange="this.form.submit()">
+                            <option value="all">All Roles</option>
+                            <option value="admin" <?php echo $role_filter === 'admin' ? 'selected' : ''; ?>>Admin/Owner</option>
+                            <option value="front-desk" <?php echo $role_filter === 'front-desk' ? 'selected' : ''; ?>>Front Desk</option>
+                        </select>
+                    </div>
+
+                    <div class="users-filter-item">
+                        <label for="statusFilter">Status</label>
+                        <select id="statusFilter" name="status" onchange="this.form.submit()">
+                            <option value="all">All Statuses</option>
+                            <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active</option>
+                            <option value="inactive" <?php echo $status_filter === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
+                        </select>
+                    </div>
+
+                    <div class="users-filter-actions">
+                        <button type="submit" class="users-filter-btn" title="Apply filters">
+                            <i class="fas fa-filter me-1"></i> Filter
+                        </button>
                     </div>
                 </div>
 
-                <div class="users-filter-item">
-                    <label for="branchFilter">Branch</label>
-                    <select id="branchFilter" name="branch_id" onchange="this.form.submit()">
-                        <option value="all">All Branches</option>
-                        <?php foreach ($branches as $branch): ?>
-                            <option value="<?php echo (int) $branch['id']; ?>" <?php echo $branch_filter !== '' && (int) $branch_filter === (int) $branch['id'] ? 'selected' : ''; ?>>
-                                <?php echo esc_html(users_branch_label($branch['name'])); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div class="users-filter-item">
-                    <label for="roleFilter">Role</label>
-                    <select id="roleFilter" name="role" onchange="this.form.submit()">
-                        <option value="all">All Roles</option>
-                        <option value="admin" <?php echo $role_filter === 'admin' ? 'selected' : ''; ?>>Admin/Owner</option>
-                        <option value="front-desk" <?php echo $role_filter === 'front-desk' ? 'selected' : ''; ?>>Front Desk</option>
-                    </select>
-                </div>
-
-                <div class="users-filter-item">
-                    <label for="statusFilter">Status</label>
-                    <select id="statusFilter" name="status" onchange="this.form.submit()">
-                        <option value="all">All Statuses</option>
-                        <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active</option>
-                        <option value="inactive" <?php echo $status_filter === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
-                    </select>
-                </div>
-
-                <div class="users-filter-actions">
-                    <button type="submit" class="users-filter-btn" title="Apply filters">
-                        <i class="fas fa-filter me-1"></i> Filter
-                    </button>
-                    <?php if ($has_active_filters): ?>
-                        <a href="/hwtires/admin/users/" class="users-reset-btn" title="Reset all filters">
-                            <i class="fas fa-rotate-left me-1"></i> Reset
-                        </a>
-                    <?php endif; ?>
+                <div class="users-search-group">
+                    <label for="userSearch">Search</label>
+                    <div class="users-search-input-wrap">
+                        <div class="search-input-wrap position-relative flex-grow-1">
+                            <i class="fas fa-search position-absolute top-50 translate-middle-y text-muted" style="left: 14px;"></i>
+                            <input
+                                type="text"
+                                id="userSearch"
+                                name="search"
+                                autocomplete="off"
+                                data-no-autocomplete="true"
+                                value="<?php echo esc_attr($search_query); ?>"
+                                placeholder="Search by name or login ID..."
+                            >
+                        </div>
+                        <button type="submit" class="btn btn-secondary users-search-btn" title="Search users">
+                            <i class="fas fa-search me-1"></i> Search
+                        </button>
+                        <?php if ($has_active_filters): ?>
+                            <a href="/hwtires/admin/users/" class="users-reset-btn" title="Reset all filters">
+                                <i class="fas fa-rotate-left me-1"></i> Reset
+                            </a>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
         </form>

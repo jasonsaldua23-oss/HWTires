@@ -134,51 +134,63 @@ include __DIR__ . '/../../includes/sidebar.php';
     </div>
 
         <!-- Filters -->
-        <div class="card border-0 shadow-sm rounded-3 mb-4">
+        <div class="card border-0 shadow-sm rounded-3 mb-4 transfers-filter-card">
             <div class="card-body p-3 p-md-4">
-                <form method="GET" action="/hwtires/admin/transfers/" class="row g-2 align-items-end">
-                    <div class="col-12 col-sm-6 col-md-4 col-lg-2">
-                        <label class="form-label small fw-semibold text-secondary mb-1">Status</label>
-                        <select name="status" class="form-select">
-                            <option value="">All Statuses</option>
-                            <option value="pending" <?= $filter_status === 'pending' ? 'selected' : '' ?>>Pending</option>
-                            <option value="approved" <?= $filter_status === 'approved' ? 'selected' : '' ?>>Approved</option>
-                            <option value="shipped" <?= $filter_status === 'shipped' ? 'selected' : '' ?>>Shipped</option>
-                            <option value="received" <?= $filter_status === 'received' ? 'selected' : '' ?>>Received</option>
-                            <option value="cancelled" <?= $filter_status === 'cancelled' ? 'selected' : '' ?>>Cancelled</option>
-                        </select>
+                <form method="GET" action="/hwtires/admin/transfers/" class="transfers-unified-filter-form">
+                    <div class="transfers-filter-group-wrap">
+                        <div class="transfers-filter-item">
+                            <label class="form-label small fw-semibold text-secondary mb-1">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="">All Statuses</option>
+                                <option value="pending" <?= $filter_status === 'pending' ? 'selected' : '' ?>>Pending</option>
+                                <option value="approved" <?= $filter_status === 'approved' ? 'selected' : '' ?>>Approved</option>
+                                <option value="shipped" <?= $filter_status === 'shipped' ? 'selected' : '' ?>>Shipped</option>
+                                <option value="received" <?= $filter_status === 'received' ? 'selected' : '' ?>>Received</option>
+                                <option value="cancelled" <?= $filter_status === 'cancelled' ? 'selected' : '' ?>>Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="transfers-filter-item">
+                            <label class="form-label small fw-semibold text-secondary mb-1">Priority</label>
+                            <select name="priority" class="form-select">
+                                <option value="">All Priorities</option>
+                                <option value="high" <?= $filter_priority === 'high' ? 'selected' : '' ?>>High</option>
+                                <option value="medium" <?= $filter_priority === 'medium' ? 'selected' : '' ?>>Medium</option>
+                                <option value="low" <?= $filter_priority === 'low' ? 'selected' : '' ?>>Low</option>
+                            </select>
+                        </div>
+                        <div class="transfers-filter-item">
+                            <label class="form-label small fw-semibold text-secondary mb-1">Branch</label>
+                            <select name="branch" class="form-select">
+                                <option value="">All Branches</option>
+                                <?php foreach ($branches as $b): ?>
+                                    <option value="<?= (int)$b['id'] ?>" <?= $filter_branch === (int) $b['id'] ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($b['name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="transfers-filter-actions">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-filter me-1"></i> Filter
+                            </button>
+                        </div>
                     </div>
-                    <div class="col-12 col-sm-6 col-md-4 col-lg-2">
-                        <label class="form-label small fw-semibold text-secondary mb-1">Priority</label>
-                        <select name="priority" class="form-select">
-                            <option value="">All Priorities</option>
-                            <option value="high" <?= $filter_priority === 'high' ? 'selected' : '' ?>>High</option>
-                            <option value="medium" <?= $filter_priority === 'medium' ? 'selected' : '' ?>>Medium</option>
-                            <option value="low" <?= $filter_priority === 'low' ? 'selected' : '' ?>>Low</option>
-                        </select>
-                    </div>
-                    <div class="col-12 col-sm-6 col-md-4 col-lg-2">
-                        <label class="form-label small fw-semibold text-secondary mb-1">Branch</label>
-                        <select name="branch" class="form-select">
-                            <option value="">All Branches</option>
-                            <?php foreach ($branches as $b): ?>
-                                <option value="<?= (int)$b['id'] ?>" <?= $filter_branch === (int) $b['id'] ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($b['name']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="col-12 col-sm-12 col-md-6 col-lg-4">
+                    <div class="transfers-search-group">
                         <label class="form-label small fw-semibold text-secondary mb-1">Search</label>
-                        <input type="text" name="search" class="form-control" value="<?= htmlspecialchars($search) ?>" placeholder="Request #, item, reason, user...">
-                    </div>
-                    <div class="col-12 col-sm-12 col-md-6 col-lg-2 d-flex gap-2">
-                        <button type="submit" class="btn btn-primary flex-fill">
-                            <i class="fas fa-filter me-1"></i> Filter
-                        </button>
-                        <a href="/hwtires/admin/transfers/" class="btn btn-outline-secondary" title="Reset all filters">
-                            <i class="fas fa-rotate-left"></i>
-                        </a>
+                        <div class="transfers-search-input-wrap">
+                            <div class="search-input-wrap position-relative flex-grow-1">
+                                <i class="fas fa-search position-absolute top-50 translate-middle-y text-muted" style="left: 14px;"></i>
+                                <input type="text" name="search" class="form-control" value="<?= htmlspecialchars($search) ?>" placeholder="Request #, item, reason, user...">
+                            </div>
+                            <button type="submit" class="btn btn-secondary transfers-search-btn">
+                                <i class="fas fa-search me-1"></i> Search
+                            </button>
+                            <?php if ($filter_status !== '' || $filter_priority !== '' || $filter_branch !== '' || $search !== ''): ?>
+                                <a href="/hwtires/admin/transfers/" class="btn btn-outline-secondary transfers-reset-btn" title="Reset all filters">
+                                    <i class="fas fa-rotate-left"></i>
+                                </a>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </form>
             </div>

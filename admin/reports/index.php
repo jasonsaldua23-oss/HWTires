@@ -2332,11 +2332,16 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
                 <input type="date" name="date_to" value="<?php echo esc_attr($date_to); ?>">
             </label>
             <button type="submit" class="reports-filter-apply">Apply</button>
-            <label class="reports-search-filter">
-                <span>Search</span>
-                <input type="search" name="search" value="<?php echo esc_attr($search_filter); ?>" placeholder="Customer, plate, item, service, reference...">
-            </label>
-            <button type="submit" class="reports-search-submit">Search</button>
+            <div class="reports-search-group">
+                <label class="reports-search-filter">
+                    <span>Search</span>
+                    <div class="reports-search-input-wrap position-relative">
+                        <i class="fas fa-search position-absolute top-50 translate-middle-y text-muted" style="left: 14px;"></i>
+                        <input type="search" name="search" value="<?php echo esc_attr($search_filter); ?>" placeholder="Customer, plate, item, service, reference...">
+                    </div>
+                </label>
+                <button type="submit" class="reports-search-submit">Search</button>
+            </div>
             <input type="hidden" name="per_page" value="<?php echo (int) $detail_per_page; ?>">
         </form>
         <script>
