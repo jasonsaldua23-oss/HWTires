@@ -171,10 +171,8 @@ try {
 
     $vehicles_stmt = $pdo->prepare("
         SELECT v.*,
-               u.name AS created_by_name,
                b.name AS created_by_branch
         FROM vehicles v
-        LEFT JOIN users u ON v.created_by_user_id = u.id
         LEFT JOIN branches b ON v.branch_id = b.id
         WHERE v.customer_id = ?
           AND v.status = 'active'

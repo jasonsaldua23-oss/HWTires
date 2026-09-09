@@ -219,25 +219,6 @@
             emptyState.hidden = visibleRows > 0;
         }
 
-        const dropdownToggle = document.getElementById('notificationDropdown');
-        if (dropdownToggle && !dropdownToggle.dataset.notificationReadBound) {
-            dropdownToggle.dataset.notificationReadBound = '1';
-            dropdownToggle.addEventListener('shown.bs.dropdown', function() {
-                rows.forEach(function(row) {
-                    if (row.hidden) {
-                        return;
-                    }
-
-                    setNotificationRead(row, true, {
-                        persist: true,
-                        useBeacon: true,
-                        skipSync: true,
-                    });
-                });
-
-                syncNotificationState();
-            });
-        }
     }
 
     document.addEventListener('DOMContentLoaded', syncNotificationState);
