@@ -15,27 +15,34 @@ if (file_exists($env_file)) {
             list($name, $value) = explode('=', $line, 2);
             $name = trim($name);
             $value = trim($value, " \t\n\r\0\x0B\"'");
-            if (getenv($name) === false) {
-                putenv("{$name}={$value}");
-                $_ENV[$name] = $value;
-                $_SERVER[$name] = $value;
-            }
+            putenv("{$name}={$value}");
+            $_ENV[$name] = $value;
+            $_SERVER[$name] = $value;
         }
     }
 }
 
+// Helper to reliably fetch config from $_ENV, $_SERVER, or getenv
+$get_env_val = function($key, $default = '') {
+    if (isset($_ENV[$key]) && $_ENV[$key] !== '') return $_ENV[$key];
+    if (isset($_SERVER[$key]) && $_SERVER[$key] !== '') return $_SERVER[$key];
+    $val = getenv($key);
+    if ($val !== false && $val !== '') return $val;
+    return $default;
+};
+
 // Database credentials (with environment variable support for cloud hosting like Render)
-define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
-define('DB_USER', getenv('DB_USER') ?: 'root');
-define('DB_PASS', getenv('DB_PASS') !== false ? getenv('DB_PASS') : '');
-define('DB_NAME', getenv('DB_NAME') ?: 'hwtires');
-define('DB_PORT', getenv('DB_PORT') ? (int)getenv('DB_PORT') : 3306);
+define('DB_HOST', $get_env_val('DB_HOST', 'localhost'));
+define('DB_USER', $get_env_val('DB_USER', 'root'));
+define('DB_PASS', isset($_ENV['DB_PASS']) ? $_ENV['DB_PASS'] : (isset($_SERVER['DB_PASS']) ? $_SERVER['DB_PASS'] : (getenv('DB_PASS') !== false ? getenv('DB_PASS') : '')));
+define('DB_NAME', $get_env_val('DB_NAME', 'hwtires'));
+define('DB_PORT', (int)($get_env_val('DB_PORT', 3306)));
 
 // Application constants
-define('APP_NAME', getenv('APP_NAME') ?: 'HW Tires Management');
+define('APP_NAME', $get_env_val('APP_NAME', 'HW Tires Management'));
 if (!defined('APP_URL')) {
-    $env_app_url = getenv('APP_URL');
-    if ($env_app_url !== false) {
+    $env_app_url = $get_env_val('APP_URL', null);
+    if ($env_app_url !== null && $env_app_url !== '') {
         define('APP_URL', rtrim($env_app_url, '/'));
     } else {
         // Auto-detect root vs subfolder
@@ -44,7 +51,7 @@ if (!defined('APP_URL')) {
         define('APP_URL', ($doc_root && $app_root && $doc_root === $app_root) ? '' : '/hwtires');
     }
 }
-define('APP_TIMEZONE', getenv('APP_TIMEZONE') ?: 'Asia/Manila');
+define('APP_TIMEZONE', $get_env_val('APP_TIMEZONE', 'Asia/Manila'));
 
 // Session configuration
 define('SESSION_TIMEOUT', 3600); // 1 hour in seconds
@@ -81,8 +88,19 @@ if (!isset($pdo)) {
             $pdo_options
         );
     } catch (PDOException $e) {
-        // Log error (in production, log to file instead)
+        // Log detailed error to local debug file
+        $log_entry = date('Y-m-d H:i:s') . ' | Database Connection Error: ' . $e->getMessage() . " | Host: " . DB_HOST . " | Port: " . DB_PORT . " | User: " . DB_USER . "\n";
+        @file_put_contents(__DIR__ . '/../debug_db_error.log', $log_entry, FILE_APPEND);
         error_log('Database Connection Error: ' . $e->getMessage());
+
+        // Check if running in local development to show helpful error details
+        $is_local = (php_sapi_name() === 'cli') || 
+                    (isset($_SERVER['SERVER_NAME']) && in_array($_SERVER['SERVER_NAME'], ['localhost', '127.0.0.1', '::1']));
+
+        if ($is_local) {
+            die('<!DOCTYPE html><html><head><title>Database Connection Error</title><style>body{font-family:sans-serif;padding:30px;background:#f8f9fa;color:#333;} .box{background:#fff;border-left:4px solid #dc3545;padding:20px;border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,0.1);max-width:700px;margin:auto;}</style></head><body><div class="box"><h2>Database Connection Failed</h2><p><b>Error:</b> ' . htmlspecialchars($e->getMessage()) . '</p><p><b>Host:</b> ' . htmlspecialchars(DB_HOST) . '<br><b>Port:</b> ' . htmlspecialchars(DB_PORT) . '<br><b>Database:</b> ' . htmlspecialchars(DB_NAME) . '<br><b>User:</b> ' . htmlspecialchars(DB_USER) . '</p><p style="color:#6c757d;font-size:13px;">Check your <code>.env</code> settings and database status.</p></div></body></html>');
+        }
+
         die('Database connection failed. Please contact administrator.');
     }
 }
