@@ -93,15 +93,17 @@ if (!isset($pdo)) {
         @file_put_contents(__DIR__ . '/../debug_db_error.log', $log_entry, FILE_APPEND);
         error_log('Database Connection Error: ' . $e->getMessage());
 
-        // Check if running in local development to show helpful error details
-        $is_local = (php_sapi_name() === 'cli') || 
-                    (isset($_SERVER['SERVER_NAME']) && in_array($_SERVER['SERVER_NAME'], ['localhost', '127.0.0.1', '::1']));
+        // Check if running in local development or if debug parameter is requested
+        $is_debug = (php_sapi_name() === 'cli') || 
+                    (isset($_SERVER['SERVER_NAME']) && in_array($_SERVER['SERVER_NAME'], ['localhost', '127.0.0.1', '::1'])) ||
+                    (isset($_GET['debug_db']) && $_GET['debug_db'] === '1');
 
-        if ($is_local) {
-            die('<!DOCTYPE html><html><head><title>Database Connection Error</title><style>body{font-family:sans-serif;padding:30px;background:#f8f9fa;color:#333;} .box{background:#fff;border-left:4px solid #dc3545;padding:20px;border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,0.1);max-width:700px;margin:auto;}</style></head><body><div class="box"><h2>Database Connection Failed</h2><p><b>Error:</b> ' . htmlspecialchars($e->getMessage()) . '</p><p><b>Host:</b> ' . htmlspecialchars(DB_HOST) . '<br><b>Port:</b> ' . htmlspecialchars(DB_PORT) . '<br><b>Database:</b> ' . htmlspecialchars(DB_NAME) . '<br><b>User:</b> ' . htmlspecialchars(DB_USER) . '</p><p style="color:#6c757d;font-size:13px;">Check your <code>.env</code> settings and database status.</p></div></body></html>');
+        if ($is_debug) {
+            $env_status = file_exists(__DIR__ . '/../.env') ? 'Found (.env exists)' : '<span style="color:red;">MISSING (.env does not exist in project root!)</span>';
+            die('<!DOCTYPE html><html><head><title>Database Connection Error</title><style>body{font-family:sans-serif;padding:30px;background:#f8f9fa;color:#333;} .box{background:#fff;border-left:4px solid #dc3545;padding:20px;border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,0.1);max-width:700px;margin:auto;}</style></head><body><div class="box"><h2>Database Connection Failed</h2><p><b>Error:</b> ' . htmlspecialchars($e->getMessage()) . '</p><p><b>.env Status:</b> ' . $env_status . '<br><b>Host:</b> ' . htmlspecialchars(DB_HOST) . '<br><b>Port:</b> ' . htmlspecialchars(DB_PORT) . '<br><b>Database:</b> ' . htmlspecialchars(DB_NAME) . '<br><b>User:</b> ' . htmlspecialchars(DB_USER) . '<br><b>Password set:</b> ' . (strlen(DB_PASS) > 0 ? 'YES (' . strlen(DB_PASS) . ' chars)' : '<span style="color:red;">NO (Empty)</span>') . '</p><p style="color:#6c757d;font-size:13px;">Verify your <code>.env</code> file in <code>public_html/.env</code> on Hostinger.</p></div></body></html>');
         }
 
-        die('Database connection failed. Please contact administrator.');
+        die('Database connection failed. Please contact administrator. <!-- Add ?debug_db=1 to URL to diagnose -->');
     }
 }
 
