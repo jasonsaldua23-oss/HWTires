@@ -706,6 +706,10 @@ if (!empty($job_quotation_ids)) {
                                         <i class="fas fa-box-archive"></i>
                                     </button>
                                 </form>
+                            <?php elseif ($status === 'in-progress'): ?>
+                                <button type="button" class="job-details-button is-disabled" disabled style="background:#f8fafc; border-color:#e2e8f0; color:#cbd5e1; cursor:not-allowed; opacity:0.6;" title="Cannot archive while job is in progress" aria-label="Cannot archive while job is in progress">
+                                    <i class="fas fa-box-archive"></i>
+                                </button>
                             <?php endif; ?>
                         </div>
                     </article>
