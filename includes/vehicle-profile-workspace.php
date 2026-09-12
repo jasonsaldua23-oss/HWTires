@@ -1005,8 +1005,8 @@ if (!function_exists('vehicle_profile_group_records')) {
                     if (preg_match('/Stock used for job order task/i', $clean_seg)) continue;
                     if (preg_match('/^Service notes:\s*Stock used/i', $clean_seg)) continue;
 
-                    // Match "Technician assigned: <Name>" or "Technician: <Name>"
-                    if (preg_match('/^(?:Technician(?:\s+assigned)?|Assigned(?:\s+technician)?)\s*:\s*(.+)$/i', $clean_seg, $m)) {
+                    // Match "Technician assigned: <Name>", "Technician(s): <Name>", etc.
+                    if (preg_match('/^(?:technicians?(?:\(s\))?(?:\s+assigned)?|assigned\s+technicians?(?:\(s\))?)\s*:\s*(.+)$/i', $clean_seg, $m)) {
                         $tech_names = array_map('trim', explode(',', $m[1]));
                         foreach ($tech_names as $tn) {
                             $tn = trim($tn);

@@ -719,10 +719,15 @@ if (!function_exists('cv_records_align_service_status_with_operation')) {
             }
         }
 
-        $aligned_status_by_vehicle = $fallback_status_by_vehicle;
-        foreach ($operation_summary_by_vehicle as $summary_vehicle_id => $operation_summary) {
-            $vehicle_id = (int) $summary_vehicle_id;
-            if ($vehicle_id <= 0) {
+        $aligned_status_by_vehicle = [];
+        foreach ($fallback_status_by_vehicle as $vehicle_id => $fallback) {
+            $operation_summary = $operation_summary_by_vehicle[$vehicle_id] ?? null;
+            if (!$operation_summary || empty($operation_summary['quotation_id'])) {
+                $aligned_status_by_vehicle[$vehicle_id] = [
+                    'status' => 'no-service',
+                    'job_id' => 0,
+                    'job_branch_id' => (int) ($fallback['job_branch_id'] ?? 0),
+                ];
                 continue;
             }
 
@@ -749,6 +754,37 @@ if (!function_exists('cv_records_align_service_status_with_operation')) {
             }
 
             if ($operation_status === 'approved') {
+                $aligned_status_by_vehicle[$vehicle_id] = $status_by_quotation[$quotation_id] ?? [
+                    'status' => 'pending',
+                    'job_id' => 0,
+                    'job_branch_id' => $quotation_branch_id,
+                ];
+            }
+        }
+
+        foreach ($operation_summary_by_vehicle as $summary_vehicle_id => $operation_summary) {
+            $vehicle_id = (int) $summary_vehicle_id;
+            if ($vehicle_id <= 0 || isset($aligned_status_by_vehicle[$vehicle_id])) {
+                continue;
+            }
+
+            $operation_status = cv_records_operation_status_normalize($operation_summary['status'] ?? '');
+            $quotation_id = (int) ($operation_summary['quotation_id'] ?? 0);
+            $quotation_branch_id = (int) ($operation_summary['quotation_branch_id'] ?? 0);
+
+            if ($operation_status === 'rejected' || empty($quotation_id)) {
+                $aligned_status_by_vehicle[$vehicle_id] = [
+                    'status' => 'no-service',
+                    'job_id' => 0,
+                    'job_branch_id' => $quotation_branch_id,
+                ];
+            } elseif ($operation_status === 'pending') {
+                $aligned_status_by_vehicle[$vehicle_id] = [
+                    'status' => 'pending',
+                    'job_id' => 0,
+                    'job_branch_id' => $quotation_branch_id,
+                ];
+            } elseif ($operation_status === 'approved') {
                 $aligned_status_by_vehicle[$vehicle_id] = $status_by_quotation[$quotation_id] ?? [
                     'status' => 'pending',
                     'job_id' => 0,

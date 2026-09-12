@@ -861,7 +861,7 @@ if (!function_exists('app_format_record_notes')) {
                 continue;
             }
 
-            if (preg_match('/^technicians?\s*(?:assigned)?\s*:\s*(.+)$/i', $part, $match)) {
+            if (preg_match('/^(?:technicians?(?:\(s\))?(?:\s+assigned)?|assigned\s+technicians?(?:\(s\))?)\s*:\s*(.+)$/i', $part, $match)) {
                 $technician = trim($match[1]);
                 continue;
             }
@@ -937,7 +937,7 @@ if (!function_exists('app_compose_record_notes')) {
 
             $part = rtrim($part, '.');
 
-            if (preg_match('/^sales(?:\s+in\s+charge)?\s*:/i', $part) || preg_match('/^technicians?\s*(?:assigned)?\s*:/i', $part)) {
+            if (preg_match('/^sales(?:\s+in\s+charge)?\s*:/i', $part) || preg_match('/^(?:technicians?(?:\(s\))?(?:\s+assigned)?|assigned\s+technicians?(?:\(s\))?)\s*:/i', $part)) {
                 continue;
             }
 
