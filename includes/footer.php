@@ -288,6 +288,74 @@
             input.addEventListener('input', syncPlateInput);
             input.addEventListener('blur', syncPlateInput);
         });
+
+        function formatPersonName(value) {
+            if (!value) return '';
+            return value.replace(/(^|[\s\-\'"])([a-z])/g, function(match, prefix, char) {
+                return prefix + char.toUpperCase();
+            });
+        }
+
+        function formatFirstLetter(value) {
+            if (!value) return '';
+            return value.replace(/^([^a-zA-Z]*)([a-z])/, function(match, prefix, char) {
+                return prefix + char.toUpperCase();
+            });
+        }
+
+        function applyTextFormat(input, formatType) {
+            if (!input || typeof input.value !== 'string') return;
+            const original = input.value;
+            let formatted = original;
+            if (formatType === 'person-name') {
+                formatted = formatPersonName(original);
+            } else if (formatType === 'first-letter') {
+                formatted = formatFirstLetter(original);
+            }
+            if (formatted !== original) {
+                let start = null;
+                let end = null;
+                try {
+                    if (typeof input.selectionStart === 'number') {
+                        start = input.selectionStart;
+                        end = input.selectionEnd;
+                    }
+                } catch (e) {}
+
+                input.value = formatted;
+
+                try {
+                    if (start !== null && end !== null && document.activeElement === input) {
+                        input.setSelectionRange(start, end);
+                    }
+                } catch (e) {}
+            }
+        }
+
+        document.querySelectorAll('[data-text-format]').forEach(function(input) {
+            applyTextFormat(input, input.getAttribute('data-text-format'));
+        });
+
+        document.addEventListener('input', function(e) {
+            const target = e.target;
+            if (target && target.matches && target.matches('[data-text-format]')) {
+                applyTextFormat(target, target.getAttribute('data-text-format'));
+            }
+        });
+
+        document.addEventListener('blur', function(e) {
+            const target = e.target;
+            if (target && target.matches && target.matches('[data-text-format]')) {
+                applyTextFormat(target, target.getAttribute('data-text-format'));
+            }
+        }, true);
+
+        document.addEventListener('change', function(e) {
+            const target = e.target;
+            if (target && target.matches && target.matches('[data-text-format]')) {
+                applyTextFormat(target, target.getAttribute('data-text-format'));
+            }
+        });
     });
 
     // Session Inactivity Timeout Handler (1 Hour limit: 59 min idle + 60s countdown modal)

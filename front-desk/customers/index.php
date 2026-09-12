@@ -471,7 +471,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
             <button type="submit" class="customer-records-submit customer-records-apply-btn">Apply</button>
             <label class="customer-search-field">
                 <i class="fas fa-search"></i>
-                <input id="customerSearchInput" type="text" name="search" placeholder="Search by vehicle, plate number, customer, or branch..." value="<?php echo esc_attr($search); ?>">
+                <input id="customerSearchInput" type="text" name="search" maxlength="100" data-text-format="first-letter" placeholder="Search by vehicle, plate number, customer, or branch..." value="<?php echo esc_attr($search); ?>">
             </label>
             <button type="submit" class="customer-records-search-btn btn btn-primary">Search</button>
             <?php if ($search !== '' || (array_key_exists('branch', $_GET) && $branch_filter !== $user_branch_id) || $status_filter !== 'all' || $operation_status_filter !== 'all' || $record_filter !== 'active' || ($date_filter['scope'] ?? 'all') !== 'all'): ?>
@@ -719,7 +719,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                         <h3>Customer Information</h3>
                         <div class="form-group">
                             <label class="form-label required">Customer Name</label>
-                            <input type="text" class="form-control" name="name" placeholder="Enter customer name" required>
+                            <input type="text" class="form-control" name="name" maxlength="100" data-text-format="person-name" placeholder="Enter customer name" required>
                         </div>
                         <div class="form-group">
                             <label class="form-label required">Contact Number</label>
@@ -727,7 +727,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                         </div>
                         <div class="form-group">
                             <label class="form-label">Address</label>
-                            <textarea class="form-control" name="address" rows="2" placeholder="e.g., 852 Rosario Street, Bacolod City"></textarea>
+                            <textarea class="form-control" name="address" rows="2" maxlength="255" data-text-format="first-letter" placeholder="e.g., 852 Rosario Street, Bacolod City"></textarea>
                         </div>
                     </section>
 
@@ -739,14 +739,14 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                                 <select class="form-select vehicle-make-select" name="vehicle_make" id="add_cust_vehicle_make" required>
                                     <option value="" selected disabled>-- Select Car Brand --</option>
                                 </select>
-                                <input type="text" class="form-control vehicle-make-custom mt-2" name="vehicle_make_custom" id="add_cust_vehicle_make_custom" placeholder="Type custom car brand..." style="display: none;">
+                                <input type="text" class="form-control vehicle-make-custom mt-2" name="vehicle_make_custom" id="add_cust_vehicle_make_custom" maxlength="50" data-text-format="first-letter" placeholder="Type custom car brand..." style="display: none;">
                             </div>
                             <div class="form-group">
                                 <label class="form-label required">Vehicle Model</label>
                                 <select class="form-select vehicle-model-select" name="vehicle_model" id="add_cust_vehicle_model" required disabled>
                                     <option value="" selected disabled>-- Select Brand First --</option>
                                 </select>
-                                <input type="text" class="form-control vehicle-model-custom mt-2" name="vehicle_model_custom" id="add_cust_vehicle_model_custom" placeholder="Type custom model..." style="display: none;">
+                                <input type="text" class="form-control vehicle-model-custom mt-2" name="vehicle_model_custom" id="add_cust_vehicle_model_custom" maxlength="50" data-text-format="first-letter" placeholder="Type custom model..." style="display: none;">
                             </div>
                             <div class="form-group">
                                 <label class="form-label required">Plate Number</label>
@@ -762,7 +762,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Color</label>
-                                <input type="text" class="form-control" name="vehicle_color" placeholder="White, Black, etc.">
+                                <input type="text" class="form-control" name="vehicle_color" maxlength="50" data-text-format="first-letter" placeholder="White, Black, etc.">
                             </div>
                         </div>
                     </section>
@@ -791,7 +791,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                 <div class="modal-body">
                     <div class="form-group">
                         <label class="form-label required">Full Name</label>
-                        <input type="text" class="form-control" name="name" id="edit_customer_name" required>
+                        <input type="text" class="form-control" name="name" id="edit_customer_name" maxlength="100" data-text-format="person-name" required>
                     </div>
                     <div class="form-group">
                         <label class="form-label required">Contact Number</label>
@@ -799,7 +799,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                     </div>
                     <div class="form-group">
                         <label class="form-label">Address</label>
-                        <textarea class="form-control" name="address" id="edit_customer_address" rows="2" placeholder="e.g., 852 Rosario Street, Bacolod City"></textarea>
+                        <textarea class="form-control" name="address" id="edit_customer_address" rows="2" maxlength="255" data-text-format="first-letter" placeholder="e.g., 852 Rosario Street, Bacolod City"></textarea>
                     </div>
                     <div class="form-group">
                         <label class="form-label required">Customer Type</label>
@@ -836,7 +836,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                             <label class="form-label required">Select Existing Customer</label>
                             <input type="hidden" name="customer_id" id="add_vehicle_customer_id" required>
                             <div style="position: relative;">
-                                <input type="text" id="add_vehicle_customer_input" class="form-control" placeholder="🔍 Type customer name or phone..." autocomplete="off" required style="padding-right: 32px; font-size: 0.95rem;">
+                                <input type="text" id="add_vehicle_customer_input" class="form-control" maxlength="100" placeholder="🔍 Type customer name or phone..." autocomplete="off" required style="padding-right: 32px; font-size: 0.95rem;">
                                 <button type="button" id="add_vehicle_customer_clear_btn" title="Clear selection" style="display: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); border: none; background: transparent; color: #94a3b8; font-size: 16px; cursor: pointer; line-height: 1;">&times;</button>
                             </div>
                             <div id="add_vehicle_customer_dropdown" class="tag-autocomplete-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 12px 28px rgba(0,0,0,0.15); max-height: 240px; overflow-y: auto; z-index: 1065; margin-top: 4px;"></div>
@@ -850,14 +850,14 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                                 <select class="form-select vehicle-make-select" name="make" id="add_veh_make" required>
                                     <option value="" selected disabled>-- Select Car Brand --</option>
                                 </select>
-                                <input type="text" class="form-control vehicle-make-custom mt-2" name="make_custom" id="add_veh_make_custom" placeholder="Type custom car brand..." style="display: none;">
+                                <input type="text" class="form-control vehicle-make-custom mt-2" name="make_custom" id="add_veh_make_custom" maxlength="50" data-text-format="first-letter" placeholder="Type custom car brand..." style="display: none;">
                             </div>
                             <div class="form-group">
                                 <label class="form-label required">Vehicle Model</label>
                                 <select class="form-select vehicle-model-select" name="model" id="add_veh_model" required disabled>
                                     <option value="" selected disabled>-- Select Brand First --</option>
                                 </select>
-                                <input type="text" class="form-control vehicle-model-custom mt-2" name="model_custom" id="add_veh_model_custom" placeholder="Type custom model..." style="display: none;">
+                                <input type="text" class="form-control vehicle-model-custom mt-2" name="model_custom" id="add_veh_model_custom" maxlength="50" data-text-format="first-letter" placeholder="Type custom model..." style="display: none;">
                             </div>
                             <div class="form-group">
                                 <label class="form-label required">Plate Number</label>
@@ -873,7 +873,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Color</label>
-                                <input type="text" class="form-control" name="color" placeholder="White, Black, etc.">
+                                <input type="text" class="form-control" name="color" maxlength="50" data-text-format="first-letter" placeholder="White, Black, etc.">
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Condition</label>

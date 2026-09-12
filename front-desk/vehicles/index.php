@@ -316,7 +316,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
             <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
             <label class="vehicle-search-field">
                 <i class="fas fa-search"></i>
-                <input type="text" name="search" placeholder="Search by plate number, vehicle make/model, or customer name..." value="<?php echo esc_attr($search); ?>">
+                <input type="text" name="search" maxlength="100" data-text-format="first-letter" placeholder="Search by plate number, vehicle make/model, or customer name..." value="<?php echo esc_attr($search); ?>">
             </label>
             <select name="branch" class="vehicle-branch-select" onchange="this.form.submit()">
                 <option value="all" <?php echo $branch_filter === '' ? 'selected' : ''; ?>>All Branches</option>
@@ -488,11 +488,11 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                                         <div class="vehicle-record-form-grid">
                                             <div class="form-group">
                                                 <label class="form-label required">Vehicle Make</label>
-                                                <input type="text" class="form-control" name="make" value="<?php echo esc_attr($vehicle['make'] ?? ''); ?>" required>
+                                                <input type="text" class="form-control" name="make" value="<?php echo esc_attr($vehicle['make'] ?? ''); ?>" maxlength="50" data-text-format="first-letter" required>
                                             </div>
                                             <div class="form-group">
                                                 <label class="form-label required">Vehicle Model</label>
-                                                <input type="text" class="form-control" name="model" value="<?php echo esc_attr($vehicle['model'] ?? ''); ?>" required>
+                                                <input type="text" class="form-control" name="model" value="<?php echo esc_attr($vehicle['model'] ?? ''); ?>" maxlength="50" data-text-format="first-letter" required>
                                             </div>
                                             <div class="form-group">
                                                 <label class="form-label">Plate Number</label>
@@ -504,7 +504,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                                             </div>
                                             <div class="form-group">
                                                 <label class="form-label">Color</label>
-                                                <input type="text" class="form-control" name="color" value="<?php echo esc_attr($vehicle['color'] ?? ''); ?>">
+                                                <input type="text" class="form-control" name="color" value="<?php echo esc_attr($vehicle['color'] ?? ''); ?>" maxlength="50" data-text-format="first-letter">
                                             </div>
                                             <div class="form-group">
                                                 <label class="form-label">Condition</label>
@@ -648,7 +648,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                                     <label class="form-label required">Customer</label>
                                     <input type="hidden" name="customer_id" id="addVehicleCustomerId" required>
                                     <div style="position: relative;">
-                                        <input type="text" id="addVehicleCustomerInput" class="form-control" placeholder="🔍 Type customer name or phone..." autocomplete="off" required style="padding-right: 32px; font-size: 0.95rem;">
+                                        <input type="text" id="addVehicleCustomerInput" class="form-control" maxlength="100" placeholder="🔍 Type customer name or phone..." autocomplete="off" required style="padding-right: 32px; font-size: 0.95rem;">
                                         <button type="button" id="addVehicleCustomerClearBtn" title="Clear selection" style="display: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); border: none; background: transparent; color: #94a3b8; font-size: 16px; cursor: pointer; line-height: 1;">&times;</button>
                                     </div>
                                     <div id="addVehicleCustomerDropdown" class="tag-autocomplete-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 12px 28px rgba(0,0,0,0.15); max-height: 240px; overflow-y: auto; z-index: 1065; margin-top: 4px;"></div>
@@ -658,14 +658,14 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                                     <select class="form-select vehicle-make-select" name="make" id="veh_idx_add_make" required>
                                         <option value="" selected disabled>-- Select Car Brand --</option>
                                     </select>
-                                    <input type="text" class="form-control vehicle-make-custom mt-2" name="make_custom" id="veh_idx_add_make_custom" placeholder="Type custom car brand..." style="display: none;">
+                                    <input type="text" class="form-control vehicle-make-custom mt-2" name="make_custom" id="veh_idx_add_make_custom" maxlength="50" data-text-format="first-letter" placeholder="Type custom car brand..." style="display: none;">
                                 </div>
                                 <div class="form-group">
                                     <label class="form-label required">Vehicle Model</label>
                                     <select class="form-select vehicle-model-select" name="model" id="veh_idx_add_model" required disabled>
                                         <option value="" selected disabled>-- Select Brand First --</option>
                                     </select>
-                                    <input type="text" class="form-control vehicle-model-custom mt-2" name="model_custom" id="veh_idx_add_model_custom" placeholder="Type custom model..." style="display: none;">
+                                    <input type="text" class="form-control vehicle-model-custom mt-2" name="model_custom" id="veh_idx_add_model_custom" maxlength="50" data-text-format="first-letter" placeholder="Type custom model..." style="display: none;">
                                 </div>
                                 <div class="form-group">
                                     <label class="form-label required">Plate Number</label>
@@ -681,7 +681,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                                 </div>
                                 <div class="form-group">
                                     <label class="form-label">Color</label>
-                                    <input type="text" class="form-control" name="color" placeholder="White, Black, etc.">
+                                    <input type="text" class="form-control" name="color" maxlength="50" data-text-format="first-letter" placeholder="White, Black, etc.">
                                 </div>
                                 <div class="form-group">
                                     <label class="form-label">Condition</label>

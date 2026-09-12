@@ -453,7 +453,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
             <button type="submit" class="customer-records-submit customer-records-apply-btn">Apply</button>
             <label class="customer-search-field">
                 <i class="fas fa-search"></i>
-                <input type="text" name="search" placeholder="Search by vehicle, plate number, customer, or branch..." value="<?php echo esc_attr($search); ?>">
+                <input type="text" name="search" maxlength="100" data-text-format="first-letter" placeholder="Search by vehicle, plate number, customer, or branch..." value="<?php echo esc_attr($search); ?>">
             </label>
             <button type="submit" class="customer-records-search-btn btn btn-primary">Search</button>
             <?php if ($search !== '' || $branch_filter !== '' || $status_filter !== 'all' || $operation_status_filter !== 'all' || $record_filter !== 'active' || ($date_filter['scope'] ?? 'all') !== 'all'): ?>
