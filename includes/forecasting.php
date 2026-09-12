@@ -294,12 +294,11 @@ if (!function_exists('forecast_build_inventory_dss')) {
                     OR i.brand LIKE ?
                     OR i.size LIKE ?
                     OR i.sku LIKE ?
-                    OR i.description LIKE ?
                     OR i.category LIKE ?
                     OR b.name LIKE ?
                 )";
                 $search_like = '%' . $term . '%';
-                $params = array_merge($params, array_fill(0, 7, $search_like));
+                $params = array_merge($params, array_fill(0, 6, $search_like));
             }
         }
 
