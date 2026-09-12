@@ -312,7 +312,6 @@ if ($search_filter !== '') {
         'i.brand',
         'i.size',
         'i.sku',
-        'i.description',
         'i.category',
     ];
 
