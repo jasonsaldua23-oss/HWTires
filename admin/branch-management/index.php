@@ -604,15 +604,15 @@ $next_branch_name = branches_next_name($pdo);
                         <div class="branches-modal-body">
                             <label>
                                 <span>Branch Name</span>
-                                <input type="text" name="name" value="<?php echo esc_attr($branch['name']); ?>" required>
+                                <input type="text" name="name" maxlength="100" data-text-format="first-letter" value="<?php echo esc_attr($branch['name']); ?>" required>
                             </label>
                             <label>
                                 <span>Branch Supervisor</span>
-                                <input type="text" name="branch_supervisor" value="<?php echo esc_attr($branch['branch_supervisor'] ?? ''); ?>" placeholder="Branch supervisor name">
+                                <input type="text" name="branch_supervisor" maxlength="100" data-text-format="person-name" value="<?php echo esc_attr($branch['branch_supervisor'] ?? ''); ?>" placeholder="Branch supervisor name">
                             </label>
                             <label class="branches-field-wide">
                                 <span>Location</span>
-                                <input type="text" name="location" value="<?php echo esc_attr($branch['location'] ?? ''); ?>" placeholder="Complete address">
+                                <input type="text" name="location" maxlength="255" data-text-format="first-letter" value="<?php echo esc_attr($branch['location'] ?? ''); ?>" placeholder="Complete address">
                             </label>
                             <label>
                                 <span>Contact Number</span>
@@ -673,7 +673,7 @@ $next_branch_name = branches_next_name($pdo);
                             </div>
                             <label class="branches-field-wide">
                                 <span>Technician Names</span>
-                                <textarea name="technician_names" rows="8" placeholder="One technician name per line"><?php echo esc_html($technician_names_text); ?></textarea>
+                                <textarea name="technician_names" rows="8" data-text-format="person-name" placeholder="One technician name per line"><?php echo esc_html($technician_names_text); ?></textarea>
                             </label>
                             <p class="branch-technician-help">These names will appear in the front desk job order technician dropdown for this branch.</p>
                         </div>
@@ -744,15 +744,15 @@ $next_branch_name = branches_next_name($pdo);
                     <div class="branches-modal-body">
                         <label>
                             <span>Branch Name</span>
-                            <input type="text" name="name" value="<?php echo esc_attr($next_branch_name); ?>" placeholder="e.g., Branch 4" required>
+                            <input type="text" name="name" maxlength="100" data-text-format="first-letter" value="<?php echo esc_attr($next_branch_name); ?>" placeholder="e.g., Branch 4" required>
                         </label>
                         <label>
                             <span>Branch Supervisor</span>
-                            <input type="text" name="branch_supervisor" placeholder="Branch supervisor name">
+                            <input type="text" name="branch_supervisor" maxlength="100" data-text-format="person-name" placeholder="Branch supervisor name">
                         </label>
                         <label class="branches-field-wide">
                             <span>Location</span>
-                            <input type="text" name="location" placeholder="Complete address">
+                            <input type="text" name="location" maxlength="255" data-text-format="first-letter" placeholder="Complete address">
                         </label>
                         <label>
                             <span>Contact Number</span>

@@ -232,7 +232,7 @@ $redirect_url = '/hwtires/front-desk/quotations/';
                 <label>
                     <span>Select Customer</span>
                     <div class="quote-customer-selector">
-                        <input type="search" id="customerAdvancedSearch" placeholder="Search customer name or phone...">
+                        <input type="search" id="customerAdvancedSearch" maxlength="100" data-text-format="first-letter" placeholder="Search customer name or phone...">
                         <div class="quote-customer-results" id="customerAdvancedResults" hidden></div>
                         <select id="customer_id" name="customer_id" required>
                             <option value="">Select Customer</option>
@@ -286,7 +286,7 @@ $redirect_url = '/hwtires/front-desk/quotations/';
             <div class="quote-field-grid">
                 <label>
                     <span>Customer Concern / Request <em>*</em></span>
-                    <textarea id="inspection_complaint" name="inspection_complaint" rows="4" placeholder="Describe what the customer reported..." required></textarea>
+                    <textarea id="inspection_complaint" name="inspection_complaint" rows="4" maxlength="2000" data-text-format="first-letter" placeholder="Describe what the customer reported..." required></textarea>
                     <div class="inspection-preset-group" data-preset-target="inspection_complaint">
                         <span>Quick choices</span>
                         <div class="inspection-preset-options">
@@ -309,7 +309,7 @@ $redirect_url = '/hwtires/front-desk/quotations/';
             <div class="quote-field-grid">
                 <label>
                     <span>Inspection Findings <em>*</em></span>
-                    <textarea id="inspection_findings" name="inspection_findings" rows="4" placeholder="Record visible issues, test results, or technician observations..." required></textarea>
+                    <textarea id="inspection_findings" name="inspection_findings" rows="4" maxlength="2000" data-text-format="first-letter" placeholder="Record visible issues, test results, or technician observations..." required></textarea>
                     <div class="inspection-preset-group" data-preset-target="inspection_findings">
                         <span>Recommended findings</span>
                         <div class="inspection-preset-options">
@@ -325,7 +325,7 @@ $redirect_url = '/hwtires/front-desk/quotations/';
                 </label>
                 <label>
                     <span>Recommended Action <em>*</em></span>
-                    <textarea id="inspection_recommendations" name="inspection_recommendations" rows="4" placeholder="List recommended services or parts before service operation..." required></textarea>
+                    <textarea id="inspection_recommendations" name="inspection_recommendations" rows="4" maxlength="2000" data-text-format="first-letter" placeholder="List recommended services or parts before service operation..." required></textarea>
                     <div class="inspection-preset-group" data-preset-target="inspection_recommendations">
                         <span>Recommended actions</span>
                         <div class="inspection-preset-options">
@@ -361,7 +361,7 @@ $redirect_url = '/hwtires/front-desk/quotations/';
                     <span>Search or type service</span>
                     <div class="quote-picker-input-row">
                         <i class="fas fa-search"></i>
-                        <input type="search" id="servicePickerSearch" placeholder="Search services, or type a custom service...">
+                        <input type="search" id="servicePickerSearch" maxlength="100" data-text-format="first-letter" placeholder="Search services, or type a custom service...">
                     </div>
                 </label>
                 <div class="quote-picker-list" id="servicePickerList" aria-label="Available services"></div>
@@ -389,7 +389,7 @@ $redirect_url = '/hwtires/front-desk/quotations/';
                     <span>Search or type item</span>
                     <div class="quote-picker-input-row">
                         <i class="fas fa-search"></i>
-                        <input type="search" id="itemPickerSearch" placeholder="Search inventory, or type a custom item...">
+                        <input type="search" id="itemPickerSearch" maxlength="100" data-text-format="first-letter" placeholder="Search inventory, or type a custom item...">
                     </div>
                 </label>
                 <div class="quote-picker-list quote-picker-list-large" id="itemPickerList" aria-label="Available parts and items"></div>
@@ -1245,7 +1245,7 @@ function renderLines() {
                 <article class="quote-line-row service-row">
                     <label class="quote-line-name">
                         <span>Selected Service</span>
-                        <input value="${escapeHtml(line.name)}" placeholder="Service name..." onchange="updateLine('${line.id}', 'name', this.value)">
+                        <input value="${escapeHtml(line.name)}" maxlength="150" data-text-format="first-letter" placeholder="Service name..." onchange="updateLine('${line.id}', 'name', this.value)">
                     </label>
                     ${lineControl(line, 'Quantity', 'quantity')}
                     ${lineControl(line, 'Service Labor', 'unit_price')}
@@ -1260,7 +1260,7 @@ function renderLines() {
                 <article class="quote-line-row item-row">
                     <label class="quote-line-name">
                         <span>Selected Item</span>
-                        <input value="${escapeHtml(line.name)}" placeholder="Item name..." onchange="updateLine('${line.id}', 'name', this.value)">
+                        <input value="${escapeHtml(line.name)}" maxlength="255" data-text-format="first-letter" placeholder="Item name..." onchange="updateLine('${line.id}', 'name', this.value)">
                         ${sourceSelect(line)}
                     </label>
                     ${lineControl(line, 'Quantity', 'quantity')}

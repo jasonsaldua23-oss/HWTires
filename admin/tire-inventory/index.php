@@ -1003,6 +1003,8 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                         <i class="fas fa-search"></i>
                         <input type="search"
                                name="search"
+                               maxlength="100"
+                               data-text-format="first-letter"
                                value="<?php echo esc_attr($search_filter); ?>"
                                placeholder="Search item, SKU, vehicle...">
                     </label>
@@ -1551,7 +1553,7 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                 <div class="inventory-form-grid">
                     <label>
                         <span>Item Name</span>
-                        <input type="text" name="item_name" required>
+                        <input type="text" name="item_name" maxlength="255" data-text-format="first-letter" placeholder="e.g., Bridgestone Turanza T005" required>
                     </label>
                     <label>
                         <span>Branch</span>
@@ -1573,23 +1575,23 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                     </label>
                     <label>
                         <span>Brand</span>
-                        <input type="text" name="brand" placeholder="e.g., Bridgestone" required>
+                        <input type="text" name="brand" maxlength="100" data-text-format="first-letter" placeholder="e.g., Bridgestone" required>
                     </label>
                     <label>
                         <span>Model</span>
-                        <input type="text" name="model" placeholder="e.g., Turanza T005" required>
+                        <input type="text" name="model" maxlength="100" data-text-format="first-letter" placeholder="e.g., Turanza T005" required>
                     </label>
                     <label>
                         <span>Size</span>
-                        <input type="text" name="size" placeholder="Size, fitment, or short detail" required>
+                        <input type="text" name="size" maxlength="50" placeholder="Size, fitment, or short detail" required>
                     </label>
                     <label>
                         <span>SKU</span>
-                        <input type="text" name="sku" placeholder="e.g., LAC-TIR-0001" required>
+                        <input type="text" name="sku" maxlength="100" placeholder="e.g., LAC-TIR-0001" required>
                     </label>
                     <label>
                         <span>Serial Number</span>
-                        <input type="text" name="serial_number" placeholder="e.g., HWT-2026-000001" required>
+                        <input type="text" name="serial_number" maxlength="120" placeholder="e.g., HWT-2026-000001" required>
                     </label>
                     <label>
                         <span>Manufacturing Date</span>
@@ -1610,7 +1612,7 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                 </div>
                 <label class="inventory-description-field">
                     <span>Description</span>
-                    <textarea name="description" rows="2"></textarea>
+                    <textarea name="description" rows="2" maxlength="1000" data-text-format="first-letter" placeholder="Optional item description"></textarea>
                 </label>
             </div>
 
@@ -1698,6 +1700,8 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                               id="adjustRemarks" 
                               class="form-control" 
                               rows="2" 
+                              maxlength="500"
+                              data-text-format="first-letter"
                               required 
                               placeholder="Describe why the count is being corrected (e.g. physical count reconciliation, found 2 damaged units)..."></textarea>
                 </div>
@@ -1761,6 +1765,8 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                               id="archiveReason" 
                               class="form-control" 
                               rows="3" 
+                              maxlength="500"
+                              data-text-format="first-letter"
                               required 
                               placeholder="Please state why this inventory item is being archived / deactivated (e.g., discontinued product, supplier phase-out)..."></textarea>
                     <div class="form-text small text-muted">A valid reason is required for the audit trail.</div>

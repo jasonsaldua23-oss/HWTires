@@ -355,6 +355,8 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                         <i class="fas fa-search"></i>
                         <input type="search"
                                name="search"
+                               maxlength="100"
+                               data-text-format="first-letter"
                                value="<?php echo esc_attr($search_filter); ?>"
                                placeholder="Search service operation, customer, plate...">
                     </label>
@@ -688,7 +690,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                                                                 </div>
                                                                 <div class="col-3">
                                                                     <label class="form-label small mb-1">Notes</label>
-                                                                    <input type="text" class="form-control form-control-sm" name="notes[<?php echo $iid; ?>]" value="<?php echo esc_attr($item['notes'] ?? ''); ?>" placeholder="optional">
+                                                                    <input type="text" class="form-control form-control-sm" name="notes[<?php echo $iid; ?>]" maxlength="255" data-text-format="first-letter" value="<?php echo esc_attr($item['notes'] ?? ''); ?>" placeholder="optional">
                                                                 </div>
                                                                 <div class="col-2 text-end">
                                                                     <small class="text-muted">Unit: <?php echo '&#8369;' . number_format((float) ($item['unit_price'] ?? 0), 2); ?></small>

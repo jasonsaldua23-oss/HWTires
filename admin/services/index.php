@@ -311,12 +311,12 @@ sort($categories);
 
                 <label>
                     <span>Service Name</span>
-                    <input type="text" name="name" placeholder="e.g., Wheel Alignment" required data-service-name-input>
+                    <input type="text" name="name" maxlength="150" data-text-format="first-letter" placeholder="e.g., Wheel Alignment" required data-service-name-input>
                 </label>
 
                 <label>
                     <span>Category</span>
-                    <input type="text" name="category" placeholder="e.g., Tires" value="Service" required data-service-category-input>
+                    <input type="text" name="category" maxlength="80" data-text-format="first-letter" placeholder="e.g., Tires" value="Service" required data-service-category-input>
                 </label>
 
                 <label>
@@ -349,12 +349,12 @@ sort($categories);
 
                 <label id="serviceCustomDurationWrapper" data-service-custom-wrapper style="display: none;">
                     <span>Custom Duration</span>
-                    <input type="text" name="estimated_duration" placeholder="e.g., 30–45 minutes, 3–5 hours" data-service-duration-input>
+                    <input type="text" name="estimated_duration" maxlength="120" data-text-format="first-letter" placeholder="e.g., 30–45 minutes, 3–5 hours" data-service-duration-input>
                 </label>
 
                 <label class="users-modal-wide">
                     <span>Description</span>
-                    <textarea name="description" rows="3" placeholder="Short note shown to the front desk" data-service-description-input></textarea>
+                    <textarea name="description" rows="3" maxlength="1000" data-text-format="first-letter" placeholder="Short note shown to the front desk" data-service-description-input></textarea>
                 </label>
 
                 <label class="users-modal-check">

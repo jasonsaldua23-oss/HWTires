@@ -238,6 +238,8 @@ $logo_src = APP_URL . '/' . $logo_path_value;
                         type="text"
                         id="company_name"
                         name="company_name"
+                        maxlength="150"
+                        data-text-format="first-letter"
                         value="<?php echo esc_attr($company_name_value); ?>"
                         required
                     >
@@ -249,6 +251,8 @@ $logo_src = APP_URL . '/' . $logo_path_value;
                         type="text"
                         id="system_title"
                         name="system_title"
+                        maxlength="150"
+                        data-text-format="first-letter"
                         value="<?php echo esc_attr($system_title_value); ?>"
                         required
                     >
@@ -289,6 +293,8 @@ $logo_src = APP_URL . '/' . $logo_path_value;
                         type="text"
                         id="company_address"
                         name="company_address"
+                        maxlength="255"
+                        data-text-format="first-letter"
                         value="<?php echo esc_attr($company_address_value); ?>"
                         placeholder="e.g. Lacson St. cor. B.S. Aquino Dr., Bacolod City"
                     >
@@ -300,6 +306,8 @@ $logo_src = APP_URL . '/' . $logo_path_value;
                         type="text"
                         id="business_hours"
                         name="business_hours"
+                        maxlength="150"
+                        data-text-format="first-letter"
                         value="<?php echo esc_attr($business_hours_value); ?>"
                         placeholder="e.g. Monday–Saturday: 8:00 AM–5:00 PM"
                     >
@@ -321,6 +329,8 @@ $logo_src = APP_URL . '/' . $logo_path_value;
                         id="quotation_footer_note"
                         name="quotation_footer_note"
                         rows="2"
+                        maxlength="500"
+                        data-text-format="first-letter"
                         class="settings-textarea"
                         placeholder="e.g. Prices are subject to change without prior notice. Quotations valid for 15 days."
                     ><?php echo esc_html($quotation_footer_value); ?></textarea>

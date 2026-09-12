@@ -1042,6 +1042,8 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                     <i class="fas fa-search"></i>
                     <input type="search"
                            name="search"
+                           maxlength="100"
+                           data-text-format="first-letter"
                            value="<?php echo esc_attr($search_filter); ?>"
                            placeholder="Search item, SKU, vehicle..."
                            style="height: 42px; border-radius: 8px; border-color: #cbd5e1;">
@@ -1951,7 +1953,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                 <div class="inventory-form-grid">
                     <label>
                         <span>Item Name</span>
-                        <input type="text" name="item_name" placeholder="e.g., Bridgestone Turanza T005" required>
+                        <input type="text" name="item_name" maxlength="255" data-text-format="first-letter" placeholder="e.g., Bridgestone Turanza T005" required>
                     </label>
                     <label>
                         <span>Category</span>
@@ -1963,23 +1965,23 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                     </label>
                     <label>
                         <span>Brand</span>
-                        <input type="text" name="brand" placeholder="e.g., Bridgestone" required>
+                        <input type="text" name="brand" maxlength="100" data-text-format="first-letter" placeholder="e.g., Bridgestone" required>
                     </label>
                     <label>
                         <span>Model</span>
-                        <input type="text" name="model" placeholder="e.g., Turanza T005" required>
+                        <input type="text" name="model" maxlength="100" data-text-format="first-letter" placeholder="e.g., Turanza T005" required>
                     </label>
                     <label>
                         <span>Size</span>
-                        <input type="text" name="size" placeholder="Size, fitment, or short detail" required>
+                        <input type="text" name="size" maxlength="50" placeholder="Size, fitment, or short detail" required>
                     </label>
                     <label>
                         <span>SKU</span>
-                        <input type="text" name="sku" placeholder="e.g., LAC-TIR-0001" required>
+                        <input type="text" name="sku" maxlength="100" placeholder="e.g., LAC-TIR-0001" required>
                     </label>
                     <label>
                         <span>Serial Number</span>
-                        <input type="text" name="serial_number" placeholder="e.g., HWT-2026-000001" required>
+                        <input type="text" name="serial_number" maxlength="120" placeholder="e.g., HWT-2026-000001" required>
                     </label>
                     <label>
                         <span>Manufacturing Date</span>
@@ -2000,7 +2002,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                 </div>
                 <label class="inventory-description-field">
                     <span>Description</span>
-                    <textarea name="description" rows="2" placeholder="Optional item description"></textarea>
+                    <textarea name="description" rows="2" maxlength="1000" data-text-format="first-letter" placeholder="Optional item description"></textarea>
                 </label>
             </div>
 
@@ -2049,16 +2051,16 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                     </label>
                     <label class="inventory-stock-field">
                         <span>Supplier / Source Name</span>
-                        <input type="text" id="stockInSupplier" name="supplier_name" placeholder="e.g., Yokohama PH / Manila Distributor">
+                        <input type="text" id="stockInSupplier" name="supplier_name" maxlength="100" data-text-format="first-letter" placeholder="e.g., Yokohama PH / Manila Distributor">
                     </label>
                     <label class="inventory-stock-field" style="grid-column: span 2;">
                         <span>Delivery Receipt (DR) / Invoice #</span>
-                        <input type="text" id="stockInRef" name="reference_number" placeholder="e.g., DR-2026-0831 / INV-9921">
+                        <input type="text" id="stockInRef" name="reference_number" maxlength="100" placeholder="e.g., DR-2026-0831 / INV-9921">
                     </label>
                 </div>
                 <label class="inventory-stock-field" style="margin-top: 10px; display: block;">
                     <span>Notes / Remarks</span>
-                    <input type="text" id="stockInNotes" name="notes" placeholder="Optional delivery notes or restock reference">
+                    <input type="text" id="stockInNotes" name="notes" maxlength="500" data-text-format="first-letter" placeholder="Optional delivery notes or restock reference">
                 </label>
                 <div class="inventory-stock-preview" style="margin-top: 12px;">
                     New Stock Level: <strong><span id="stockInPreview"></span> units</strong>
@@ -2132,7 +2134,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                             </label>
                             <input type="hidden" name="customer_id" id="stockOutCustomer" value="">
                             <div style="position: relative;">
-                                <input type="text" id="stockOutCustomerInput" placeholder="🔍 Type customer name or phone..." autocomplete="off" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 9px 30px 9px 12px; font-size: 0.88rem; background: #ffffff;">
+                                <input type="text" id="stockOutCustomerInput" maxlength="100" data-text-format="first-letter" placeholder="🔍 Type customer name or phone..." autocomplete="off" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 9px 30px 9px 12px; font-size: 0.88rem; background: #ffffff;">
                                 <button type="button" id="stockOutCustomerClearBtn" title="Clear customer" style="display: none; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); border: none; background: transparent; color: #94a3b8; font-size: 16px; cursor: pointer; line-height: 1;">&times;</button>
                             </div>
                             <div id="stockOutCustomerDropdown" class="tag-autocomplete-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 10px 25px rgba(0,0,0,0.12); max-height: 220px; overflow-y: auto; z-index: 1060; margin-top: 4px;"></div>
@@ -2145,7 +2147,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                             </label>
                             <input type="hidden" name="vehicle_id" id="stockOutVehicle" value="">
                             <div style="position: relative;">
-                                <input type="text" id="stockOutVehicleInput" placeholder="🔍 Type plate # or car model..." autocomplete="off" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 9px 30px 9px 12px; font-size: 0.88rem; background: #ffffff;">
+                                <input type="text" id="stockOutVehicleInput" maxlength="100" data-text-format="first-letter" placeholder="🔍 Type plate # or car model..." autocomplete="off" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 9px 30px 9px 12px; font-size: 0.88rem; background: #ffffff;">
                                 <button type="button" id="stockOutVehicleClearBtn" title="Clear vehicle" style="display: none; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); border: none; background: transparent; color: #94a3b8; font-size: 16px; cursor: pointer; line-height: 1;">&times;</button>
                             </div>
                             <div id="stockOutVehicleDropdown" class="tag-autocomplete-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 10px 25px rgba(0,0,0,0.12); max-height: 220px; overflow-y: auto; z-index: 1060; margin-top: 4px;"></div>
@@ -2155,7 +2157,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
 
                 <label class="inventory-stock-field" style="margin-top: 14px; display: flex; flex-direction: column; gap: 6px;">
                     <span style="font-weight: 700; font-size: 0.9rem; color: #1e293b;">Notes / Remarks</span>
-                    <input type="text" id="stockOutNotes" name="notes" placeholder="e.g., Sold 2 tires over counter / walk-in replacement" style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; font-size: 0.9rem; width: 100%;">
+                    <input type="text" id="stockOutNotes" name="notes" maxlength="500" data-text-format="first-letter" placeholder="e.g., Sold 2 tires over counter / walk-in replacement" style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; font-size: 0.9rem; width: 100%;">
                 </label>
 
                 <div class="inventory-stock-preview" style="margin-top: 14px;">
@@ -2198,7 +2200,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                 </label>
                 <label class="inventory-stock-field">
                     <span>Notes</span>
-                    <textarea name="notes" rows="2" placeholder="Optional transfer notes"></textarea>
+                    <textarea name="notes" rows="2" maxlength="500" data-text-format="first-letter" placeholder="Optional transfer notes"></textarea>
                 </label>
                 <div class="inventory-stock-preview">
                     Source Stock After Transfer: <strong><span id="transferPreview"></span> units</strong>
@@ -2288,6 +2290,8 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                               id="adjustRemarks" 
                               class="form-control" 
                               rows="2" 
+                              maxlength="500"
+                              data-text-format="first-letter"
                               required 
                               placeholder="Describe why the count is being corrected (e.g. physical count reconciliation, found 2 damaged units)..."></textarea>
                 </div>
