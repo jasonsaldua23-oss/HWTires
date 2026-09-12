@@ -542,7 +542,17 @@ if ($action === 'unarchive' || $action === 'restore') {
             throw new Exception('Unauthorized access');
         }
 
-        $restore_status = (!empty($job_order['completed_at']) || !empty($job_order['completed_by'])) ? 'completed' : 'waiting';
+        $sh_check = $pdo->prepare("SELECT id FROM service_history WHERE job_order_id = ? LIMIT 1");
+        $sh_check->execute([$job_order_id]);
+        $has_completed_history = (bool) $sh_check->fetchColumn();
+
+        if (!empty($job_order['actual_end_time']) || $has_completed_history) {
+            $restore_status = 'completed';
+        } elseif (!empty($job_order['actual_start_time'])) {
+            $restore_status = 'in-progress';
+        } else {
+            $restore_status = 'waiting';
+        }
 
         $unarchive_set = ["status = ?"];
         $unarchive_values = [$restore_status];
