@@ -6,5 +6,16 @@
     RewriteRule ^hwtires/(.*)$ /$1 [L,QSA]
 </IfModule>
 
+# Deny direct HTTP access to database exports, SQL files, and backups
+<FilesMatch "\.(sql|dump|bak)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
 ErrorDocument 404 /404.php
 ErrorDocument 500 /404.php

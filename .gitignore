@@ -66,6 +66,9 @@ test-post.php
 *.swo
 *.tmp
 *.dump
+database/*.sql
+database/*.dump
+database/*.bak
 *.sql.bak
 *.sql.gz
 *.tar.gz
