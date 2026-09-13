@@ -1227,15 +1227,14 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                     $incoming_category = $incoming['category'] ?? 'part';
                     $source_type = $incoming['source_type'] ?? 'supplier_delivery';
                     $source_label = [
-                        'supplier_delivery' => 'Supplier Delivery',
-                        'tangub_warehouse' => 'Tangub Central Hub',
-                        'sancarlos_warehouse' => 'San Carlos Hub',
-                        'other' => 'Other Delivery',
+                        'supplier_delivery' => 'Direct Supplier Delivery',
+                        'tangub_warehouse' => 'Central Warehouse (Tangub Hub)',
+                        'sancarlos_warehouse' => 'Auxiliary Warehouse (San Carlos Hub)',
+                        'other' => 'Other / Custom Source',
                     ][$source_type] ?? ucwords(str_replace('_', ' ', $source_type));
+                    $is_warehouse_source = in_array($source_type, ['tangub_warehouse', 'sancarlos_warehouse'], true);
                     $supplier_name = trim((string) ($incoming['supplier_name'] ?? ''));
-                    if ($supplier_name === '' && $source_type === 'supplier_delivery') {
-                        $supplier_name = 'Manila Distributor';
-                    }
+                    $ref_label = $is_warehouse_source ? 'Dispatch / Transfer Ref #' : ($source_type === 'other' ? 'Reference #' : 'DR / Invoice #');
                     $ref_no = trim((string) ($incoming['reference_number'] ?? ''));
                     $arrival_date = !empty($incoming['expected_arrival_date']) ? format_date($incoming['expected_arrival_date'], 'M j, Y') : 'Not specified';
                     $created_date = !empty($incoming['created_at']) ? format_date($incoming['created_at'], 'M j, Y g:i A') : '-';
@@ -1271,11 +1270,21 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                 <strong style="color: #1e293b;"><?php echo esc_html($arrival_date); ?></strong>
                             </div>
                             <div>
-                                <span style="color: #713f12; display: block; font-size: 0.74rem; text-transform: uppercase; font-weight: 700;">Source / Supplier</span>
-                                <span style="color: #1e293b; font-weight: 600;"><?php echo esc_html($source_label . ($supplier_name !== '' ? ' (' . $supplier_name . ')' : '')); ?></span>
+                                <span style="color: #713f12; display: block; font-size: 0.74rem; text-transform: uppercase; font-weight: 700;">Supply Source</span>
+                                <span style="color: #1e293b; font-weight: 600;">
+                                    <?php
+                                    if ($is_warehouse_source) {
+                                        echo esc_html($source_label);
+                                    } elseif ($supplier_name !== '' && $supplier_name !== $source_label) {
+                                        echo esc_html($source_label . ' (' . $supplier_name . ')');
+                                    } else {
+                                        echo esc_html($source_label);
+                                    }
+                                    ?>
+                                </span>
                             </div>
                             <div>
-                                <span style="color: #713f12; display: block; font-size: 0.74rem; text-transform: uppercase; font-weight: 700;">Reference / DR #</span>
+                                <span style="color: #713f12; display: block; font-size: 0.74rem; text-transform: uppercase; font-weight: 700;"><?php echo esc_html($ref_label); ?></span>
                                 <span style="color: #1e293b; font-weight: 600;"><?php echo esc_html($ref_no !== '' ? $ref_no : 'None'); ?></span>
                             </div>
                         </div>
@@ -1299,8 +1308,10 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                     data-size="<?php echo esc_attr($incoming['size'] ?? ''); ?>"
                                     data-sku="<?php echo esc_attr($incoming['sku'] ?? ''); ?>"
                                     data-expected-qty="<?php echo (int) $incoming['expected_quantity']; ?>"
+                                    data-source-type="<?php echo esc_attr($source_type); ?>"
                                     data-source="<?php echo esc_attr($source_label); ?>"
                                     data-supplier="<?php echo esc_attr($supplier_name); ?>"
+                                    data-ref-label="<?php echo esc_attr($ref_label); ?>"
                                     data-ref="<?php echo esc_attr($ref_no); ?>"
                                     data-arrival-date="<?php echo esc_attr($arrival_date); ?>"
                                     title="Confirm physical receipt of this delivery">
@@ -2049,15 +2060,24 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                         </span>
                                     </td>
                                     <td>
-                                        <strong class="inventory-quantity <?php echo $is_low_stock ? 'is-low' : ''; ?>">
-                                            <?php echo (int) $item['quantity']; ?>
-                                            <?php if ($is_low_stock): ?>
-                                                <i class="fas fa-arrow-trend-down"></i>
+                                        <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                                            <div>
+                                                <strong class="inventory-quantity <?php echo $is_low_stock ? 'is-low' : ''; ?>">
+                                                    <?php echo (int) $item['quantity']; ?>
+                                                    <?php if ($is_low_stock): ?>
+                                                        <i class="fas fa-arrow-trend-down"></i>
+                                                    <?php endif; ?>
+                                                </strong>
+                                                <?php if ($is_low_stock): ?>
+                                                    <span class="inventory-stock-status">Low Stock</span>
+                                                <?php endif; ?>
+                                            </div>
+                                            <?php if ((int) ($item['pending_incoming_qty'] ?? 0) > 0): ?>
+                                                <span class="inventory-incoming-badge" title="Incoming shipment pending physical arrival at branch">
+                                                    <i class="fas fa-truck-ramp-box"></i> Incoming: <?php echo (int) $item['pending_incoming_qty']; ?> (Pending Arrival)
+                                                </span>
                                             <?php endif; ?>
-                                        </strong>
-                                        <?php if ($is_low_stock): ?>
-                                            <span class="inventory-stock-status">Low Stock</span>
-                                        <?php endif; ?>
+                                        </div>
                                     </td>
                                     <td><?php echo (int) $item['reorder_level']; ?></td>
                                     <td><strong><?php echo front_inventory_money($item['unit_price'] ?? 0); ?></strong></td>
@@ -2159,21 +2179,20 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                         <input type="number" id="stockInQty" name="quantity" min="1" value="1" required>
                     </label>
                     <label class="inventory-stock-field">
-                        <span>Supply Source</span>
-                        <select name="source_type" id="stockInSource">
+                        <span>Supply Source <b style="color: #dc3545;">*</b></span>
+                        <select name="source_type" id="stockInSource" required>
+                            <option value="supplier_delivery">Direct Supplier Delivery</option>
                             <option value="tangub_warehouse">Central Warehouse (Tangub Hub)</option>
                             <option value="sancarlos_warehouse">Auxiliary Warehouse (San Carlos Hub)</option>
-                            <option value="supplier_delivery">Direct Supplier Delivery (Manila / Distributor)</option>
-                            <option value="branch_transfer">Stock Transfer from Other Branch</option>
-                            <option value="adjustment">Physical Inventory Adjustment</option>
+                            <option value="other">Other / Custom Source</option>
                         </select>
                     </label>
-                    <label class="inventory-stock-field">
-                        <span>Supplier / Source Name</span>
-                        <input type="text" id="stockInSupplier" name="supplier_name" maxlength="100" data-text-format="first-letter" placeholder="e.g., Yokohama PH / Manila Distributor">
+                    <label class="inventory-stock-field" id="stockInSupplierGroup">
+                        <span id="stockInSupplierLabel">Supplier Name <b style="color: #dc3545;">*</b></span>
+                        <input type="text" id="stockInSupplier" name="supplier_name" maxlength="150" data-text-format="first-letter" placeholder="e.g., Yokohama Philippines" required>
                     </label>
-                    <label class="inventory-stock-field" style="grid-column: span 2;">
-                        <span>Delivery Receipt (DR) / Invoice #</span>
+                    <label class="inventory-stock-field" style="grid-column: span 2;" id="stockInRefGroup">
+                        <span id="stockInRefLabel">DR / Invoice #</span>
                         <input type="text" id="stockInRef" name="reference_number" maxlength="100" placeholder="e.g., DR-2026-0831 / INV-9921">
                     </label>
                 </div>
@@ -2455,13 +2474,13 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                     <hr class="my-2 text-muted">
                     <div class="row g-2 small text-secondary">
                         <div class="col-6">
-                            <span>Source: </span><strong class="text-dark" id="receiveSource">-</strong>
+                            <span>Supply Source: </span><strong class="text-dark" id="receiveSource">-</strong>
+                        </div>
+                        <div class="col-6" id="receiveSupplierWrapper">
+                            <span id="receiveSupplierHeading">Supplier: </span><strong class="text-dark" id="receiveSupplierName">-</strong>
                         </div>
                         <div class="col-6">
-                            <span>Supplier: </span><strong class="text-dark" id="receiveSupplierName">-</strong>
-                        </div>
-                        <div class="col-6">
-                            <span>DR / Ref #: </span><strong class="text-dark" id="receiveRefNo">-</strong>
+                            <span id="receiveRefHeading">DR / Ref #: </span><strong class="text-dark" id="receiveRefNo">-</strong>
                         </div>
                         <div class="col-6">
                             <span>Expected Date: </span><strong class="text-dark" id="receiveArrivalDate">-</strong>
@@ -2546,6 +2565,77 @@ document.addEventListener('DOMContentLoaded', function() {
     const tagVehicles = <?php echo json_encode($stock_out_tag_vehicles); ?>;
 
     const stockInQty = document.getElementById('stockInQty');
+    const stockInSource = document.getElementById('stockInSource');
+    const stockInSupplier = document.getElementById('stockInSupplier');
+    const stockInSupplierLabel = document.getElementById('stockInSupplierLabel');
+    const stockInRefLabel = document.getElementById('stockInRefLabel');
+    const stockInRef = document.getElementById('stockInRef');
+
+    function updateStockInSourceUI() {
+        if (!stockInSource || !stockInSupplier) return;
+        const st = stockInSource.value;
+
+        if (st === 'supplier_delivery') {
+            if (stockInSupplierLabel) stockInSupplierLabel.innerHTML = 'Supplier Name <b style="color: #dc3545;">*</b>';
+            stockInSupplier.readOnly = false;
+            if (stockInSupplier.value === 'Central Warehouse (Tangub Hub)' || stockInSupplier.value === 'Auxiliary Warehouse (San Carlos Hub)') {
+                stockInSupplier.value = '';
+            }
+            stockInSupplier.placeholder = 'e.g., Yokohama Philippines';
+            stockInSupplier.required = true;
+            if (stockInRefLabel) stockInRefLabel.textContent = 'DR / Invoice #';
+            if (stockInRef) stockInRef.placeholder = 'e.g., DR-2026-0831 / INV-9921';
+        } else if (st === 'tangub_warehouse') {
+            if (stockInSupplierLabel) stockInSupplierLabel.innerHTML = 'Warehouse Source';
+            stockInSupplier.value = 'Central Warehouse (Tangub Hub)';
+            stockInSupplier.readOnly = true;
+            stockInSupplier.required = false;
+            if (stockInRefLabel) stockInRefLabel.textContent = 'Dispatch / Transfer Reference #';
+            if (stockInRef) stockInRef.placeholder = 'e.g., TR-2026-104';
+        } else if (st === 'sancarlos_warehouse') {
+            if (stockInSupplierLabel) stockInSupplierLabel.innerHTML = 'Warehouse Source';
+            stockInSupplier.value = 'Auxiliary Warehouse (San Carlos Hub)';
+            stockInSupplier.readOnly = true;
+            stockInSupplier.required = false;
+            if (stockInRefLabel) stockInRefLabel.textContent = 'Dispatch / Transfer Reference #';
+            if (stockInRef) stockInRef.placeholder = 'e.g., TR-2026-104';
+        } else if (st === 'other') {
+            if (stockInSupplierLabel) stockInSupplierLabel.innerHTML = 'Source Name <b style="color: #dc3545;">*</b>';
+            stockInSupplier.readOnly = false;
+            if (stockInSupplier.value === 'Central Warehouse (Tangub Hub)' || stockInSupplier.value === 'Auxiliary Warehouse (San Carlos Hub)') {
+                stockInSupplier.value = '';
+            }
+            stockInSupplier.placeholder = 'e.g., Custom source / origin';
+            stockInSupplier.required = true;
+            if (stockInRefLabel) stockInRefLabel.textContent = 'Reference #';
+            if (stockInRef) stockInRef.placeholder = 'e.g., Reference number or PO #';
+        }
+    }
+
+    if (stockInSource) {
+        stockInSource.addEventListener('change', updateStockInSourceUI);
+    }
+
+    const stockInFormEl = stockInModalEl ? stockInModalEl.querySelector('form') : null;
+    if (stockInFormEl) {
+        stockInFormEl.addEventListener('submit', function(e) {
+            const st = stockInSource ? stockInSource.value : 'supplier_delivery';
+            const supVal = stockInSupplier ? stockInSupplier.value.trim() : '';
+            if (st === 'supplier_delivery' && !supVal) {
+                e.preventDefault();
+                alert('Please enter a supplier name for direct supplier delivery.');
+                if (stockInSupplier) stockInSupplier.focus();
+                return false;
+            }
+            if (st === 'other' && !supVal) {
+                e.preventDefault();
+                alert('Please enter a source name.');
+                if (stockInSupplier) stockInSupplier.focus();
+                return false;
+            }
+        });
+    }
+
     const stockOutQty = document.getElementById('stockOutQty');
     const stockOutCustomerHidden = document.getElementById('stockOutCustomer');
     const stockOutCustomerInput = document.getElementById('stockOutCustomerInput');
@@ -2896,6 +2986,10 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('stockInReorder').textContent = button.dataset.reorder || '0';
             const defaultQty = parseInt(button.dataset.defaultQty || '1', 10);
             stockInQty.value = defaultQty > 0 ? defaultQty : 1;
+            const sourceSelect = document.getElementById('stockInSource');
+            if (sourceSelect) {
+                sourceSelect.value = 'supplier_delivery';
+            }
             const supplierInput = document.getElementById('stockInSupplier');
             if (supplierInput) {
                 supplierInput.value = button.dataset.supplier || '';
@@ -2908,10 +3002,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (notesInput) {
                 notesInput.value = '';
             }
-            const sourceSelect = document.getElementById('stockInSource');
-            if (sourceSelect) {
-                sourceSelect.value = 'supplier_delivery';
-            }
+            updateStockInSourceUI();
             updateStockInPreview();
             stockInModal.show();
         });
@@ -3370,8 +3461,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const size = this.dataset.size || '';
             const sku = this.dataset.sku || '';
             const expectedQty = parseInt(this.dataset.expectedQty || '0', 10);
-            const source = this.dataset.source || 'Delivery';
-            const supplier = this.dataset.supplier || 'N/A';
+            const sourceType = this.dataset.sourceType || 'supplier_delivery';
+            const source = this.dataset.source || 'Direct Supplier Delivery';
+            const supplier = this.dataset.supplier || '';
+            const refLabel = this.dataset.refLabel || 'DR / Invoice #';
             const ref = this.dataset.ref || 'None';
             const arrivalDate = this.dataset.arrivalDate || 'N/A';
 
@@ -3380,7 +3473,23 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('receiveItemName').textContent = itemName;
             document.getElementById('receiveItemMeta').textContent = [brand, model, size, sku ? 'SKU: ' + sku : ''].filter(Boolean).join(' • ');
             document.getElementById('receiveSource').textContent = source;
-            document.getElementById('receiveSupplierName').textContent = supplier || 'N/A';
+
+            const isWarehouse = (sourceType === 'tangub_warehouse' || sourceType === 'sancarlos_warehouse');
+            const supHead = document.getElementById('receiveSupplierHeading');
+            const supName = document.getElementById('receiveSupplierName');
+            if (isWarehouse) {
+                if (supHead) supHead.textContent = 'Origin: ';
+                if (supName) supName.textContent = source;
+            } else if (sourceType === 'other') {
+                if (supHead) supHead.textContent = 'Source Name: ';
+                if (supName) supName.textContent = supplier || 'N/A';
+            } else {
+                if (supHead) supHead.textContent = 'Supplier: ';
+                if (supName) supName.textContent = supplier || 'N/A';
+            }
+
+            const refHead = document.getElementById('receiveRefHeading');
+            if (refHead) refHead.textContent = refLabel + ': ';
             document.getElementById('receiveRefNo').textContent = ref || 'None';
             document.getElementById('receiveArrivalDate').textContent = arrivalDate;
             document.getElementById('receiveExpectedDisplay').textContent = expectedQty + ' units';
@@ -3430,18 +3539,19 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('stockInCurrent').textContent = stockInCurrent;
         document.getElementById('stockInReorder').textContent = <?php echo (int) $requested_stock_in_item['reorder_level']; ?>;
         stockInQty.value = <?php echo max(1, (int) ($_GET['quantity'] ?? 1)); ?>;
+        if (document.getElementById('stockInSource')) {
+            document.getElementById('stockInSource').value = <?php echo json_encode($_GET['source_type'] ?? 'supplier_delivery'); ?>;
+        }
         if (document.getElementById('stockInSupplier')) {
             document.getElementById('stockInSupplier').value = <?php echo json_encode($_GET['supplier_name'] ?? $requested_stock_in_item['supplier_name'] ?? ''); ?>;
         }
         if (document.getElementById('stockInNotes')) {
             document.getElementById('stockInNotes').value = <?php echo json_encode($_GET['notes'] ?? ''); ?>;
         }
-        if (document.getElementById('stockInSource')) {
-            document.getElementById('stockInSource').value = <?php echo json_encode($_GET['source_type'] ?? 'supplier_delivery'); ?>;
-        }
         if (document.getElementById('stockInRef')) {
             document.getElementById('stockInRef').value = '';
         }
+        updateStockInSourceUI();
         updateStockInPreview();
         stockInModal.show();
     <?php else: ?>
@@ -3464,15 +3574,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     stockInQty.value = Math.max(1, parseInt(requestedQuantity, 10) || 1);
                     updateStockInPreview();
                 }
-                if (requestedSupplier && document.getElementById('stockInSupplier')) {
-                    document.getElementById('stockInSupplier').value = requestedSupplier;
-                }
                 if (requestedSource && document.getElementById('stockInSource')) {
                     document.getElementById('stockInSource').value = requestedSource;
+                }
+                if (requestedSupplier && document.getElementById('stockInSupplier')) {
+                    document.getElementById('stockInSupplier').value = requestedSupplier;
                 }
                 if (requestedNotes && document.getElementById('stockInNotes')) {
                     document.getElementById('stockInNotes').value = requestedNotes;
                 }
+                updateStockInSourceUI();
             }
         }
     <?php endif; ?>

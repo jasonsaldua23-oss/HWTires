@@ -1750,7 +1750,7 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                                 <input type="number" name="expected_quantity" id="add_expected_quantity" min="1" max="100000" placeholder="e.g., 20">
                             </label>
                             <label>
-                                <span>Delivery Source <span class="text-danger">*</span></span>
+                                <span>Supply Source <span class="text-danger">*</span></span>
                                 <select name="source_type" id="add_source_type">
                                     <option value="supplier_delivery">Direct Supplier Delivery</option>
                                     <option value="tangub_warehouse">Central Warehouse (Tangub Hub)</option>
@@ -1759,12 +1759,12 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                                 </select>
                             </label>
                             <label id="deliverySupplierNameGroup">
-                                <span id="deliverySupplierNameLabel">Supplier Name</span>
-                                <input type="text" name="supplier_name" id="add_supplier_name" maxlength="150" placeholder="e.g., Yokohama PH / Manila Distributor">
+                                <span id="deliverySupplierNameLabel">Supplier Name <span class="text-danger">*</span></span>
+                                <input type="text" name="supplier_name" id="add_supplier_name" maxlength="150" data-text-format="first-letter" placeholder="e.g., Yokohama Philippines">
                             </label>
-                            <label>
-                                <span>Reference / DR Number</span>
-                                <input type="text" name="reference_number" id="add_reference_number" maxlength="100" placeholder="e.g., DR-2026-0891 or PO #">
+                            <label id="deliveryReferenceGroup">
+                                <span id="deliveryReferenceLabel">DR / Invoice #</span>
+                                <input type="text" name="reference_number" id="add_reference_number" maxlength="100" placeholder="e.g., DR-2026-0891 or Invoice #">
                             </label>
                             <label>
                                 <span>Expected Arrival Date</span>
@@ -2316,6 +2316,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const supplierNameInput = document.getElementById('add_supplier_name');
     const supplierGroup = document.getElementById('deliverySupplierNameGroup');
     const supplierLabel = document.getElementById('deliverySupplierNameLabel');
+    const refLabel = document.getElementById('deliveryReferenceLabel');
+    const refInput = document.getElementById('add_reference_number');
 
     function updateCategoryRequirements() {
         if (!categorySelect) return;
@@ -2438,6 +2440,49 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Dynamic Delivery Source & Reference UI Logic
+    function updateDeliverySourceUI() {
+        if (!sourceTypeSelect || !supplierNameInput) return;
+        const st = sourceTypeSelect.value;
+        const isScheduled = scheduleToggle && scheduleToggle.checked;
+
+        if (st === 'supplier_delivery') {
+            if (supplierLabel) supplierLabel.innerHTML = 'Supplier Name <span class="text-danger">*</span>';
+            supplierNameInput.readOnly = false;
+            if (supplierNameInput.value === 'Central Warehouse (Tangub Hub)' || supplierNameInput.value === 'Auxiliary Warehouse (San Carlos Hub)') {
+                supplierNameInput.value = '';
+            }
+            supplierNameInput.placeholder = 'e.g., Yokohama Philippines';
+            supplierNameInput.required = isScheduled;
+            if (refLabel) refLabel.textContent = 'DR / Invoice #';
+            if (refInput) refInput.placeholder = 'e.g., DR-2026-0891 or Invoice #';
+        } else if (st === 'tangub_warehouse') {
+            if (supplierLabel) supplierLabel.innerHTML = 'Warehouse Source';
+            supplierNameInput.value = 'Central Warehouse (Tangub Hub)';
+            supplierNameInput.readOnly = true;
+            supplierNameInput.required = false;
+            if (refLabel) refLabel.textContent = 'Dispatch / Transfer Reference #';
+            if (refInput) refInput.placeholder = 'e.g., TR-2026-104';
+        } else if (st === 'sancarlos_warehouse') {
+            if (supplierLabel) supplierLabel.innerHTML = 'Warehouse Source';
+            supplierNameInput.value = 'Auxiliary Warehouse (San Carlos Hub)';
+            supplierNameInput.readOnly = true;
+            supplierNameInput.required = false;
+            if (refLabel) refLabel.textContent = 'Dispatch / Transfer Reference #';
+            if (refInput) refInput.placeholder = 'e.g., TR-2026-104';
+        } else if (st === 'other') {
+            if (supplierLabel) supplierLabel.innerHTML = 'Source Name <span class="text-danger">*</span>';
+            supplierNameInput.readOnly = false;
+            if (supplierNameInput.value === 'Central Warehouse (Tangub Hub)' || supplierNameInput.value === 'Auxiliary Warehouse (San Carlos Hub)') {
+                supplierNameInput.value = '';
+            }
+            supplierNameInput.placeholder = 'e.g., Custom source / origin';
+            supplierNameInput.required = isScheduled;
+            if (refLabel) refLabel.textContent = 'Reference #';
+            if (refInput) refInput.placeholder = 'e.g., Reference number or PO #';
+        }
+    }
+
     // Schedule Delivery Toggle Logic
     if (scheduleToggle) {
         scheduleToggle.addEventListener('change', function() {
@@ -2445,6 +2490,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (deliveryContainer) deliveryContainer.classList.remove('d-none');
                 if (expectedQtyInput) expectedQtyInput.required = true;
                 if (sourceTypeSelect) sourceTypeSelect.required = true;
+                updateDeliverySourceUI();
             } else {
                 if (deliveryContainer) deliveryContainer.classList.add('d-none');
                 if (expectedQtyInput) {
@@ -2456,39 +2502,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     sourceTypeSelect.value = 'supplier_delivery';
                 }
                 if (supplierNameInput) {
+                    supplierNameInput.required = false;
                     supplierNameInput.readOnly = false;
                     supplierNameInput.value = '';
                 }
+                if (refInput) {
+                    refInput.value = '';
+                }
+                updateDeliverySourceUI();
             }
         });
     }
 
-    // Delivery Source Type Change Logic
     if (sourceTypeSelect) {
-        sourceTypeSelect.addEventListener('change', function() {
-            const st = this.value;
-            if (!supplierNameInput) return;
-
-            if (st === 'tangub_warehouse') {
-                supplierNameInput.value = 'Central Warehouse (Tangub Hub)';
-                supplierNameInput.readOnly = true;
-                if (supplierLabel) supplierLabel.textContent = 'Warehouse Source';
-            } else if (st === 'sancarlos_warehouse') {
-                supplierNameInput.value = 'Auxiliary Warehouse (San Carlos Hub)';
-                supplierNameInput.readOnly = true;
-                if (supplierLabel) supplierLabel.textContent = 'Warehouse Source';
-            } else if (st === 'supplier_delivery') {
-                supplierNameInput.readOnly = false;
-                if (supplierNameInput.value.includes('Warehouse')) supplierNameInput.value = '';
-                supplierNameInput.placeholder = 'e.g., Yokohama PH / Manila Distributor';
-                if (supplierLabel) supplierLabel.textContent = 'Supplier Name';
-            } else {
-                supplierNameInput.readOnly = false;
-                if (supplierNameInput.value.includes('Warehouse')) supplierNameInput.value = '';
-                supplierNameInput.placeholder = 'e.g., Supplier, branch, or custom origin';
-                if (supplierLabel) supplierLabel.textContent = 'Source / Supplier Name';
-            }
-        });
+        sourceTypeSelect.addEventListener('change', updateDeliverySourceUI);
     }
 
     // Add Form Validation
@@ -2535,6 +2562,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     e.preventDefault();
                     alert('Please enter a valid expected delivery quantity (1 or greater).');
                     if (expectedQtyInput) expectedQtyInput.focus();
+                    return;
+                }
+
+                const st = sourceTypeSelect ? sourceTypeSelect.value : 'supplier_delivery';
+                const supVal = supplierNameInput ? supplierNameInput.value.trim() : '';
+                if (st === 'supplier_delivery' && !supVal) {
+                    e.preventDefault();
+                    alert('Please enter a supplier name for direct supplier delivery.');
+                    if (supplierNameInput) supplierNameInput.focus();
+                    return;
+                }
+                if (st === 'other' && !supVal) {
+                    e.preventDefault();
+                    alert('Please enter a source name.');
+                    if (supplierNameInput) supplierNameInput.focus();
                     return;
                 }
             }

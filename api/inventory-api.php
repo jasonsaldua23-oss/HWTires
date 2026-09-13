@@ -390,10 +390,27 @@ if ($action === 'stock_in') {
 
         $item_id = intval($_POST['inventory_id'] ?? $_POST['item_id'] ?? 0);
         $quantity = inventory_api_clean_int($_POST['quantity'] ?? 0, 'Quantity', 1, 100000);
-        $source_type = inventory_api_clean_text($_POST['source_type'] ?? 'supplier_delivery', 'Source Type', 50);
-        $supplier_name = inventory_api_clean_text($_POST['supplier_name'] ?? '', 'Supplier Name', 150);
-        $reference_number = inventory_api_clean_text($_POST['reference_number'] ?? '', 'Reference/DR Number', 100);
-        $custom_notes = inventory_api_clean_text($_POST['notes'] ?? '', 'Notes', 500);
+        $source_type = inventory_api_clean_text($_POST['source_type'] ?? 'supplier_delivery', 'Supply Source', 50, true);
+        $valid_source_types = ['supplier_delivery', 'tangub_warehouse', 'sancarlos_warehouse', 'other', 'branch_transfer', 'adjustment'];
+        if (!in_array($source_type, $valid_source_types, true)) {
+            throw new Exception('Invalid supply source');
+        }
+
+        $supplier_name = '';
+        if ($source_type === 'supplier_delivery') {
+            $supplier_name = inventory_api_clean_text($_POST['supplier_name'] ?? '', 'Supplier name', 150, true);
+        } elseif ($source_type === 'tangub_warehouse') {
+            $supplier_name = 'Central Warehouse (Tangub Hub)';
+        } elseif ($source_type === 'sancarlos_warehouse') {
+            $supplier_name = 'Auxiliary Warehouse (San Carlos Hub)';
+        } elseif ($source_type === 'other') {
+            $supplier_name = inventory_api_clean_text($_POST['supplier_name'] ?? '', 'Source name', 150, true);
+        } else {
+            $supplier_name = inventory_api_clean_text($_POST['supplier_name'] ?? '', 'Supplier / Source name', 150, false);
+        }
+
+        $reference_number = inventory_api_clean_text($_POST['reference_number'] ?? '', 'Reference / DR number', 100, false);
+        $custom_notes = inventory_api_clean_text($_POST['notes'] ?? '', 'Notes', 500, false);
 
         if ($item_id <= 0) {
             throw new Exception('Invalid inventory item');
@@ -405,21 +422,27 @@ if ($action === 'stock_in') {
 
         $note_parts = [];
         if ($source_type === 'tangub_warehouse') {
-            $note_parts[] = 'Tangub Central Warehouse Delivery';
+            $note_parts[] = 'Central Warehouse (Tangub Hub) Delivery';
         } elseif ($source_type === 'sancarlos_warehouse') {
-            $note_parts[] = 'San Carlos Warehouse Delivery';
+            $note_parts[] = 'Auxiliary Warehouse (San Carlos Hub) Delivery';
         } elseif ($source_type === 'supplier_delivery') {
-            $note_parts[] = 'Supplier Delivery (Manila Distributor)' . ($supplier_name !== '' ? ': ' . $supplier_name : '');
+            $note_parts[] = 'Direct Supplier Delivery' . ($supplier_name !== '' ? ': ' . $supplier_name : '');
         } elseif ($source_type === 'branch_transfer') {
             $note_parts[] = 'Stock Transfer Received' . ($supplier_name !== '' ? ' from ' . $supplier_name : '');
         } elseif ($source_type === 'adjustment') {
             $note_parts[] = 'Physical Count / Inventory Adjustment';
+        } elseif ($source_type === 'other') {
+            $note_parts[] = 'Other / Custom Source' . ($supplier_name !== '' ? ': ' . $supplier_name : '');
         } elseif ($source_type !== '') {
             $note_parts[] = ucwords(str_replace('_', ' ', $source_type));
         }
 
         if ($reference_number !== '') {
-            $note_parts[] = 'DR #: ' . $reference_number;
+            if ($source_type === 'tangub_warehouse' || $source_type === 'sancarlos_warehouse') {
+                $note_parts[] = 'Transfer Ref #: ' . $reference_number;
+            } else {
+                $note_parts[] = 'DR #: ' . $reference_number;
+            }
         }
 
         if ($custom_notes !== '' && $custom_notes !== 'Manual stock in from Front Desk Inventory') {
@@ -892,13 +915,13 @@ if ($action === 'add') {
 
             $supplier_name = '';
             if ($source_type === 'supplier_delivery') {
-                $supplier_name = inventory_api_clean_text($_POST['supplier_name'] ?? '', 'Supplier name', 150, false);
+                $supplier_name = inventory_api_clean_text($_POST['supplier_name'] ?? '', 'Supplier name', 150, true);
             } elseif ($source_type === 'tangub_warehouse') {
                 $supplier_name = 'Central Warehouse (Tangub Hub)';
             } elseif ($source_type === 'sancarlos_warehouse') {
                 $supplier_name = 'Auxiliary Warehouse (San Carlos Hub)';
             } elseif ($source_type === 'other') {
-                $supplier_name = inventory_api_clean_text($_POST['supplier_name'] ?? '', 'Source name', 150, false);
+                $supplier_name = inventory_api_clean_text($_POST['supplier_name'] ?? '', 'Source name', 150, true);
             }
 
             $reference_number = inventory_api_clean_text($_POST['reference_number'] ?? '', 'Reference / DR number', 100, false);
@@ -1077,17 +1100,23 @@ if ($action === 'receive_incoming_stock') {
 
         $note_parts = ['Scheduled Delivery Receipt (Pending Arrival)'];
         if ($source_type === 'tangub_warehouse') {
-            $note_parts[] = 'Tangub Central Warehouse Delivery';
+            $note_parts[] = 'Central Warehouse (Tangub Hub) Delivery';
         } elseif ($source_type === 'sancarlos_warehouse') {
-            $note_parts[] = 'San Carlos Warehouse Delivery';
+            $note_parts[] = 'Auxiliary Warehouse (San Carlos Hub) Delivery';
         } elseif ($source_type === 'supplier_delivery') {
-            $note_parts[] = 'Supplier Delivery' . ($supplier_name !== '' ? ': ' . $supplier_name : ' (Manila Distributor)');
+            $note_parts[] = 'Direct Supplier Delivery' . ($supplier_name !== '' ? ': ' . $supplier_name : '');
+        } elseif ($source_type === 'other') {
+            $note_parts[] = 'Other / Custom Source' . ($supplier_name !== '' ? ': ' . $supplier_name : '');
         } elseif ($source_type !== '') {
             $note_parts[] = ucwords(str_replace('_', ' ', $source_type));
         }
 
         if ($reference_number !== '') {
-            $note_parts[] = 'DR #: ' . $reference_number;
+            if ($source_type === 'tangub_warehouse' || $source_type === 'sancarlos_warehouse') {
+                $note_parts[] = 'Transfer Ref #: ' . $reference_number;
+            } else {
+                $note_parts[] = 'DR #: ' . $reference_number;
+            }
         }
         if ((int) $actual_quantity !== (int) $incoming['expected_quantity']) {
             $note_parts[] = 'Discrepancy: Received ' . $actual_quantity . ' of ' . (int) $incoming['expected_quantity'] . ' expected';
