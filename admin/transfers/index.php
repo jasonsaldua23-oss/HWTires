@@ -400,7 +400,7 @@ include __DIR__ . '/../../includes/sidebar.php';
                         </div>
                         <div class="mb-3">
                             <label for="modalRejectionReason" class="form-label fw-semibold">Rejection Reason <span class="text-danger">*</span></label>
-                            <textarea class="form-control" id="modalRejectionReason" name="reason" rows="3" required placeholder="Enter rejection reason...">Insufficient stock at donor branch</textarea>
+                            <textarea class="form-control" id="modalRejectionReason" name="reason" rows="3" maxlength="1000" data-text-format="first-letter" required placeholder="Enter rejection reason...">Insufficient stock at donor branch</textarea>
                         </div>
                     </div>
                     <div class="modal-footer">

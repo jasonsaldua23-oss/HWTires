@@ -517,7 +517,7 @@ if (!empty($job_quotation_ids)) {
                         <div class="job-technician-picker">
                             <div class="job-technician-selected" id="jobTechnicianSelected"></div>
                             <label class="job-technician-search" for="jobTechnicianSearch">
-                                <input type="search" id="jobTechnicianSearch" placeholder="Search technician name..." autocomplete="off">
+                                <input type="search" id="jobTechnicianSearch" placeholder="Search technician name..." autocomplete="off" maxlength="100" data-text-format="person-name">
                                 <div class="job-technician-results" id="jobTechnicianResults" hidden></div>
                             </label>
                             <select id="jobTechnicianDropdown" class="job-technician-select">
@@ -555,12 +555,12 @@ if (!empty($job_quotation_ids)) {
                 </label>
                 <label class="job-duration-field">
                     <span>Estimated Job Duration</span>
-                    <input type="text" name="estimated_duration" id="jobEstimatedDuration" placeholder="e.g., 2 hours or 2 days">
+                    <input type="text" name="estimated_duration" id="jobEstimatedDuration" maxlength="50" data-text-format="first-letter" placeholder="e.g., 2 hours or 2 days">
                 </label>
             </div>
             <label class="job-notes-field">
                 <span>Notes</span>
-                <textarea name="notes" id="jobNotes" rows="5" placeholder="Enter any special instructions or notes..."></textarea>
+                <textarea name="notes" id="jobNotes" rows="5" maxlength="1000" data-text-format="first-letter" placeholder="Enter any special instructions or notes..."></textarea>
             </label>
             <div class="job-form-actions">
                 <button type="submit" class="job-save-button" id="jobSaveButton">

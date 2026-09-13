@@ -778,14 +778,14 @@ $customer_contact = ($customer['phone_mobile'] ?? '') ?: (($customer['contact'] 
                             <select class="form-select vehicle-make-select" name="make" id="admin_profile_add_veh_make" required>
                                 <option value="" selected disabled>-- Select Car Brand --</option>
                             </select>
-                            <input type="text" class="form-control vehicle-make-custom mt-2" name="make_custom" id="admin_profile_add_veh_make_custom" placeholder="Type custom car brand..." style="display: none;">
+                            <input type="text" class="form-control vehicle-make-custom mt-2" name="make_custom" id="admin_profile_add_veh_make_custom" maxlength="50" data-text-format="first-letter" placeholder="Type custom car brand..." style="display: none;">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Model <span class="text-danger">*</span></label>
                             <select class="form-select vehicle-model-select" name="model" id="admin_profile_add_veh_model" required disabled>
                                 <option value="" selected disabled>-- Select Brand First --</option>
                             </select>
-                            <input type="text" class="form-control vehicle-model-custom mt-2" name="model_custom" id="admin_profile_add_veh_model_custom" placeholder="Type custom model..." style="display: none;">
+                            <input type="text" class="form-control vehicle-model-custom mt-2" name="model_custom" id="admin_profile_add_veh_model_custom" maxlength="50" data-text-format="first-letter" placeholder="Type custom model..." style="display: none;">
                         </div>
                     </div>
 
@@ -796,7 +796,7 @@ $customer_contact = ($customer['phone_mobile'] ?? '') ?: (($customer['contact'] 
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Color</label>
-                            <input type="text" class="form-control" name="color" placeholder="e.g., Silver">
+                            <input type="text" class="form-control" name="color" maxlength="30" data-text-format="first-letter" placeholder="e.g., Silver">
                         </div>
                     </div>
 

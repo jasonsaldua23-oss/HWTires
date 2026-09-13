@@ -2481,7 +2481,7 @@ foreach ($record_sections as $record_section) {
                             <select name="make" class="form-select vehicle-make-select" data-initial-value="<?php echo esc_attr($vehicle['make'] ?? ''); ?>" required>
                                 <option value="<?php echo esc_attr($vehicle['make'] ?? ''); ?>" selected><?php echo esc_html($vehicle['make'] ?? 'Select Make'); ?></option>
                             </select>
-                            <input type="text" name="make_custom" class="form-control vehicle-make-custom mt-2" placeholder="Enter custom brand..." style="display: none;">
+                            <input type="text" name="make_custom" class="form-control vehicle-make-custom mt-2" maxlength="50" data-text-format="first-letter" placeholder="Enter custom brand..." style="display: none;">
                         </div>
 
                         <div class="col-12 col-md-6">
@@ -2489,7 +2489,7 @@ foreach ($record_sections as $record_section) {
                             <select name="model" class="form-select vehicle-model-select" data-initial-value="<?php echo esc_attr($vehicle['model'] ?? ''); ?>" required>
                                 <option value="<?php echo esc_attr($vehicle['model'] ?? ''); ?>" selected><?php echo esc_html($vehicle['model'] ?? 'Select Model'); ?></option>
                             </select>
-                            <input type="text" name="model_custom" class="form-control vehicle-model-custom mt-2" placeholder="Enter custom model..." style="display: none;">
+                            <input type="text" name="model_custom" class="form-control vehicle-model-custom mt-2" maxlength="50" data-text-format="first-letter" placeholder="Enter custom model..." style="display: none;">
                         </div>
 
                         <div class="col-12 col-md-6">
@@ -2509,7 +2509,7 @@ foreach ($record_sections as $record_section) {
 
                         <div class="col-12 col-md-6">
                             <label class="form-label font-weight-bold">Color</label>
-                            <input type="text" name="color" class="form-control" value="<?php echo esc_attr($vehicle['color'] ?? ''); ?>" placeholder="e.g. White, Silver, Black">
+                            <input type="text" name="color" class="form-control" value="<?php echo esc_attr($vehicle['color'] ?? ''); ?>" maxlength="30" data-text-format="first-letter" placeholder="e.g. White, Silver, Black">
                         </div>
 
                         <div class="col-12">

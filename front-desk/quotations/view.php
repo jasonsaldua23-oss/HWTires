@@ -382,7 +382,7 @@ if ($flash_message && !$is_print):
                                         </div>
                                         <div class="col-3">
                                             <label class="form-label small mb-1">Notes</label>
-                                            <input type="text" class="form-control form-control-sm" name="notes[<?php echo $iid; ?>]" value="<?php echo esc_attr($item['notes'] ?? ''); ?>" placeholder="optional">
+                                            <input type="text" class="form-control form-control-sm" name="notes[<?php echo $iid; ?>]" value="<?php echo esc_attr($item['notes'] ?? ''); ?>" maxlength="255" data-text-format="first-letter" placeholder="optional">
                                         </div>
                                         <div class="col-2 text-end">
                                             <small class="text-muted">Unit: <?php echo '&#8369;' . number_format((float) ($item['unit_price'] ?? 0), 2); ?></small>

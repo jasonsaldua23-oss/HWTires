@@ -786,11 +786,11 @@ $current_view_url = $_SERVER['REQUEST_URI'] ?? '/hwtires/admin/users/';
                         <div class="users-modal-body">
                             <label>
                                 <span>Name</span>
-                                <input type="text" name="name" value="<?php echo esc_attr($account['name']); ?>" required>
+                                <input type="text" name="name" value="<?php echo esc_attr($account['name']); ?>" maxlength="100" data-text-format="person-name" required>
                             </label>
                             <label>
                                 <span>Login ID</span>
-                                <input type="text" name="login_id" value="<?php echo esc_attr($account['email']); ?>" required>
+                                <input type="text" name="login_id" value="<?php echo esc_attr($account['email']); ?>" maxlength="100" required>
                             </label>
                             <label>
                                 <span>Role</span>
@@ -933,11 +933,11 @@ $current_view_url = $_SERVER['REQUEST_URI'] ?? '/hwtires/admin/users/';
 
                         <label>
                             <span>Name</span>
-                            <input type="text" name="name" placeholder="Enter user name" required>
+                            <input type="text" name="name" placeholder="Enter user name" maxlength="100" data-text-format="person-name" required>
                         </label>
                         <label>
                             <span>Login ID</span>
-                            <input type="text" name="login_id" placeholder="e.g. branch1.frontdesk" required>
+                            <input type="text" name="login_id" placeholder="e.g. branch1.frontdesk" maxlength="100" required>
                         </label>
                         <label>
                             <span>Role</span>
