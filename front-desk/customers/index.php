@@ -139,15 +139,16 @@ if ($branch_filter !== '') {
         (
             SELECT sh_last.branch_id
             FROM (
-                SELECT sh.branch_id, CAST(CONCAT(sh.service_date, ' ', COALESCE(TIME(sh.created_at), '00:00:00')) AS DATETIME) as act_date, 1 as rk, sh.id as sid
-                FROM service_history sh WHERE sh.vehicle_id = v.id AND sh.branch_id IS NOT NULL
+                SELECT sh.vehicle_id, sh.branch_id, CAST(CONCAT(sh.service_date, ' ', COALESCE(TIME(sh.created_at), '00:00:00')) AS DATETIME) as act_date, 1 as rk, sh.id as sid
+                FROM service_history sh WHERE sh.branch_id IS NOT NULL
                 UNION ALL
-                SELECT jo.branch_id, CAST(CONCAT(jo.job_date, ' ', COALESCE(TIME(jo.updated_at), TIME(jo.created_at), '00:00:00')) AS DATETIME) as act_date, 2 as rk, jo.id as sid
-                FROM job_orders jo WHERE jo.vehicle_id = v.id AND jo.branch_id IS NOT NULL AND jo.status NOT IN ('archived', 'cancelled')
+                SELECT jo.vehicle_id, jo.branch_id, CAST(CONCAT(jo.job_date, ' ', COALESCE(TIME(jo.updated_at), TIME(jo.created_at), '00:00:00')) AS DATETIME) as act_date, 2 as rk, jo.id as sid
+                FROM job_orders jo WHERE jo.branch_id IS NOT NULL AND jo.status NOT IN ('archived', 'cancelled')
                 UNION ALL
-                SELECT q.branch_id, CAST(CONCAT(q.quotation_date, ' ', COALESCE(TIME(q.updated_at), TIME(q.created_at), '00:00:00')) AS DATETIME) as act_date, 3 as rk, q.id as sid
-                FROM quotations q WHERE q.vehicle_id = v.id AND q.branch_id IS NOT NULL AND q.status <> 'archived'
+                SELECT q.vehicle_id, q.branch_id, CAST(CONCAT(q.quotation_date, ' ', COALESCE(TIME(q.updated_at), TIME(q.created_at), '00:00:00')) AS DATETIME) as act_date, 3 as rk, q.id as sid
+                FROM quotations q WHERE q.branch_id IS NOT NULL AND q.status <> 'archived'
             ) sh_last
+            WHERE sh_last.vehicle_id = v.id
             ORDER BY sh_last.act_date DESC, sh_last.rk ASC, sh_last.sid DESC
             LIMIT 1
         ),
