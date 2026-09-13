@@ -955,10 +955,6 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                 <i class="fas fa-history"></i>
                 <span>Inventory Transactions</span>
             </a>
-            <button type="button" class="inventory-add-btn" data-bs-toggle="modal" data-bs-target="#addInventoryModal">
-                <i class="fas fa-plus"></i>
-                <span>Add Inventory Item</span>
-            </button>
         </div>
     </header>
 
@@ -1929,89 +1925,6 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
         <?php endif; ?>
     </section>
 </main>
-
-<div class="modal fade inventory-add-modal" id="addInventoryModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <form method="POST" action="/hwtires/api/inventory-api.php" class="modal-content">
-            <input type="hidden" name="csrf_token" value="<?php echo generate_csrf_token(); ?>">
-            <input type="hidden" name="action" value="add">
-            <input type="hidden" name="branch_id" value="<?php echo $branch_id; ?>">
-            <input type="hidden" name="redirect" value="<?php echo esc_attr($redirect_url); ?>">
-
-            <div class="inventory-modal-header">
-                <div>
-                    <h2>Add Inventory Item</h2>
-                    <p>Register a new stock record for <?php echo esc_html($branch_label); ?></p>
-                </div>
-                <button type="button" class="inventory-modal-close" data-bs-dismiss="modal" aria-label="Close">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-
-            <div class="inventory-modal-body">
-                <div class="inventory-form-grid">
-                    <label>
-                        <span>Item Name</span>
-                        <input type="text" name="item_name" maxlength="255" data-text-format="first-letter" placeholder="e.g., Bridgestone Turanza T005" required>
-                    </label>
-                    <label>
-                        <span>Category</span>
-                        <select name="category" required>
-                            <option value="tire">Tire</option>
-                            <option value="accessory">Accessory</option>
-                            <option value="part">Part</option>
-                        </select>
-                    </label>
-                    <label>
-                        <span>Brand</span>
-                        <input type="text" name="brand" maxlength="100" data-text-format="first-letter" placeholder="e.g., Bridgestone" required>
-                    </label>
-                    <label>
-                        <span>Model</span>
-                        <input type="text" name="model" maxlength="100" data-text-format="first-letter" placeholder="e.g., Turanza T005" required>
-                    </label>
-                    <label>
-                        <span>Size</span>
-                        <input type="text" name="size" maxlength="50" placeholder="Size, fitment, or short detail" required>
-                    </label>
-                    <label>
-                        <span>SKU</span>
-                        <input type="text" name="sku" maxlength="100" placeholder="e.g., LAC-TIR-0001" required>
-                    </label>
-                    <label>
-                        <span>Serial Number</span>
-                        <input type="text" name="serial_number" maxlength="120" placeholder="e.g., HWT-2026-000001" required>
-                    </label>
-                    <label>
-                        <span>Manufacturing Date</span>
-                        <input type="date" name="manufacturing_date" max="<?php echo date('Y-m-d'); ?>" required>
-                    </label>
-                    <label>
-                        <span>Quantity</span>
-                        <input type="number" name="quantity" min="0" value="0" required>
-                    </label>
-                    <label>
-                        <span>Reorder Level</span>
-                        <input type="number" name="reorder_level" min="1" value="5" required>
-                    </label>
-                    <label>
-                        <span>Unit Price</span>
-                        <input type="number" name="unit_price" min="0.01" step="0.01" placeholder="0.00" required>
-                    </label>
-                </div>
-                <label class="inventory-description-field">
-                    <span>Description</span>
-                    <textarea name="description" rows="2" maxlength="1000" data-text-format="first-letter" placeholder="Optional item description"></textarea>
-                </label>
-            </div>
-
-            <div class="inventory-modal-footer">
-                <button type="button" class="inventory-cancel-btn" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="inventory-confirm-btn stock-in">Add Item</button>
-            </div>
-        </form>
-    </div>
-</div>
 
 <div class="modal fade inventory-stock-modal" id="stockInModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">

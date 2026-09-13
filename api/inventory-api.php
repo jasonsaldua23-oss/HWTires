@@ -732,6 +732,10 @@ if ($action === 'add') {
             throw new Exception('Invalid security token');
         }
 
+        if (($user['role'] ?? '') !== 'admin') {
+            throw new Exception('Only administrators can add new inventory items.');
+        }
+
         $branch_id = intval($_POST['branch_id'] ?? ($user['branch_id'] ?? 0));
         $has_model_column = app_column_exists('inventory_items', 'model');
         $has_serial_column = app_column_exists('inventory_items', 'serial_number');
