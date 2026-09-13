@@ -261,6 +261,32 @@ $available_sizes = ($brand_filter !== '' && isset($sizes_by_brand[$brand_filter]
     ? array_values($sizes_by_brand[$brand_filter])
     : array_values($all_sizes);
 
+// Catalog brands and brand->models map for Add Inventory Item modal
+$catalog_brands_stmt = $pdo->query("
+    SELECT DISTINCT brand
+    FROM inventory_items
+    WHERE brand IS NOT NULL AND TRIM(brand) != ''
+    ORDER BY brand ASC
+");
+$catalog_brands = $catalog_brands_stmt ? $catalog_brands_stmt->fetchAll(PDO::FETCH_COLUMN) : [];
+
+$catalog_models_stmt = $pdo->query("
+    SELECT DISTINCT brand, model
+    FROM inventory_items
+    WHERE brand IS NOT NULL AND TRIM(brand) != ''
+      AND model IS NOT NULL AND TRIM(model) != ''
+    ORDER BY brand ASC, model ASC
+");
+$raw_brand_models = $catalog_models_stmt ? $catalog_models_stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+$brand_models_map = [];
+foreach ($raw_brand_models as $bm_row) {
+    $bm_brand = trim((string) $bm_row['brand']);
+    $bm_model = trim((string) $bm_row['model']);
+    if ($bm_brand !== '' && $bm_model !== '') {
+        $brand_models_map[$bm_brand][] = $bm_model;
+    }
+}
+
 $valid_inventory_views = ['all', 'stock_in', 'stock_out', 'low_stock', 'last_month_sales'];
 $view_filter = strtolower(trim($_GET['view'] ?? 'all'));
 if (!in_array($view_filter, $valid_inventory_views, true)) {
@@ -541,10 +567,25 @@ if ($is_transaction_view) {
     $transactions = $transaction_stmt->fetchAll();
     $inventory = [];
 } else {
+    $has_incoming_table = app_table_exists('inventory_incoming_stock');
+    $incoming_join = $has_incoming_table
+        ? "LEFT JOIN (
+            SELECT item_id, SUM(expected_quantity) AS pending_incoming_qty
+            FROM inventory_incoming_stock
+            WHERE status = 'pending'
+            GROUP BY item_id
+        ) inc ON inc.item_id = i.id"
+        : "";
+    $incoming_select = $has_incoming_table
+        ? "COALESCE(inc.pending_incoming_qty, 0) AS pending_incoming_qty"
+        : "0 AS pending_incoming_qty";
+
     $inventory_stmt = $pdo->prepare("
-        SELECT i.*, b.name AS branch_name
+        SELECT i.*, b.name AS branch_name,
+               $incoming_select
         FROM inventory_items i
         LEFT JOIN branches b ON b.id = i.branch_id
+        $incoming_join
         WHERE $item_list_where_sql
         ORDER BY i.branch_id ASC, FIELD(i.category, 'tire', 'accessory', 'part'), i.item_name ASC
         LIMIT $per_page OFFSET $offset
@@ -553,10 +594,25 @@ if ($is_transaction_view) {
     $inventory = $inventory_stmt->fetchAll();
 }
 
+$has_incoming_table = app_table_exists('inventory_incoming_stock');
+$incoming_join = $has_incoming_table
+    ? "LEFT JOIN (
+        SELECT item_id, SUM(expected_quantity) AS pending_incoming_qty
+        FROM inventory_incoming_stock
+        WHERE status = 'pending'
+        GROUP BY item_id
+    ) inc ON inc.item_id = i.id"
+    : "";
+$incoming_select = $has_incoming_table
+    ? "COALESCE(inc.pending_incoming_qty, 0) AS pending_incoming_qty"
+    : "0 AS pending_incoming_qty";
+
 $low_stock_stmt = $pdo->prepare("
-    SELECT i.*, b.name AS branch_name
+    SELECT i.*, b.name AS branch_name,
+           $incoming_select
     FROM inventory_items i
     LEFT JOIN branches b ON b.id = i.branch_id
+    $incoming_join
     WHERE $where_sql AND i.quantity <= i.reorder_level
     ORDER BY i.quantity ASC, i.item_name ASC
 ");
@@ -864,12 +920,38 @@ if ($view_filter === 'last_month_sales') {
     ];
 }
 
+$added_id = intval($_GET['added_id'] ?? 0);
 $active_filter_url = inventory_filter_url($category_filter, $branch_filter, $search_filter, $per_page, $page, $view_filter, $sales_mode, $brand_filter, $size_filter, $status_filter);
 $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' ? '' : $active_filter_url) . '#inventory-records';
 ?>
 
 <?php require_once '../../includes/header.php'; ?>
 <?php require_once '../../includes/sidebar.php'; ?>
+
+<style>
+@keyframes pulseRowHighlight {
+    0% { background-color: rgba(254, 240, 138, 0.95) !important; }
+    40% { background-color: rgba(254, 240, 138, 0.65) !important; }
+    100% { background-color: rgba(254, 240, 138, 0.25) !important; }
+}
+.table-row-highlight {
+    animation: pulseRowHighlight 3s ease-out forwards;
+    border-left: 4px solid #eab308 !important;
+}
+.inventory-incoming-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 999px;
+    background-color: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+    margin-top: 4px;
+}
+</style>
 
 <main class="inventory-records-page">
     <header class="inventory-hero">
@@ -1128,6 +1210,11 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                             <div>
                                 <span>Current: <?php echo (int) $item['quantity']; ?></span>
                                 <span>Reorder: <?php echo (int) $item['reorder_level']; ?></span>
+                                <?php if (!empty($item['pending_incoming_qty']) && (int) $item['pending_incoming_qty'] > 0): ?>
+                                    <span class="inventory-incoming-badge ms-1" title="Incoming shipment pending arrival at branch">
+                                        <i class="fas fa-truck-ramp-box"></i> Incoming: <?php echo (int) $item['pending_incoming_qty']; ?> (Pending)
+                                    </span>
+                                <?php endif; ?>
                             </div>
                             <strong><?php echo inventory_money($item['unit_price'] ?? 0); ?></strong>
                         </div>
@@ -1400,8 +1487,12 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                                 $branch_id = (int) ($item['branch_id'] ?? 0);
                                 $branch_label = inventory_branch_label($item['branch_name'] ?? '');
                                 $detail_lines = inventory_item_detail_lines($item);
+                                $is_highlighted = ($added_id > 0 && (int)$item['id'] === $added_id);
+                                $pending_incoming = (int) ($item['pending_incoming_qty'] ?? 0);
                                 ?>
-                                <tr class="<?php echo $is_low_stock ? 'is-low-stock' : ($is_archived ? 'table-light text-muted' : ''); ?>">
+                                <tr id="inventory-row-<?php echo (int) $item['id']; ?>"
+                                    data-item-id="<?php echo (int) $item['id']; ?>"
+                                    class="<?php echo $is_highlighted ? 'table-row-highlight ' : ''; ?><?php echo $is_low_stock ? 'is-low-stock' : ($is_archived ? 'table-light text-muted' : ''); ?>">
                                     <td>
                                         <strong><?php echo esc_html(app_display_item_name($item['item_name'], $item['category'] ?? null)); ?></strong>
                                         <small class="inventory-item-brand"><?php echo esc_html($item['brand'] ?: 'Unbranded'); ?></small>
@@ -1438,15 +1529,24 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <strong class="inventory-quantity <?php echo $is_low_stock ? 'is-low' : ''; ?>">
-                                            <?php echo (int) $item['quantity']; ?>
-                                            <?php if ($is_low_stock): ?>
-                                                <i class="fas fa-arrow-trend-down"></i>
+                                        <div class="d-flex flex-column align-items-start gap-1">
+                                            <div>
+                                                <strong class="inventory-quantity <?php echo $is_low_stock ? 'is-low' : ''; ?>">
+                                                    <?php echo (int) $item['quantity']; ?>
+                                                    <?php if ($is_low_stock): ?>
+                                                        <i class="fas fa-arrow-trend-down"></i>
+                                                    <?php endif; ?>
+                                                </strong>
+                                                <?php if ($is_low_stock): ?>
+                                                    <span class="inventory-stock-status">Low Stock</span>
+                                                <?php endif; ?>
+                                            </div>
+                                            <?php if ($pending_incoming > 0): ?>
+                                                <span class="inventory-incoming-badge" title="Incoming shipment pending physical arrival at branch">
+                                                    <i class="fas fa-truck-ramp-box"></i> Incoming: <?php echo $pending_incoming; ?> (Pending Arrival)
+                                                </span>
                                             <?php endif; ?>
-                                        </strong>
-                                        <?php if ($is_low_stock): ?>
-                                            <span class="inventory-stock-status">Low Stock</span>
-                                        <?php endif; ?>
+                                        </div>
                                     </td>
                                     <td><?php echo (int) $item['reorder_level']; ?></td>
                                     <td><strong><?php echo inventory_money($item['unit_price'] ?? 0); ?></strong></td>
@@ -1532,8 +1632,8 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
 </main>
 
 <div class="modal fade inventory-add-modal" id="addInventoryModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <form method="POST" action="/hwtires/api/inventory-api.php" class="modal-content">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <form method="POST" action="/hwtires/api/inventory-api.php" class="modal-content" id="addInventoryForm">
             <input type="hidden" name="csrf_token" value="<?php echo generate_csrf_token(); ?>">
             <input type="hidden" name="action" value="add">
             <input type="hidden" name="redirect" value="<?php echo esc_attr($redirect_url); ?>">
@@ -1541,7 +1641,7 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
             <div class="inventory-modal-header">
                 <div>
                     <h2>Add Inventory Item</h2>
-                    <p>Register a new stock record</p>
+                    <p>Register a new product definition for active inventory</p>
                 </div>
                 <button type="button" class="inventory-modal-close" data-bs-dismiss="modal" aria-label="Close">
                     <i class="fas fa-times"></i>
@@ -1549,75 +1649,141 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
             </div>
 
             <div class="inventory-modal-body">
-                <div class="inventory-form-grid">
-                    <label>
-                        <span>Item Name</span>
-                        <input type="text" name="item_name" maxlength="255" data-text-format="first-letter" placeholder="e.g., Bridgestone Turanza T005" required>
-                    </label>
-                    <label>
-                        <span>Branch</span>
-                        <select name="branch_id" required>
-                            <?php foreach ($inventory_branches as $branch): ?>
-                                <option value="<?php echo (int) $branch['id']; ?>">
-                                    <?php echo esc_html(inventory_branch_label($branch['name'])); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </label>
-                    <label>
-                        <span>Category</span>
-                        <select name="category" required>
-                            <option value="tire">Tire</option>
-                            <option value="accessory">Accessory</option>
-                            <option value="part">Part</option>
-                        </select>
-                    </label>
-                    <label>
-                        <span>Brand</span>
-                        <input type="text" name="brand" maxlength="100" data-text-format="first-letter" placeholder="e.g., Bridgestone" required>
-                    </label>
-                    <label>
-                        <span>Model</span>
-                        <input type="text" name="model" maxlength="100" data-text-format="first-letter" placeholder="e.g., Turanza T005" required>
-                    </label>
-                    <label>
-                        <span>Size</span>
-                        <input type="text" name="size" maxlength="50" placeholder="Size, fitment, or short detail" required>
-                    </label>
-                    <label>
-                        <span>SKU</span>
-                        <input type="text" name="sku" maxlength="100" placeholder="e.g., LAC-TIR-0001" required>
-                    </label>
-                    <label>
-                        <span>Serial Number</span>
-                        <input type="text" name="serial_number" maxlength="120" placeholder="e.g., HWT-2026-000001" required>
-                    </label>
-                    <label>
-                        <span>Manufacturing Date</span>
-                        <input type="date" name="manufacturing_date" max="<?php echo date('Y-m-d'); ?>" required>
-                    </label>
-                    <label>
-                        <span>Unit Price</span>
-                        <input type="number" name="unit_price" min="0.01" step="0.01" placeholder="0.00" required>
-                    </label>
-                    <label>
-                        <span>Quantity</span>
-                        <input type="number" name="quantity" min="0" value="0" required>
-                    </label>
-                    <label>
-                        <span>Reorder Level</span>
-                        <input type="number" name="reorder_level" min="1" value="5" required>
+                <div class="mb-3">
+                    <h6 class="fw-bold text-dark mb-2 pb-1 border-bottom d-flex align-items-center gap-2">
+                        <i class="fas fa-box text-primary"></i> Product Details
+                    </h6>
+                    <div class="inventory-form-grid">
+                        <label>
+                            <span>Item Name <span class="text-danger">*</span></span>
+                            <input type="text" name="item_name" id="add_item_name" maxlength="255" data-text-format="first-letter" placeholder="e.g., Bridgestone Turanza T005" required>
+                        </label>
+                        <label>
+                            <span>Branch <span class="text-danger">*</span></span>
+                            <select name="branch_id" id="add_branch_id" required>
+                                <?php foreach ($inventory_branches as $branch): ?>
+                                    <option value="<?php echo (int) $branch['id']; ?>">
+                                        <?php echo esc_html(inventory_branch_label($branch['name'])); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Category <span class="text-danger">*</span></span>
+                            <select name="category" id="add_category" required>
+                                <option value="tire">Tire</option>
+                                <option value="accessory">Accessory</option>
+                                <option value="part">Part</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Brand <span class="text-danger">*</span></span>
+                            <select name="brand" id="add_brand_select" class="inventory-brand-select" required>
+                                <option value="">-- Select Brand --</option>
+                                <?php foreach ($catalog_brands as $cat_brand): ?>
+                                    <option value="<?php echo esc_attr($cat_brand); ?>"><?php echo esc_html($cat_brand); ?></option>
+                                <?php endforeach; ?>
+                                <option value="Other">Other / Custom Brand...</option>
+                            </select>
+                            <input type="text" name="brand_custom" id="add_brand_custom" class="inventory-brand-custom mt-2 d-none" maxlength="100" data-text-format="first-letter" placeholder="Enter custom brand">
+                        </label>
+                        <label>
+                            <span>Model <span class="text-danger" id="add_model_required_mark">*</span></span>
+                            <select name="model" id="add_model_select" class="inventory-model-select" required>
+                                <option value="">-- Select Brand First --</option>
+                                <option value="Other">Other / Custom Model...</option>
+                            </select>
+                            <input type="text" name="model_custom" id="add_model_custom" class="inventory-model-custom mt-2 d-none" maxlength="100" data-text-format="first-letter" placeholder="Enter custom model">
+                        </label>
+                        <label>
+                            <span>Size / Fitment <span class="text-danger" id="add_size_required_mark">*</span></span>
+                            <input type="text" name="size" id="add_size" maxlength="80" placeholder="e.g., 205/55R16 or Fitment Spec" required>
+                        </label>
+                        <label>
+                            <span>SKU <span class="text-danger">*</span></span>
+                            <input type="text" name="sku" id="add_sku" maxlength="100" placeholder="e.g., LAC-TIR-0001" required>
+                        </label>
+                        <label>
+                            <span>Unit Price (₱) <span class="text-danger">*</span></span>
+                            <input type="number" name="unit_price" id="add_unit_price" min="0.01" step="0.01" placeholder="0.00" required>
+                        </label>
+                        <label>
+                            <span>Reorder Level <span class="text-danger">*</span></span>
+                            <input type="number" name="reorder_level" id="add_reorder_level" min="1" value="5" required>
+                        </label>
+                        <label>
+                            <span>Serial Number <small class="text-muted fw-normal">(Optional)</small></span>
+                            <input type="text" name="serial_number" id="add_serial_number" maxlength="120" placeholder="e.g., HWT-2026-000001">
+                        </label>
+                        <label>
+                            <span>Manufacturing Date <small class="text-muted fw-normal">(Optional)</small></span>
+                            <input type="date" name="manufacturing_date" id="add_manufacturing_date" max="<?php echo date('Y-m-d'); ?>">
+                        </label>
+                    </div>
+                    <label class="inventory-description-field mt-3">
+                        <span>Description <small class="text-muted fw-normal">(Optional)</small></span>
+                        <textarea name="description" id="add_description" rows="2" maxlength="1000" data-text-format="first-letter" placeholder="Optional item description or technical specs"></textarea>
                     </label>
                 </div>
-                <label class="inventory-description-field">
-                    <span>Description</span>
-                    <textarea name="description" rows="2" maxlength="1000" data-text-format="first-letter" placeholder="Optional item description"></textarea>
-                </label>
+
+                <!-- Initial Delivery Section (Optional) -->
+                <div class="mt-4 p-3 rounded-3 border bg-light">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <input class="form-check-input mt-0" type="checkbox" name="schedule_delivery" id="scheduleDeliveryToggle" value="1" style="width: 18px; height: 18px; cursor: pointer;">
+                            <label class="form-check-label fw-bold text-dark mb-0" for="scheduleDeliveryToggle" style="cursor: pointer;">
+                                <i class="fas fa-truck text-primary me-1"></i> Schedule Initial Delivery (Pending Arrival)
+                            </label>
+                        </div>
+                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="font-size: 11px;">
+                            Available stock: 0
+                        </span>
+                    </div>
+                    <div class="small text-muted mt-1 ms-4">
+                        Newly registered products always start with <strong>0 available stock</strong>. Check this box to schedule an incoming shipment that Front Desk will receive upon physical arrival.
+                    </div>
+
+                    <div id="deliveryFieldsContainer" class="d-none mt-3 pt-3 border-top">
+                        <div class="inventory-form-grid">
+                            <label>
+                                <span>Expected Quantity <span class="text-danger">*</span></span>
+                                <input type="number" name="expected_quantity" id="add_expected_quantity" min="1" max="100000" placeholder="e.g., 20">
+                            </label>
+                            <label>
+                                <span>Delivery Source <span class="text-danger">*</span></span>
+                                <select name="source_type" id="add_source_type">
+                                    <option value="supplier_delivery">Direct Supplier Delivery</option>
+                                    <option value="tangub_warehouse">Central Warehouse (Tangub Hub)</option>
+                                    <option value="sancarlos_warehouse">Auxiliary Warehouse (San Carlos Hub)</option>
+                                    <option value="other">Other / Custom Source</option>
+                                </select>
+                            </label>
+                            <label id="deliverySupplierNameGroup">
+                                <span id="deliverySupplierNameLabel">Supplier Name</span>
+                                <input type="text" name="supplier_name" id="add_supplier_name" maxlength="150" placeholder="e.g., Yokohama PH / Manila Distributor">
+                            </label>
+                            <label>
+                                <span>Reference / DR Number</span>
+                                <input type="text" name="reference_number" id="add_reference_number" maxlength="100" placeholder="e.g., DR-2026-0891 or PO #">
+                            </label>
+                            <label>
+                                <span>Expected Arrival Date</span>
+                                <input type="date" name="expected_arrival_date" id="add_expected_arrival_date">
+                            </label>
+                        </div>
+                        <label class="inventory-description-field mt-3">
+                            <span>Delivery Notes / Instructions <small class="text-muted fw-normal">(Optional)</small></span>
+                            <textarea name="delivery_notes" id="add_delivery_notes" rows="2" maxlength="1000" placeholder="Optional notes for receiving branch staff..."></textarea>
+                        </label>
+                    </div>
+                </div>
             </div>
 
             <div class="inventory-modal-footer">
                 <button type="button" class="inventory-cancel-btn" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="inventory-confirm-btn stock-in">Add Item</button>
+                <button type="submit" class="inventory-confirm-btn stock-in" id="addInventorySubmitBtn">
+                    <i class="fas fa-plus-circle me-1"></i> Register Product
+                </button>
             </div>
         </form>
     </div>
@@ -2127,6 +2293,262 @@ document.addEventListener('DOMContentLoaded', function() {
                 restoreSubmitBtn.innerHTML = '<i class="fas fa-rotate-left me-1"></i> Confirm Reactivation';
             }
         });
+    }
+
+    // ==========================================
+    // Add Inventory Modal - Dynamic Cascading & Delivery Logic
+    // ==========================================
+    const catalogBrandModels = <?php echo json_encode($brand_models_map, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?> || {};
+    const addForm = document.getElementById('addInventoryForm');
+    const categorySelect = document.getElementById('add_category');
+    const brandSelect = document.getElementById('add_brand_select');
+    const brandCustomInput = document.getElementById('add_brand_custom');
+    const modelSelect = document.getElementById('add_model_select');
+    const modelCustomInput = document.getElementById('add_model_custom');
+    const sizeInput = document.getElementById('add_size');
+    const modelReqMark = document.getElementById('add_model_required_mark');
+    const sizeReqMark = document.getElementById('add_size_required_mark');
+
+    const scheduleToggle = document.getElementById('scheduleDeliveryToggle');
+    const deliveryContainer = document.getElementById('deliveryFieldsContainer');
+    const expectedQtyInput = document.getElementById('add_expected_quantity');
+    const sourceTypeSelect = document.getElementById('add_source_type');
+    const supplierNameInput = document.getElementById('add_supplier_name');
+    const supplierGroup = document.getElementById('deliverySupplierNameGroup');
+    const supplierLabel = document.getElementById('deliverySupplierNameLabel');
+
+    function updateCategoryRequirements() {
+        if (!categorySelect) return;
+        const isTire = (categorySelect.value === 'tire');
+
+        if (modelReqMark) modelReqMark.style.display = isTire ? '' : 'none';
+        if (sizeReqMark) sizeReqMark.style.display = isTire ? '' : 'none';
+
+        if (sizeInput) {
+            sizeInput.required = isTire;
+            sizeInput.placeholder = isTire ? 'e.g., 205/55R16' : 'Size, fitment, or short detail';
+        }
+
+        updateModelRequirement();
+    }
+
+    function updateModelRequirement() {
+        if (!categorySelect) return;
+        const isTire = (categorySelect.value === 'tire');
+        const isCustomModel = modelCustomInput && !modelCustomInput.classList.contains('d-none');
+
+        if (modelSelect) {
+            modelSelect.required = isTire && !isCustomModel;
+        }
+        if (modelCustomInput) {
+            modelCustomInput.required = isTire && isCustomModel;
+        }
+    }
+
+    function updateModelDropdown(brand) {
+        if (!modelSelect) return;
+        const currentModel = modelSelect.value;
+        const isOtherBrand = (brand === 'Other');
+
+        if (isOtherBrand) {
+            modelSelect.innerHTML = '<option value="Other" selected>Other / Custom Model...</option>';
+            if (modelCustomInput) {
+                modelCustomInput.classList.remove('d-none');
+                modelCustomInput.focus();
+            }
+            updateModelRequirement();
+            return;
+        }
+
+        if (!brand) {
+            modelSelect.innerHTML = '<option value="">-- Select Brand First --</option><option value="Other">Other / Custom Model...</option>';
+            if (modelCustomInput) {
+                modelCustomInput.classList.add('d-none');
+                modelCustomInput.value = '';
+            }
+            updateModelRequirement();
+            return;
+        }
+
+        const models = catalogBrandModels[brand] || [];
+        modelSelect.innerHTML = '<option value="">-- Select Model --</option>';
+        models.forEach(function(m) {
+            const opt = document.createElement('option');
+            opt.value = m;
+            opt.textContent = m;
+            if (m === currentModel) opt.selected = true;
+            modelSelect.appendChild(opt);
+        });
+
+        const otherOpt = document.createElement('option');
+        otherOpt.value = 'Other';
+        otherOpt.textContent = 'Other / Custom Model...';
+        modelSelect.appendChild(otherOpt);
+
+        if (modelSelect.value === 'Other') {
+            if (modelCustomInput) modelCustomInput.classList.remove('d-none');
+        } else {
+            if (modelCustomInput) {
+                modelCustomInput.classList.add('d-none');
+                modelCustomInput.value = '';
+            }
+        }
+        updateModelRequirement();
+    }
+
+    if (categorySelect) {
+        categorySelect.addEventListener('change', updateCategoryRequirements);
+    }
+
+    if (brandSelect) {
+        brandSelect.addEventListener('change', function() {
+            const selectedBrand = this.value;
+            if (selectedBrand === 'Other') {
+                if (brandCustomInput) {
+                    brandCustomInput.classList.remove('d-none');
+                    brandCustomInput.required = true;
+                    brandCustomInput.focus();
+                }
+            } else {
+                if (brandCustomInput) {
+                    brandCustomInput.classList.add('d-none');
+                    brandCustomInput.required = false;
+                    brandCustomInput.value = '';
+                }
+            }
+            updateModelDropdown(selectedBrand);
+        });
+    }
+
+    if (modelSelect) {
+        modelSelect.addEventListener('change', function() {
+            const selectedModel = this.value;
+            if (selectedModel === 'Other') {
+                if (modelCustomInput) {
+                    modelCustomInput.classList.remove('d-none');
+                    modelCustomInput.focus();
+                }
+            } else {
+                if (modelCustomInput) {
+                    modelCustomInput.classList.add('d-none');
+                    modelCustomInput.value = '';
+                }
+            }
+            updateModelRequirement();
+        });
+    }
+
+    // Schedule Delivery Toggle Logic
+    if (scheduleToggle) {
+        scheduleToggle.addEventListener('change', function() {
+            if (this.checked) {
+                if (deliveryContainer) deliveryContainer.classList.remove('d-none');
+                if (expectedQtyInput) expectedQtyInput.required = true;
+                if (sourceTypeSelect) sourceTypeSelect.required = true;
+            } else {
+                if (deliveryContainer) deliveryContainer.classList.add('d-none');
+                if (expectedQtyInput) {
+                    expectedQtyInput.required = false;
+                    expectedQtyInput.value = '';
+                }
+                if (sourceTypeSelect) {
+                    sourceTypeSelect.required = false;
+                    sourceTypeSelect.value = 'supplier_delivery';
+                }
+                if (supplierNameInput) {
+                    supplierNameInput.readOnly = false;
+                    supplierNameInput.value = '';
+                }
+            }
+        });
+    }
+
+    // Delivery Source Type Change Logic
+    if (sourceTypeSelect) {
+        sourceTypeSelect.addEventListener('change', function() {
+            const st = this.value;
+            if (!supplierNameInput) return;
+
+            if (st === 'tangub_warehouse') {
+                supplierNameInput.value = 'Central Warehouse (Tangub Hub)';
+                supplierNameInput.readOnly = true;
+                if (supplierLabel) supplierLabel.textContent = 'Warehouse Source';
+            } else if (st === 'sancarlos_warehouse') {
+                supplierNameInput.value = 'Auxiliary Warehouse (San Carlos Hub)';
+                supplierNameInput.readOnly = true;
+                if (supplierLabel) supplierLabel.textContent = 'Warehouse Source';
+            } else if (st === 'supplier_delivery') {
+                supplierNameInput.readOnly = false;
+                if (supplierNameInput.value.includes('Warehouse')) supplierNameInput.value = '';
+                supplierNameInput.placeholder = 'e.g., Yokohama PH / Manila Distributor';
+                if (supplierLabel) supplierLabel.textContent = 'Supplier Name';
+            } else {
+                supplierNameInput.readOnly = false;
+                if (supplierNameInput.value.includes('Warehouse')) supplierNameInput.value = '';
+                supplierNameInput.placeholder = 'e.g., Supplier, branch, or custom origin';
+                if (supplierLabel) supplierLabel.textContent = 'Source / Supplier Name';
+            }
+        });
+    }
+
+    // Add Form Validation
+    if (addForm) {
+        addForm.addEventListener('submit', function(e) {
+            const isTire = (categorySelect && categorySelect.value === 'tire');
+            const brandVal = brandSelect ? brandSelect.value : '';
+            const brandCustomVal = brandCustomInput ? brandCustomInput.value.trim() : '';
+            const modelVal = modelSelect ? modelSelect.value : '';
+            const modelCustomVal = modelCustomInput ? modelCustomInput.value.trim() : '';
+            const sizeVal = sizeInput ? sizeInput.value.trim() : '';
+
+            if (brandVal === 'Other' && !brandCustomVal) {
+                e.preventDefault();
+                alert('Please enter a custom brand name.');
+                if (brandCustomInput) brandCustomInput.focus();
+                return;
+            }
+
+            if (isTire) {
+                if (modelVal === 'Other' && !modelCustomVal) {
+                    e.preventDefault();
+                    alert('Please enter a model name for this tire.');
+                    if (modelCustomInput) modelCustomInput.focus();
+                    return;
+                }
+                if (!modelVal) {
+                    e.preventDefault();
+                    alert('Please select or specify a model for this tire.');
+                    if (modelSelect) modelSelect.focus();
+                    return;
+                }
+                if (!sizeVal) {
+                    e.preventDefault();
+                    alert('Please enter the tire size.');
+                    if (sizeInput) sizeInput.focus();
+                    return;
+                }
+            }
+
+            if (scheduleToggle && scheduleToggle.checked) {
+                const expQty = expectedQtyInput ? parseInt(expectedQtyInput.value, 10) : 0;
+                if (isNaN(expQty) || expQty <= 0) {
+                    e.preventDefault();
+                    alert('Please enter a valid expected delivery quantity (1 or greater).');
+                    if (expectedQtyInput) expectedQtyInput.focus();
+                    return;
+                }
+            }
+        });
+    }
+
+    // Scroll to & highlight newly created item row if added_id is in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const addedId = urlParams.get('added_id');
+    if (addedId) {
+        const targetRow = document.getElementById('inventory-row-' + addedId) || document.querySelector(`tr[data-item-id="${addedId}"]`);
+        if (targetRow) {
+            targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
     }
 });
 </script>

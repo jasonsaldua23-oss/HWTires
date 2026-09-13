@@ -4,8 +4,10 @@
  */
 
 require_once __DIR__ . '/../includes/config.php';
-session_name(SESSION_NAME);
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_name(SESSION_NAME);
+    session_start();
+}
 
 if (!is_logged_in()) {
     http_response_code(401);
@@ -18,8 +20,16 @@ $action = $_POST['action'] ?? $_GET['action'] ?? null;
 if (!function_exists('inventory_api_finish')) {
     function inventory_api_finish($success, $message, $status_code = 200, $payload = []) {
         if (!empty($_POST['redirect'])) {
+            $redirect = (string) $_POST['redirect'];
+            if ($success && !empty($payload['id'])) {
+                $parts = explode('#', $redirect, 2);
+                $base_url = $parts[0];
+                $fragment = isset($parts[1]) ? '#' . $parts[1] : '';
+                $separator = (strpos($base_url, '?') !== false) ? '&' : '?';
+                $redirect = $base_url . $separator . 'added_id=' . urlencode($payload['id']) . $fragment;
+            }
             set_flash_message($message, $success ? 'success' : 'danger');
-            redirect($_POST['redirect']);
+            redirect($redirect);
         }
 
         http_response_code($status_code);
@@ -737,29 +747,14 @@ if ($action === 'add') {
         }
 
         $branch_id = intval($_POST['branch_id'] ?? ($user['branch_id'] ?? 0));
-        $has_model_column = app_column_exists('inventory_items', 'model');
-        $has_serial_column = app_column_exists('inventory_items', 'serial_number');
-        $has_manufacturing_date_column = app_column_exists('inventory_items', 'manufacturing_date');
-
-        $item_name = inventory_api_clean_text($_POST['item_name'] ?? $_POST['tire_size'] ?? '', 'Item name', 255, true);
         $category = strtolower(inventory_api_clean_text($_POST['category'] ?? 'tire', 'Category', 40, true));
-        $brand = inventory_api_clean_text($_POST['brand'] ?? '', 'Brand', 100, true);
-        $model = inventory_api_clean_text($_POST['model'] ?? '', 'Model', 100, $has_model_column);
-        $size = inventory_api_clean_text($_POST['size'] ?? $_POST['tire_size'] ?? '', 'Size', 80, true);
-        $description = inventory_api_clean_text($_POST['description'] ?? '', 'Description', 500);
-        $sku = inventory_api_clean_code($_POST['sku'] ?? '', 'SKU', 100, true);
-        $serial_number = inventory_api_clean_code($_POST['serial_number'] ?? '', 'Serial number', 120, $has_serial_column);
-        $manufacturing_date = inventory_api_clean_date($_POST['manufacturing_date'] ?? '', 'Manufacturing date', $has_manufacturing_date_column);
-        $quantity = inventory_api_clean_int($_POST['quantity'] ?? 0, 'Quantity', 0, 100000);
-        $reorder_level = inventory_api_clean_int($_POST['reorder_level'] ?? 5, 'Reorder level', 1, 100000);
-        $unit_price = inventory_api_clean_money($_POST['unit_price'] ?? $_POST['unit_cost'] ?? '', 'Unit price', true);
-
-        if ($branch_id <= 0) {
-            throw new Exception('Branch is required');
-        }
 
         if (!in_array($category, ['tire', 'accessory', 'part'], true)) {
             throw new Exception('Invalid inventory category');
+        }
+
+        if ($branch_id <= 0) {
+            throw new Exception('Branch is required');
         }
 
         if (!has_branch_access($branch_id)) {
@@ -774,8 +769,49 @@ if ($action === 'add') {
             throw new Exception('Inventory is only available for inventory branches');
         }
 
+        // Brand resolution (Select or Custom)
+        $raw_brand = trim((string) ($_POST['brand'] ?? ''));
+        $raw_brand_custom = trim((string) ($_POST['brand_custom'] ?? ''));
+        if ($raw_brand === 'Other' || ($raw_brand === '' && $raw_brand_custom !== '')) {
+            $brand = inventory_api_clean_text($raw_brand_custom, 'Custom brand', 100, true);
+        } else {
+            $brand = inventory_api_clean_text($raw_brand, 'Brand', 100, true);
+        }
+
+        // Model resolution (Required for tires, optional for parts/accessories)
+        $is_tire = ($category === 'tire');
+        $raw_model = trim((string) ($_POST['model'] ?? ''));
+        $raw_model_custom = trim((string) ($_POST['model_custom'] ?? ''));
+        if ($raw_model === 'Other' || ($raw_brand === 'Other' && $raw_model_custom !== '')) {
+            $model = inventory_api_clean_text($raw_model_custom, 'Custom model', 100, $is_tire);
+        } else {
+            $model = inventory_api_clean_text($raw_model, 'Model', 100, $is_tire);
+        }
+
+        // Size (Required for tires, optional for parts/accessories)
+        $size = inventory_api_clean_text($_POST['size'] ?? $_POST['tire_size'] ?? '', 'Size', 80, $is_tire);
+
+        // Core fields
+        $item_name = inventory_api_clean_text($_POST['item_name'] ?? '', 'Item name', 255, true);
+        $description = inventory_api_clean_text($_POST['description'] ?? '', 'Description', 500, false);
+        $sku = inventory_api_clean_code($_POST['sku'] ?? '', 'SKU', 100, true);
+        $unit_price = inventory_api_clean_money($_POST['unit_price'] ?? $_POST['unit_cost'] ?? '', 'Unit price', true);
+        $reorder_level = inventory_api_clean_int($_POST['reorder_level'] ?? 5, 'Reorder level', 1, 100000);
+
+        // Optional serial number & manufacturing date
+        $serial_number = inventory_api_clean_code($_POST['serial_number'] ?? '', 'Serial number', 120, false);
+        $manufacturing_date = inventory_api_clean_date($_POST['manufacturing_date'] ?? '', 'Manufacturing date', false);
+
+        // Uniqueness checks
         inventory_api_ensure_unique_value('sku', $sku, 'SKU');
-        inventory_api_ensure_unique_value('serial_number', $serial_number, 'Serial number');
+        if ($serial_number !== '') {
+            inventory_api_ensure_unique_value('serial_number', $serial_number, 'Serial number');
+        }
+
+        // On-hand available stock always starts at 0 for new product registrations
+        $quantity = 0;
+
+        $pdo->beginTransaction();
 
         $insert_columns = [
             'branch_id',
@@ -823,7 +859,7 @@ if ($action === 'add') {
             'status',
         ]);
         $insert_values = array_merge($insert_values, [
-            $quantity,
+            0,
             $reorder_level,
             $unit_price,
             'active',
@@ -838,25 +874,111 @@ if ($action === 'add') {
                 ($placeholders)
         ");
         $stmt->execute($insert_values);
+        $item_id = (int) $pdo->lastInsertId();
 
-        $item_id = $pdo->lastInsertId();
-        if ($quantity > 0) {
-            inventory_api_log_transaction($item_id, 'stock_in', $quantity, 'Initial stock from add inventory item', 'initial_stock', $item_id);
-            log_audit('inventory_items', 'stock_in', $item_id, ['quantity' => 0], [
-                'quantity' => $quantity,
-                'added_quantity' => $quantity,
-                'item_name' => $item_name,
+        // Handle Optional Initial Delivery (Pending Arrival)
+        $schedule_delivery = !empty($_POST['schedule_delivery']);
+        $incoming_id = null;
+        $expected_quantity = 0;
+
+        if ($schedule_delivery) {
+            $expected_quantity = inventory_api_clean_int($_POST['expected_quantity'] ?? 0, 'Expected delivery quantity', 1, 100000);
+            $source_type = inventory_api_clean_text($_POST['source_type'] ?? 'supplier_delivery', 'Delivery source', 50, true);
+            $valid_source_types = ['supplier_delivery', 'tangub_warehouse', 'sancarlos_warehouse', 'other'];
+            if (!in_array($source_type, $valid_source_types, true)) {
+                throw new Exception('Invalid delivery source type');
+            }
+
+            $supplier_name = '';
+            if ($source_type === 'supplier_delivery') {
+                $supplier_name = inventory_api_clean_text($_POST['supplier_name'] ?? '', 'Supplier name', 150, false);
+            } elseif ($source_type === 'tangub_warehouse') {
+                $supplier_name = 'Central Warehouse (Tangub Hub)';
+            } elseif ($source_type === 'sancarlos_warehouse') {
+                $supplier_name = 'Auxiliary Warehouse (San Carlos Hub)';
+            } elseif ($source_type === 'other') {
+                $supplier_name = inventory_api_clean_text($_POST['supplier_name'] ?? '', 'Source name', 150, false);
+            }
+
+            $reference_number = inventory_api_clean_text($_POST['reference_number'] ?? '', 'Reference / DR number', 100, false);
+
+            $expected_arrival_date = '';
+            if (!empty($_POST['expected_arrival_date'])) {
+                $raw_arrival_date = trim((string) $_POST['expected_arrival_date']);
+                if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw_arrival_date)) {
+                    throw new Exception('Invalid expected arrival date');
+                }
+                [$year, $month, $day] = array_map('intval', explode('-', $raw_arrival_date));
+                if (!checkdate($month, $day, $year) || sprintf('%04d-%02d-%02d', $year, $month, $day) !== $raw_arrival_date) {
+                    throw new Exception('Invalid expected arrival date');
+                }
+                $expected_arrival_date = $raw_arrival_date;
+            }
+
+            $delivery_notes = inventory_api_clean_text($_POST['delivery_notes'] ?? '', 'Delivery notes', 1000, false);
+
+            $incoming_stmt = $pdo->prepare("
+                INSERT INTO inventory_incoming_stock (
+                    item_id, branch_id, expected_quantity, actual_quantity,
+                    source_type, supplier_name, reference_number,
+                    expected_arrival_date, status, notes, created_by
+                ) VALUES (
+                    ?, ?, ?, NULL,
+                    ?, ?, ?,
+                    ?, 'pending', ?, ?
+                )
+            ");
+            $incoming_stmt->execute([
+                $item_id,
+                $branch_id,
+                $expected_quantity,
+                $source_type,
+                $supplier_name !== '' ? $supplier_name : null,
+                $reference_number !== '' ? $reference_number : null,
+                $expected_arrival_date !== '' ? $expected_arrival_date : null,
+                $delivery_notes !== '' ? $delivery_notes : null,
+                (int) ($user['id'] ?? 0)
+            ]);
+            $incoming_id = (int) $pdo->lastInsertId();
+
+            log_audit('inventory_incoming_stock', 'create', $incoming_id, null, [
+                'item_id' => $item_id,
                 'branch_id' => $branch_id,
+                'expected_quantity' => $expected_quantity,
+                'source_type' => $source_type,
+                'supplier_name' => $supplier_name,
+                'reference_number' => $reference_number,
+                'expected_arrival_date' => $expected_arrival_date,
+                'status' => 'pending'
             ]);
         }
 
+        // Log audit for inventory_items
         log_audit('inventory_items', 'create', $item_id, null, [
             'item_name' => $item_name,
-            'quantity' => $quantity,
+            'category' => $category,
+            'branch_id' => $branch_id,
+            'sku' => $sku,
+            'quantity' => 0,
+            'scheduled_delivery' => $schedule_delivery,
+            'expected_quantity' => $expected_quantity,
         ]);
 
-        inventory_api_finish(true, 'Inventory item added successfully', 200, ['id' => $item_id]);
+        $pdo->commit();
+
+        $success_msg = $schedule_delivery
+            ? "Inventory product registered successfully (Available: 0). Delivery of {$expected_quantity} unit(s) scheduled (Pending Arrival)."
+            : "Inventory product registered successfully (Available: 0).";
+
+        inventory_api_finish(true, $success_msg, 200, [
+            'id' => $item_id,
+            'incoming_id' => $incoming_id,
+            'quantity' => 0
+        ]);
     } catch (Exception $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         error_log('Add inventory error: ' . $e->getMessage());
         inventory_api_finish(false, $e->getMessage(), 400);
     }
