@@ -498,10 +498,25 @@ if ($is_transaction_view) {
     $transactions = $transaction_stmt->fetchAll();
     $inventory = [];
 } else {
+    $has_incoming_table = app_table_exists('inventory_incoming_stock');
+    $incoming_join = $has_incoming_table
+        ? "LEFT JOIN (
+            SELECT item_id, SUM(expected_quantity) AS pending_incoming_qty
+            FROM inventory_incoming_stock
+            WHERE status = 'pending'
+            GROUP BY item_id
+        ) inc ON inc.item_id = i.id"
+        : "";
+    $incoming_select = $has_incoming_table
+        ? "COALESCE(inc.pending_incoming_qty, 0) AS pending_incoming_qty"
+        : "0 AS pending_incoming_qty";
+
     $inventory_stmt = $pdo->prepare("
-        SELECT i.*, b.name AS branch_name
+        SELECT i.*, b.name AS branch_name,
+               $incoming_select
         FROM inventory_items i
         LEFT JOIN branches b ON b.id = i.branch_id
+        $incoming_join
         WHERE $item_list_where_sql
         ORDER BY FIELD(i.category, 'tire', 'accessory', 'part'), i.item_name ASC
         LIMIT $per_page OFFSET $offset
@@ -510,15 +525,58 @@ if ($is_transaction_view) {
     $inventory = $inventory_stmt->fetchAll();
 }
 
+$has_incoming_table = app_table_exists('inventory_incoming_stock');
+$incoming_join = $has_incoming_table
+    ? "LEFT JOIN (
+        SELECT item_id, SUM(expected_quantity) AS pending_incoming_qty
+        FROM inventory_incoming_stock
+        WHERE status = 'pending'
+        GROUP BY item_id
+    ) inc ON inc.item_id = i.id"
+    : "";
+$incoming_select = $has_incoming_table
+    ? "COALESCE(inc.pending_incoming_qty, 0) AS pending_incoming_qty"
+    : "0 AS pending_incoming_qty";
+
 $low_stock_stmt = $pdo->prepare("
-    SELECT i.*, b.name AS branch_name
+    SELECT i.*, b.name AS branch_name,
+           $incoming_select
     FROM inventory_items i
     LEFT JOIN branches b ON b.id = i.branch_id
+    $incoming_join
     WHERE $where_sql AND i.quantity <= i.reorder_level
     ORDER BY i.quantity ASC, i.item_name ASC
 ");
 $low_stock_stmt->execute($filter_params);
 $low_stock_items = $low_stock_stmt->fetchAll();
+
+$pending_arrivals = [];
+if (app_table_exists('inventory_incoming_stock')) {
+    try {
+        $pending_arrivals_stmt = $pdo->prepare("
+            SELECT
+                inc.*,
+                i.item_name,
+                i.category,
+                i.brand,
+                i.model,
+                i.size,
+                i.sku,
+                i.unit_price,
+                u.name AS created_by_name
+            FROM inventory_incoming_stock inc
+            INNER JOIN inventory_items i ON i.id = inc.item_id
+            LEFT JOIN users u ON u.id = inc.created_by
+            WHERE inc.branch_id = ?
+              AND inc.status = 'pending'
+            ORDER BY COALESCE(inc.expected_arrival_date, inc.created_at) ASC, inc.id DESC
+        ");
+        $pending_arrivals_stmt->execute([$branch_id]);
+        $pending_arrivals = $pending_arrivals_stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $incoming_err) {
+        error_log('Front desk pending arrivals load error: ' . $incoming_err->getMessage());
+    }
+}
 
 $inventory_branches = forecast_load_inventory_branches($pdo);
 $inventory_branch_ids = array_values(array_map(static function ($branch) {
@@ -937,12 +995,37 @@ if ($view_filter === 'last_month_sales') {
     ];
 }
 
+$added_id = intval($_GET['added_id'] ?? 0);
 $active_filter_url = front_inventory_filter_url($category_filter, $search_filter, $per_page, $page, $view_filter, $sales_mode);
 $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === './' ? '' : $active_filter_url) . '#inventory-records';
 ?>
 
 <?php require_once '../../includes/header.php'; ?>
 <?php require_once '../../includes/sidebar.php'; ?>
+
+<style>
+.inventory-incoming-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 999px;
+    background-color: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+    margin-top: 4px;
+}
+.table-row-highlight {
+    animation: pulse-row 3s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+}
+@keyframes pulse-row {
+    0% { background-color: rgba(13, 148, 136, 0.25); }
+    50% { background-color: rgba(13, 148, 136, 0.15); }
+    100% { background-color: transparent; }
+}
+</style>
 
 <main class="inventory-records-page front-inventory-page">
     <header class="inventory-hero">
@@ -1119,6 +1202,118 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
         });
     });
     </script>
+
+    <details class="inventory-support-details inventory-pending-arrivals-panel" id="pending-arrivals" <?php echo !empty($pending_arrivals) ? 'open' : ''; ?>>
+        <summary class="inventory-support-summary">
+            <span class="inventory-support-title">
+                <i class="fas fa-truck-ramp-box text-warning"></i>
+                <strong>Pending Arrivals</strong>
+            </span>
+            <?php $front_incoming_count = count($pending_arrivals); ?>
+            <span class="inventory-support-count <?php echo $front_incoming_count > 0 ? 'bg-warning text-dark fw-bold' : ''; ?>">
+                <?php echo (int) $front_incoming_count; ?>
+                <?php echo $front_incoming_count === 1 ? 'shipment' : 'shipments'; ?>
+            </span>
+        </summary>
+        <div class="inventory-support-body">
+        <?php if (empty($pending_arrivals)): ?>
+            <div class="inventory-service-request-empty">
+                <i class="fas fa-box-open me-2 text-muted"></i>No pending stock arrivals scheduled for this branch.
+            </div>
+        <?php else: ?>
+            <div class="inventory-service-request-grid">
+                <?php foreach ($pending_arrivals as $incoming): ?>
+                    <?php
+                    $incoming_category = $incoming['category'] ?? 'part';
+                    $source_type = $incoming['source_type'] ?? 'supplier_delivery';
+                    $source_label = [
+                        'supplier_delivery' => 'Supplier Delivery',
+                        'tangub_warehouse' => 'Tangub Central Hub',
+                        'sancarlos_warehouse' => 'San Carlos Hub',
+                        'other' => 'Other Delivery',
+                    ][$source_type] ?? ucwords(str_replace('_', ' ', $source_type));
+                    $supplier_name = trim((string) ($incoming['supplier_name'] ?? ''));
+                    if ($supplier_name === '' && $source_type === 'supplier_delivery') {
+                        $supplier_name = 'Manila Distributor';
+                    }
+                    $ref_no = trim((string) ($incoming['reference_number'] ?? ''));
+                    $arrival_date = !empty($incoming['expected_arrival_date']) ? format_date($incoming['expected_arrival_date'], 'M j, Y') : 'Not specified';
+                    $created_date = !empty($incoming['created_at']) ? format_date($incoming['created_at'], 'M j, Y g:i A') : '-';
+                    $spec_parts = array_filter([
+                        $incoming['brand'] ?? '',
+                        $incoming['model'] ?? '',
+                        $incoming['size'] ?? '',
+                        $incoming['sku'] ? 'SKU: ' . $incoming['sku'] : ''
+                    ]);
+                    $spec_text = implode(' • ', $spec_parts);
+                    ?>
+                    <article class="inventory-service-request-card" style="border-left: 4px solid #f59e0b; background: #fffdfa;">
+                        <div class="inventory-service-request-card-top">
+                            <div>
+                                <h3 style="font-size: 1rem; font-weight: 700; color: #1e293b; margin-bottom: 3px;">
+                                    <?php echo esc_html(app_display_item_name($incoming['item_name'], $incoming_category)); ?>
+                                </h3>
+                                <p style="font-size: 0.82rem; color: #64748b; margin: 0;">
+                                    <?php echo esc_html($spec_text ?: 'Standard Product'); ?>
+                                </p>
+                            </div>
+                            <span class="badge bg-warning text-dark px-2 py-1" style="font-size: 0.75rem; font-weight: 700; border-radius: 6px;">
+                                <i class="fas fa-clock me-1"></i> Pending Arrival
+                            </span>
+                        </div>
+                        <div class="inventory-service-request-meta" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.82rem; margin: 10px 0; background: #fefce8; padding: 10px 12px; border-radius: 8px; border: 1px solid #fef08a;">
+                            <div>
+                                <span style="color: #713f12; display: block; font-size: 0.74rem; text-transform: uppercase; font-weight: 700;">Expected Quantity</span>
+                                <strong style="font-size: 1.05rem; color: #92400e;"><?php echo (int) $incoming['expected_quantity']; ?> units</strong>
+                            </div>
+                            <div>
+                                <span style="color: #713f12; display: block; font-size: 0.74rem; text-transform: uppercase; font-weight: 700;">Expected Date</span>
+                                <strong style="color: #1e293b;"><?php echo esc_html($arrival_date); ?></strong>
+                            </div>
+                            <div>
+                                <span style="color: #713f12; display: block; font-size: 0.74rem; text-transform: uppercase; font-weight: 700;">Source / Supplier</span>
+                                <span style="color: #1e293b; font-weight: 600;"><?php echo esc_html($source_label . ($supplier_name !== '' ? ' (' . $supplier_name . ')' : '')); ?></span>
+                            </div>
+                            <div>
+                                <span style="color: #713f12; display: block; font-size: 0.74rem; text-transform: uppercase; font-weight: 700;">Reference / DR #</span>
+                                <span style="color: #1e293b; font-weight: 600;"><?php echo esc_html($ref_no !== '' ? $ref_no : 'None'); ?></span>
+                            </div>
+                        </div>
+                        <?php if (!empty($incoming['notes'])): ?>
+                            <div style="font-size: 0.78rem; color: #64748b; margin-bottom: 8px; font-style: italic;">
+                                <i class="fas fa-note-sticky me-1 text-secondary"></i> <?php echo esc_html($incoming['notes']); ?>
+                            </div>
+                        <?php endif; ?>
+                        <div class="inventory-service-request-footer" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 10px; margin-top: 4px;">
+                            <span style="font-size: 0.74rem; color: #94a3b8;">
+                                Scheduled: <?php echo esc_html($created_date); ?>
+                            </span>
+                            <button type="button"
+                                    class="btn btn-sm btn-success js-receive-incoming"
+                                    style="font-weight: 700; padding: 6px 14px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px;"
+                                    data-incoming-id="<?php echo (int) $incoming['id']; ?>"
+                                    data-item-name="<?php echo esc_attr(app_display_item_name($incoming['item_name'], $incoming_category)); ?>"
+                                    data-category="<?php echo esc_attr($incoming_category); ?>"
+                                    data-brand="<?php echo esc_attr($incoming['brand'] ?? ''); ?>"
+                                    data-model="<?php echo esc_attr($incoming['model'] ?? ''); ?>"
+                                    data-size="<?php echo esc_attr($incoming['size'] ?? ''); ?>"
+                                    data-sku="<?php echo esc_attr($incoming['sku'] ?? ''); ?>"
+                                    data-expected-qty="<?php echo (int) $incoming['expected_quantity']; ?>"
+                                    data-source="<?php echo esc_attr($source_label); ?>"
+                                    data-supplier="<?php echo esc_attr($supplier_name); ?>"
+                                    data-ref="<?php echo esc_attr($ref_no); ?>"
+                                    data-arrival-date="<?php echo esc_attr($arrival_date); ?>"
+                                    title="Confirm physical receipt of this delivery">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Receive Stock</span>
+                            </button>
+                        </div>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+        </div>
+    </details>
 
     <details class="inventory-support-details inventory-service-request-panel" id="requested-items">
         <summary class="inventory-support-summary">
@@ -1369,6 +1564,11 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                     <span class="inventory-branch-pill inventory-branch-<?php echo $alert_branch_id; ?>">
                                         <?php echo esc_html($alert_branch_name); ?>
                                     </span>
+                                    <?php if ((int) ($item['pending_incoming_qty'] ?? 0) > 0): ?>
+                                        <span class="inventory-incoming-badge" title="Incoming shipment pending physical arrival at branch">
+                                            <i class="fas fa-truck-ramp-box"></i> Incoming: <?php echo (int) $item['pending_incoming_qty']; ?> (Pending Arrival)
+                                        </span>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                             <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
@@ -1816,10 +2016,17 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                 $row_branch_label = front_inventory_branch_label($item['branch_name'] ?? '');
                                 $detail_lines = front_inventory_item_detail_lines($item);
                                 ?>
-                                <tr class="<?php echo $is_low_stock ? 'is-low-stock' : ''; ?>">
+                                <tr id="inventory-row-<?php echo (int) $item['id']; ?>" class="<?php echo $is_low_stock ? 'is-low-stock' : ''; ?> <?php echo ($added_id === (int) $item['id']) ? 'table-row-highlight' : ''; ?>">
                                     <td>
                                         <strong><?php echo esc_html(app_display_item_name($item['item_name'], $item['category'] ?? null)); ?></strong>
                                         <small class="inventory-item-brand"><?php echo esc_html($item['brand'] ?: 'Unbranded'); ?></small>
+                                        <?php if ((int) ($item['pending_incoming_qty'] ?? 0) > 0): ?>
+                                            <div>
+                                                <span class="inventory-incoming-badge" title="Incoming shipment pending physical arrival at branch">
+                                                    <i class="fas fa-truck-ramp-box"></i> Incoming: <?php echo (int) $item['pending_incoming_qty']; ?> (Pending Arrival)
+                                                </span>
+                                            </div>
+                                        <?php endif; ?>
                                     </td>
                                     <td>
                                         <span class="inventory-category category-<?php echo esc_attr($category); ?>">
@@ -2213,6 +2420,88 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="submit" class="btn btn-primary" id="adjustSubmitBtn">
                     <i class="fas fa-check-circle me-1"></i> Confirm Adjustment
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Receive Incoming Stock Modal -->
+<div class="modal fade" id="receiveStockModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" action="/hwtires/api/inventory-api.php" class="modal-content" id="receiveStockForm">
+            <input type="hidden" name="csrf_token" value="<?php echo generate_csrf_token(); ?>">
+            <input type="hidden" name="action" value="receive_incoming_stock">
+            <input type="hidden" name="incoming_id" id="receiveIncomingId" value="">
+            <input type="hidden" name="redirect" value="<?php echo esc_attr($redirect_url); ?>">
+
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold text-dark">
+                    <i class="fas fa-truck-ramp-box text-success me-2"></i>Confirm Stock Arrival
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body p-4">
+                <!-- Delivery Summary Card -->
+                <div class="bg-light p-3 rounded-3 border mb-3">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h6 class="fw-bold mb-1 text-dark" id="receiveItemName">-</h6>
+                            <div class="text-muted small" id="receiveItemMeta">-</div>
+                        </div>
+                        <span class="badge bg-warning text-dark px-2 py-1">Pending Arrival</span>
+                    </div>
+                    <hr class="my-2 text-muted">
+                    <div class="row g-2 small text-secondary">
+                        <div class="col-6">
+                            <span>Source: </span><strong class="text-dark" id="receiveSource">-</strong>
+                        </div>
+                        <div class="col-6">
+                            <span>Supplier: </span><strong class="text-dark" id="receiveSupplierName">-</strong>
+                        </div>
+                        <div class="col-6">
+                            <span>DR / Ref #: </span><strong class="text-dark" id="receiveRefNo">-</strong>
+                        </div>
+                        <div class="col-6">
+                            <span>Expected Date: </span><strong class="text-dark" id="receiveArrivalDate">-</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold text-secondary mb-1">Expected Delivery</label>
+                        <div class="form-control-plaintext fs-5 fw-bold text-primary px-2 bg-light rounded border text-center" id="receiveExpectedDisplay">
+                            0 units
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold text-secondary mb-1">Actual Quantity Received <span class="text-danger">*</span></label>
+                        <input type="number"
+                               name="actual_quantity"
+                               id="receiveActualQty"
+                               class="form-control form-control-lg fw-bold text-center border-success"
+                               min="1"
+                               max="100000"
+                               required
+                               placeholder="e.g., 24">
+                    </div>
+                </div>
+
+                <!-- Discrepancy Notice Box -->
+                <div class="mb-2" id="receiveDiscrepancyNotice" style="display: none;">
+                    <div class="alert alert-warning py-2 px-3 small mb-0 d-flex align-items-center gap-2" id="receiveDiscrepancyAlert">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span id="receiveDiscrepancyText"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer border-top bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-success" id="receiveSubmitBtn">
+                    <i class="fas fa-check-circle me-1"></i> Confirm &amp; Stock In
                 </button>
             </div>
         </form>
@@ -3039,6 +3328,99 @@ document.addEventListener('DOMContentLoaded', function() {
                 adjustSubmitBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Confirm Adjustment';
             }
         });
+    }
+
+    // Receive Incoming Stock Modal Logic
+    const receiveModalEl = document.getElementById('receiveStockModal');
+    const receiveModal = receiveModalEl ? new bootstrap.Modal(receiveModalEl) : null;
+    const receiveForm = document.getElementById('receiveStockForm');
+    const receiveActualQty = document.getElementById('receiveActualQty');
+    const receiveExpectedDisplay = document.getElementById('receiveExpectedDisplay');
+    const receiveDiscrepancyNotice = document.getElementById('receiveDiscrepancyNotice');
+    const receiveDiscrepancyText = document.getElementById('receiveDiscrepancyText');
+    const receiveSubmitBtn = document.getElementById('receiveSubmitBtn');
+    let receiveExpectedQtyVal = 0;
+
+    function updateReceiveDiscrepancy() {
+        if (!receiveActualQty || !receiveDiscrepancyNotice) return;
+        const actualVal = parseInt(receiveActualQty.value || '0', 10);
+        if (actualVal > 0 && actualVal !== receiveExpectedQtyVal) {
+            receiveDiscrepancyNotice.style.display = 'block';
+            const diff = actualVal - receiveExpectedQtyVal;
+            if (diff > 0) {
+                receiveDiscrepancyText.textContent = 'Actual count is +' + diff + ' more than expected (' + receiveExpectedQtyVal + ' expected, ' + actualVal + ' received).';
+            } else {
+                receiveDiscrepancyText.textContent = 'Actual count is ' + Math.abs(diff) + ' less than expected (' + receiveExpectedQtyVal + ' expected, ' + actualVal + ' received). Discrepancy will be logged.';
+            }
+        } else {
+            receiveDiscrepancyNotice.style.display = 'none';
+        }
+    }
+
+    if (receiveActualQty) {
+        receiveActualQty.addEventListener('input', updateReceiveDiscrepancy);
+    }
+
+    document.querySelectorAll('.js-receive-incoming').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const incomingId = this.dataset.incomingId || '';
+            const itemName = this.dataset.itemName || '';
+            const brand = this.dataset.brand || '';
+            const model = this.dataset.model || '';
+            const size = this.dataset.size || '';
+            const sku = this.dataset.sku || '';
+            const expectedQty = parseInt(this.dataset.expectedQty || '0', 10);
+            const source = this.dataset.source || 'Delivery';
+            const supplier = this.dataset.supplier || 'N/A';
+            const ref = this.dataset.ref || 'None';
+            const arrivalDate = this.dataset.arrivalDate || 'N/A';
+
+            receiveExpectedQtyVal = expectedQty;
+            document.getElementById('receiveIncomingId').value = incomingId;
+            document.getElementById('receiveItemName').textContent = itemName;
+            document.getElementById('receiveItemMeta').textContent = [brand, model, size, sku ? 'SKU: ' + sku : ''].filter(Boolean).join(' • ');
+            document.getElementById('receiveSource').textContent = source;
+            document.getElementById('receiveSupplierName').textContent = supplier || 'N/A';
+            document.getElementById('receiveRefNo').textContent = ref || 'None';
+            document.getElementById('receiveArrivalDate').textContent = arrivalDate;
+            document.getElementById('receiveExpectedDisplay').textContent = expectedQty + ' units';
+            document.getElementById('receiveActualQty').value = expectedQty > 0 ? expectedQty : 1;
+
+            updateReceiveDiscrepancy();
+
+            if (receiveModal) {
+                receiveModal.show();
+                setTimeout(function() {
+                    if (receiveActualQty) receiveActualQty.focus();
+                }, 300);
+            }
+        });
+    });
+
+    if (receiveForm) {
+        receiveForm.addEventListener('submit', function(e) {
+            const actualVal = parseInt(receiveActualQty ? receiveActualQty.value.trim() : '0', 10);
+            if (!actualVal || isNaN(actualVal) || actualVal <= 0) {
+                e.preventDefault();
+                alert('Please enter a valid actual quantity received (greater than 0).');
+                if (receiveActualQty) receiveActualQty.focus();
+                return false;
+            }
+
+            if (receiveSubmitBtn) {
+                receiveSubmitBtn.disabled = true;
+                receiveSubmitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Processing Receipt...';
+            }
+        });
+    }
+
+    // Auto-scroll and highlight added/received item row
+    const addedId = <?php echo (int) $added_id; ?>;
+    if (addedId > 0) {
+        const row = document.getElementById('inventory-row-' + addedId);
+        if (row) {
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
     }
 
     <?php if (!empty($requested_stock_in_item)): ?>

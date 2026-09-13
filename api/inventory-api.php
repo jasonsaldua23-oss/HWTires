@@ -4,6 +4,7 @@
  */
 
 require_once __DIR__ . '/../includes/config.php';
+global $pdo;
 if (session_status() === PHP_SESSION_NONE) {
     session_name(SESSION_NAME);
     session_start();
@@ -941,6 +942,24 @@ if ($action === 'add') {
             ]);
             $incoming_id = (int) $pdo->lastInsertId();
 
+            if (app_table_exists('transfer_notifications')) {
+                $notif_title = 'Pending Stock Arrival';
+                $notif_message = $item_name . ' — ' . $expected_quantity . ' unit(s) expected';
+                $notif_action_url = '/hwtires/front-desk/tire-inventory/#pending-arrivals';
+
+                $notif_stmt = $pdo->prepare("
+                    INSERT INTO transfer_notifications
+                        (branch_id, user_id, transfer_request_id, title, message, type, action_url, is_read, created_at)
+                    VALUES (?, NULL, NULL, ?, ?, 'info', ?, 0, NOW())
+                ");
+                $notif_stmt->execute([
+                    $branch_id,
+                    $notif_title,
+                    $notif_message,
+                    $notif_action_url,
+                ]);
+            }
+
             log_audit('inventory_incoming_stock', 'create', $incoming_id, null, [
                 'item_id' => $item_id,
                 'branch_id' => $branch_id,
@@ -980,6 +999,157 @@ if ($action === 'add') {
             $pdo->rollBack();
         }
         error_log('Add inventory error: ' . $e->getMessage());
+        inventory_api_finish(false, $e->getMessage(), 400);
+    }
+}
+
+// Handle Receive Incoming Stock (Front Desk Physical Arrival Confirmation)
+if ($action === 'receive_incoming_stock') {
+    try {
+        if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+            throw new Exception('Invalid security token');
+        }
+
+        $user_role = $user['role'] ?? '';
+        if ($user_role !== 'front-desk') {
+            throw new Exception('Only front desk personnel can receive incoming stock deliveries for their branch.');
+        }
+
+        $incoming_id = intval($_POST['incoming_id'] ?? $_POST['id'] ?? 0);
+        if ($incoming_id <= 0) {
+            throw new Exception('Invalid incoming stock delivery record');
+        }
+
+        $actual_quantity = inventory_api_clean_int($_POST['actual_quantity'] ?? $_POST['quantity'] ?? 0, 'Actual quantity received', 1, 100000);
+
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare("
+            SELECT inc.*, i.item_name, i.category, i.branch_id AS item_branch_id, i.quantity AS current_item_qty
+            FROM inventory_incoming_stock inc
+            INNER JOIN inventory_items i ON i.id = inc.item_id
+            WHERE inc.id = ?
+            FOR UPDATE
+        ");
+        $stmt->execute([$incoming_id]);
+        $incoming = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$incoming) {
+            throw new Exception('Incoming delivery record not found');
+        }
+
+        if ($incoming['status'] !== 'pending') {
+            throw new Exception('This incoming delivery has already been processed and is no longer pending arrival.');
+        }
+
+        $incoming_branch_id = (int) ($incoming['branch_id'] ?? 0);
+        $item_branch_id = (int) ($incoming['item_branch_id'] ?? 0);
+
+        // Security: Front Desk can only receive for their own assigned branch
+        $user_branch_id = (int) ($user['branch_id'] ?? 0);
+        if ($incoming_branch_id !== $user_branch_id) {
+            throw new Exception('Unauthorized: You can only receive stock arrivals for your assigned branch');
+        }
+
+        if ($incoming_branch_id !== $item_branch_id) {
+            throw new Exception('Branch mismatch between delivery and inventory item');
+        }
+
+        $item_id = (int) $incoming['item_id'];
+        $old_quantity = (int) $incoming['current_item_qty'];
+        $new_quantity = $old_quantity + $actual_quantity;
+
+        // 1. Update inventory_items quantity and restock date
+        $update_item = $pdo->prepare("
+            UPDATE inventory_items
+            SET quantity = quantity + ?,
+                last_restock_date = CURDATE(),
+                updated_at = NOW()
+            WHERE id = ?
+        ");
+        $update_item->execute([$actual_quantity, $item_id]);
+
+        // 2. Format transaction notes
+        $source_type = $incoming['source_type'] ?? 'supplier_delivery';
+        $supplier_name = trim((string) ($incoming['supplier_name'] ?? ''));
+        $reference_number = trim((string) ($incoming['reference_number'] ?? ''));
+        $delivery_notes = trim((string) ($incoming['notes'] ?? ''));
+
+        $note_parts = ['Scheduled Delivery Receipt (Pending Arrival)'];
+        if ($source_type === 'tangub_warehouse') {
+            $note_parts[] = 'Tangub Central Warehouse Delivery';
+        } elseif ($source_type === 'sancarlos_warehouse') {
+            $note_parts[] = 'San Carlos Warehouse Delivery';
+        } elseif ($source_type === 'supplier_delivery') {
+            $note_parts[] = 'Supplier Delivery' . ($supplier_name !== '' ? ': ' . $supplier_name : ' (Manila Distributor)');
+        } elseif ($source_type !== '') {
+            $note_parts[] = ucwords(str_replace('_', ' ', $source_type));
+        }
+
+        if ($reference_number !== '') {
+            $note_parts[] = 'DR #: ' . $reference_number;
+        }
+        if ((int) $actual_quantity !== (int) $incoming['expected_quantity']) {
+            $note_parts[] = 'Discrepancy: Received ' . $actual_quantity . ' of ' . (int) $incoming['expected_quantity'] . ' expected';
+        }
+        if ($delivery_notes !== '') {
+            $note_parts[] = 'Original Note: ' . $delivery_notes;
+        }
+        $final_notes = implode(' | ', $note_parts);
+
+        // 3. Log stock_in transaction
+        inventory_api_log_transaction($item_id, 'stock_in', $actual_quantity, $final_notes, $source_type ?: 'supplier_delivery', $incoming_id);
+
+        // 4. Update incoming delivery record
+        $update_incoming = $pdo->prepare("
+            UPDATE inventory_incoming_stock
+            SET actual_quantity = ?,
+                status = 'received',
+                received_by = ?,
+                received_at = NOW(),
+                updated_at = NOW()
+            WHERE id = ?
+        ");
+        $update_incoming->execute([
+            $actual_quantity,
+            (int) ($user['id'] ?? 0),
+            $incoming_id
+        ]);
+
+        // 5. Audit logs
+        log_audit('inventory_incoming_stock', 'receive', $incoming_id, [
+            'status' => 'pending',
+            'actual_quantity' => null,
+        ], [
+            'status' => 'received',
+            'actual_quantity' => $actual_quantity,
+            'expected_quantity' => (int) $incoming['expected_quantity'],
+            'received_by' => (int) ($user['id'] ?? 0),
+        ]);
+
+        log_audit('inventory_items', 'stock_in', $item_id, [
+            'quantity' => $old_quantity,
+        ], [
+            'quantity' => $new_quantity,
+            'added_quantity' => $actual_quantity,
+            'source_type' => $source_type,
+            'incoming_stock_id' => $incoming_id,
+        ]);
+
+        $pdo->commit();
+
+        $success_msg = 'Stock arrival confirmed successfully (' . $actual_quantity . ' unit(s) added to inventory).';
+        inventory_api_finish(true, $success_msg, 200, [
+            'id' => $item_id,
+            'incoming_id' => $incoming_id,
+            'received_quantity' => $actual_quantity,
+            'new_quantity' => $new_quantity,
+        ]);
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log('Receive incoming stock error: ' . $e->getMessage());
         inventory_api_finish(false, $e->getMessage(), 400);
     }
 }
