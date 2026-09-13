@@ -113,7 +113,51 @@ try {
         $transfer_latest = null;
         $transfer_notification_ids = '';
 
-        if (!$is_admin_header && $user_branch_id > 0) {
+        if ($is_admin_header) {
+            $transfer_count_stmt = $pdo->prepare("
+                SELECT COUNT(*) AS total, GROUP_CONCAT(tn.id ORDER BY tn.created_at DESC) AS ids
+                FROM transfer_notifications tn
+                LEFT JOIN inter_branch_transfer_requests tr ON tr.id = tn.transfer_request_id
+                WHERE tn.is_read = 0
+                  AND tn.user_id = ?
+                  AND (
+                      tn.transfer_request_id IS NULL
+                      OR tr.status IN ('pending', 'approved', 'shipped', 'received')
+                  )
+            ");
+            $transfer_count_stmt->execute([(int) ($user['id'] ?? 0)]);
+            $transfer_count_row = $transfer_count_stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+            $transfer_notification_count = (int) ($transfer_count_row['total'] ?? 0);
+            $transfer_notification_ids = (string) ($transfer_count_row['ids'] ?? '');
+
+            if ($transfer_notification_count > 0) {
+                $transfer_latest_stmt = $pdo->prepare("
+                    SELECT
+                        tn.id,
+                        tn.title,
+                        tn.message,
+                        tn.type,
+                        tn.action_url,
+                        tr.status,
+                        tr.item_name,
+                        tr.requested_quantity,
+                        rb.name AS requesting_branch_name
+                    FROM transfer_notifications tn
+                    LEFT JOIN inter_branch_transfer_requests tr ON tr.id = tn.transfer_request_id
+                    LEFT JOIN branches rb ON rb.id = tr.requesting_branch_id
+                    WHERE tn.is_read = 0
+                      AND tn.user_id = ?
+                      AND (
+                          tn.transfer_request_id IS NULL
+                          OR tr.status IN ('pending', 'approved', 'shipped', 'received')
+                      )
+                    ORDER BY tn.created_at DESC
+                    LIMIT 1
+                ");
+                $transfer_latest_stmt->execute([(int) ($user['id'] ?? 0)]);
+                $transfer_latest = $transfer_latest_stmt->fetch();
+            }
+        } elseif ($user_branch_id > 0) {
             $transfer_count_stmt = $pdo->prepare("
                 SELECT COUNT(*) AS total, GROUP_CONCAT(tn.id ORDER BY tn.created_at DESC) AS ids
                 FROM transfer_notifications tn
@@ -162,15 +206,15 @@ try {
         if ($transfer_notification_count > 0) {
             $header_notification_count += $transfer_notification_count;
             $header_notifications[] = [
-                'id' => 'incoming-transfer-requests-branch-' . $user_branch_id,
+                'id' => $is_admin_header ? 'admin-transfer-notifications' : ('incoming-transfer-requests-branch-' . $user_branch_id),
                 'count' => $transfer_notification_count,
                 'type' => $transfer_latest['type'] ?? 'warning',
-                'icon' => 'fas fa-right-left',
+                'icon' => ($transfer_latest['type'] ?? '') === 'warning' ? 'fas fa-triangle-exclamation' : 'fas fa-right-left',
                 'title' => $transfer_notification_count === 1
-                    ? ($transfer_latest['title'] ?? 'Transfer notification')
-                    : $transfer_notification_count . ' transfer notifications',
-                'detail' => $transfer_latest['message'] ?? 'Review branch transfer updates',
-                'href' => !empty($transfer_latest['action_url']) ? $transfer_latest['action_url'] : $base_url . '/tire-inventory/#requested-items',
+                    ? ($transfer_latest['title'] ?? ($is_admin_header ? 'Stock notification' : 'Transfer notification'))
+                    : ($is_admin_header ? $transfer_notification_count . ' stock notifications' : $transfer_notification_count . ' transfer notifications'),
+                'detail' => $transfer_latest['message'] ?? 'Review branch stock updates',
+                'href' => !empty($transfer_latest['action_url']) ? $transfer_latest['action_url'] : ($base_url . ($is_admin_header ? '/tire-inventory/transactions.php' : '/tire-inventory/#requested-items')),
                 'db_ids' => $transfer_notification_ids,
             ];
         }

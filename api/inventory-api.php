@@ -1260,6 +1260,60 @@ if ($action === 'receive_incoming_stock') {
             $incoming_id
         ]);
 
+        // 5. Admin Discrepancy Notification
+        if ((int) $actual_quantity !== (int) $incoming['expected_quantity']) {
+            if (app_table_exists('transfer_notifications')) {
+                $admin_stmt = $pdo->query("SELECT id FROM users WHERE role = 'admin' AND status = 'active'");
+                $admin_users = $admin_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                if (!empty($admin_users)) {
+                    $branch_stmt = $pdo->prepare("SELECT name FROM branches WHERE id = ?");
+                    $branch_stmt->execute([$incoming_branch_id]);
+                    $raw_branch_name = $branch_stmt->fetchColumn() ?: ('Branch #' . $incoming_branch_id);
+                    $branch_display_name = function_exists('app_branch_label') ? app_branch_label($raw_branch_name, 'Branch') : $raw_branch_name;
+
+                    $expected_qty = (int) $incoming['expected_quantity'];
+                    $actual_qty = (int) $actual_quantity;
+                    $diff = $actual_qty - $expected_qty;
+                    $abs_diff = abs($diff);
+                    $unit_word = ($abs_diff === 1) ? 'unit' : 'units';
+                    $diff_text = ($diff < 0) ? "{$abs_diff} {$unit_word} short" : "{$abs_diff} {$unit_word} over";
+
+                    $notif_title = 'Stock Arrival Discrepancy';
+                    $notif_item_name = trim((string) ($incoming['item_name'] ?? 'Inventory Item'));
+                    $notif_message = sprintf(
+                        '%s — Expected %d %s, received %d %s at %s (%s).',
+                        $notif_item_name,
+                        $expected_qty,
+                        ($expected_qty === 1 ? 'unit' : 'units'),
+                        $actual_qty,
+                        ($actual_qty === 1 ? 'unit' : 'units'),
+                        $branch_display_name,
+                        $diff_text
+                    );
+                    $notif_url = '/hwtires/admin/tire-inventory/transactions.php';
+
+                    $notif_insert = $pdo->prepare("
+                        INSERT INTO transfer_notifications
+                            (branch_id, user_id, transfer_request_id, title, message, type, action_url, is_read, created_at)
+                        VALUES (?, ?, NULL, ?, ?, 'warning', ?, 0, NOW())
+                    ");
+
+                    foreach ($admin_users as $admin) {
+                        $notif_insert->execute([
+                            $incoming_branch_id,
+                            (int) $admin['id'],
+                            $notif_title,
+                            $notif_message,
+                            $notif_url
+                        ]);
+                    }
+                } else {
+                    error_log('Discrepancy notification: No active admin users found to notify for incoming stock id ' . $incoming_id);
+                }
+            }
+        }
+
         // 5. Audit logs
         log_audit('inventory_incoming_stock', 'receive', $incoming_id, [
             'status' => 'pending',

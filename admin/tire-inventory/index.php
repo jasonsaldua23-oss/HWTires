@@ -374,6 +374,7 @@ try {
     $canonical_catalog_products = [];
 }
 
+$added_id = intval($_GET['added_id'] ?? 0);
 $valid_inventory_views = ['all', 'stock_in', 'stock_out', 'low_stock', 'last_month_sales'];
 $view_filter = strtolower(trim($_GET['view'] ?? 'all'));
 if (!in_array($view_filter, $valid_inventory_views, true)) {
@@ -679,6 +680,34 @@ if ($is_transaction_view) {
     ");
     $inventory_stmt->execute($item_list_params);
     $inventory = $inventory_stmt->fetchAll();
+
+    // Ensure newly created item is rendered in DOM even if excluded by current pagination or filters
+    if ($added_id > 0 && !$is_transaction_view) {
+        $found_in_list = false;
+        foreach ($inventory as $existing_item) {
+            if ((int) ($existing_item['id'] ?? 0) === $added_id) {
+                $found_in_list = true;
+                break;
+            }
+        }
+
+        if (!$found_in_list) {
+            $added_item_stmt = $pdo->prepare("
+                SELECT i.*, b.name AS branch_name,
+                       $incoming_select
+                FROM inventory_items i
+                LEFT JOIN branches b ON b.id = i.branch_id
+                $incoming_join
+                WHERE i.id = ?
+            ");
+            $added_item_stmt->execute([$added_id]);
+            $added_item = $added_item_stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($added_item) {
+                array_unshift($inventory, $added_item);
+            }
+        }
+    }
 }
 
 $has_incoming_table = app_table_exists('inventory_incoming_stock');
@@ -3081,6 +3110,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const targetRow = document.getElementById('inventory-row-' + addedId) || document.querySelector(`tr[data-item-id="${addedId}"]`);
         if (targetRow) {
             targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            try {
+                urlParams.delete('added_id');
+                const newQuery = urlParams.toString();
+                const newUrl = window.location.pathname + (newQuery ? '?' + newQuery : '') + window.location.hash;
+                window.history.replaceState({}, document.title, newUrl);
+            } catch (e) {
+                // Fail harmlessly
+            }
         }
     }
 });

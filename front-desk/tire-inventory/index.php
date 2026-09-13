@@ -203,6 +203,8 @@ if (!$inventory_branch) {
     redirect('/hwtires/front-desk/');
 }
 
+$added_id = intval($_GET['added_id'] ?? $_GET['received_id'] ?? 0);
+
 $requested_stock_in_item = null;
 if (($_GET['action'] ?? '') === 'stock_in' && !empty($_GET['item_id'])) {
     $req_stmt = $pdo->prepare("SELECT * FROM inventory_items WHERE id = ? AND branch_id = ? AND status = 'active' LIMIT 1");
@@ -523,6 +525,34 @@ if ($is_transaction_view) {
     ");
     $inventory_stmt->execute($item_list_params);
     $inventory = $inventory_stmt->fetchAll();
+
+    // Ensure newly added or received item is rendered in DOM even if excluded by current pagination or filters
+    if ($added_id > 0 && !$is_transaction_view) {
+        $found_in_list = false;
+        foreach ($inventory as $existing_item) {
+            if ((int) ($existing_item['id'] ?? 0) === $added_id) {
+                $found_in_list = true;
+                break;
+            }
+        }
+
+        if (!$found_in_list) {
+            $added_item_stmt = $pdo->prepare("
+                SELECT i.*, b.name AS branch_name,
+                       $incoming_select
+                FROM inventory_items i
+                LEFT JOIN branches b ON b.id = i.branch_id
+                $incoming_join
+                WHERE i.id = ? AND i.branch_id = ? AND i.status = 'active'
+            ");
+            $added_item_stmt->execute([$added_id, $branch_id]);
+            $added_item = $added_item_stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($added_item) {
+                array_unshift($inventory, $added_item);
+            }
+        }
+    }
 }
 
 $has_incoming_table = app_table_exists('inventory_incoming_stock');
@@ -995,7 +1025,7 @@ if ($view_filter === 'last_month_sales') {
     ];
 }
 
-$added_id = intval($_GET['added_id'] ?? 0);
+$added_id = intval($_GET['added_id'] ?? $_GET['received_id'] ?? 0);
 $active_filter_url = front_inventory_filter_url($category_filter, $search_filter, $per_page, $page, $view_filter, $sales_mode);
 $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === './' ? '' : $active_filter_url) . '#inventory-records';
 ?>
@@ -2027,7 +2057,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                 $row_branch_label = front_inventory_branch_label($item['branch_name'] ?? '');
                                 $detail_lines = front_inventory_item_detail_lines($item);
                                 ?>
-                                <tr id="inventory-row-<?php echo (int) $item['id']; ?>" class="<?php echo $is_low_stock ? 'is-low-stock' : ''; ?> <?php echo ($added_id === (int) $item['id']) ? 'table-row-highlight' : ''; ?>">
+                                <tr id="inventory-row-<?php echo (int) $item['id']; ?>" data-item-id="<?php echo (int) $item['id']; ?>" class="<?php echo $is_low_stock ? 'is-low-stock' : ''; ?> <?php echo ($added_id === (int) $item['id']) ? 'table-row-highlight' : ''; ?>">
                                     <td>
                                         <strong><?php echo esc_html(app_display_item_name($item['item_name'], $item['category'] ?? null)); ?></strong>
                                         <small class="inventory-item-brand"><?php echo esc_html($item['brand'] ?: 'Unbranded'); ?></small>
@@ -3546,9 +3576,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-scroll and highlight added/received item row
     const addedId = <?php echo (int) $added_id; ?>;
     if (addedId > 0) {
-        const row = document.getElementById('inventory-row-' + addedId);
+        const row = document.getElementById('inventory-row-' + addedId) || document.querySelector(`tr[data-item-id="${addedId}"]`);
         if (row) {
             row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                urlParams.delete('added_id');
+                urlParams.delete('received_id');
+                const newQuery = urlParams.toString();
+                const newUrl = window.location.pathname + (newQuery ? '?' + newQuery : '') + window.location.hash;
+                window.history.replaceState({}, document.title, newUrl);
+            } catch (e) {
+                // Fail harmlessly
+            }
         }
     }
 
