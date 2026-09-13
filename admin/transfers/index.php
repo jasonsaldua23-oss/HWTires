@@ -180,7 +180,7 @@ include __DIR__ . '/../../includes/sidebar.php';
                         <div class="transfers-search-input-wrap">
                             <div class="search-input-wrap position-relative flex-grow-1">
                                 <i class="fas fa-search position-absolute top-50 translate-middle-y text-muted" style="left: 14px;"></i>
-                                <input type="text" name="search" class="form-control" value="<?= htmlspecialchars($search) ?>" placeholder="Request #, item, reason, user...">
+                                <input type="text" name="search" maxlength="100" data-text-format="first-letter" class="form-control" value="<?= htmlspecialchars($search) ?>" placeholder="Request #, item, reason, user...">
                             </div>
                             <button type="submit" class="btn btn-secondary transfers-search-btn">
                                 <i class="fas fa-search me-1"></i> Search

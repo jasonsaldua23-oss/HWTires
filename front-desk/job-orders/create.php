@@ -418,7 +418,7 @@ if (!empty($job_quotation_ids)) {
                         <label for="quotation_id">Approved service operation <span>*</span></label>
                         <label class="job-quote-search" for="jobQuotationSearch">
                             <span>Search approved service operation</span>
-                            <input type="search" id="jobQuotationSearch" placeholder="Type customer, plate, or service operation number..." autocomplete="off">
+                            <input type="search" id="jobQuotationSearch" maxlength="100" data-text-format="first-letter" placeholder="Type customer, plate, or service operation number..." autocomplete="off">
                             <div class="job-quote-results" id="jobQuotationResults" hidden></div>
                         </label>
                         <select id="quotation_id" name="quotation_id" class="job-quote-select" required>
@@ -604,6 +604,8 @@ if (!empty($job_quotation_ids)) {
                         <i class="fas fa-search"></i>
                         <input type="search"
                                name="search"
+                               maxlength="100"
+                               data-text-format="first-letter"
                                value="<?php echo esc_attr($job_search_filter); ?>"
                                placeholder="Search job order, customer, plate...">
                     </label>

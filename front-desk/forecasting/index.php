@@ -382,6 +382,8 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
                         <i class="fas fa-search"></i>
                         <input type="search"
                                name="search"
+                               maxlength="100"
+                               data-text-format="first-letter"
                                value="<?php echo esc_attr($search_filter); ?>"
                                placeholder="Search item, brand, size, SKU...">
                     </label>

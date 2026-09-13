@@ -2337,7 +2337,7 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
                     <span>Search</span>
                     <div class="reports-search-input-wrap position-relative">
                         <i class="fas fa-search position-absolute top-50 translate-middle-y text-muted" style="left: 14px;"></i>
-                        <input type="search" name="search" value="<?php echo esc_attr($search_filter); ?>" placeholder="Customer, plate, item, service, reference...">
+                        <input type="search" name="search" maxlength="100" data-text-format="first-letter" value="<?php echo esc_attr($search_filter); ?>" placeholder="Customer, plate, item, service, reference...">
                     </div>
                 </label>
                 <button type="submit" class="reports-search-submit">Search</button>

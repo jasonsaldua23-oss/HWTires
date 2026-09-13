@@ -2082,7 +2082,7 @@ foreach ($record_sections as $record_section) {
                 </label>
                 <label class="vehicle-workspace-search">
                     <span>Search</span>
-                    <input type="search" name="search" value="<?php echo esc_attr($search_filter); ?>" placeholder="Record number, service, item, note, branch">
+                    <input type="search" name="search" maxlength="100" data-text-format="first-letter" value="<?php echo esc_attr($search_filter); ?>" placeholder="Record number, service, item, note, branch">
                 </label>
                 <button type="submit" class="vehicle-workspace-btn primary">Apply</button>
                 <?php if ($branch_filter !== '' || $status_filter !== 'all' || $search_filter !== '' || ($date_filter['scope'] ?? 'all') !== 'all'): ?>

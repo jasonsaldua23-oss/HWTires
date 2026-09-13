@@ -353,6 +353,8 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                         <i class="fas fa-search"></i>
                         <input type="search"
                                name="search"
+                               maxlength="100"
+                               data-text-format="first-letter"
                                value="<?php echo esc_attr($search_filter); ?>"
                                placeholder="Search service operation, customer, plate...">
                     </label>

@@ -878,6 +878,8 @@ include __DIR__ . '/../../includes/sidebar.php';
                             <input type="text"
                                    id="auditSearchInput"
                                    name="search"
+                                   maxlength="100"
+                                   data-text-format="first-letter"
                                    class="form-control bg-light border-start-0"
                                    placeholder="Search user, action, JO reference, ID..."
                                    value="<?php echo esc_attr($search_query); ?>"

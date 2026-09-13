@@ -310,7 +310,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
             <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
             <label class="vehicle-search-field">
                 <i class="fas fa-search"></i>
-                <input type="text" name="search" placeholder="Search by plate number, vehicle make/model, or customer name..." value="<?php echo esc_attr($search); ?>">
+                <input type="text" name="search" maxlength="100" data-text-format="first-letter" placeholder="Search by plate number, vehicle make/model, or customer name..." value="<?php echo esc_attr($search); ?>">
             </label>
             <select name="branch" class="vehicle-branch-select" onchange="this.form.submit()">
                 <option value="">All Branches</option>

@@ -300,7 +300,7 @@ if (!function_exists('inventory_transaction_vehicle_label')) {
                 <span>Search</span>
                 <span class="inventory-search-field">
                     <i class="fas fa-search"></i>
-                    <input type="search" name="search" placeholder="Search item, brand, size, notes..." value="<?php echo esc_attr($search); ?>">
+                    <input type="search" name="search" maxlength="100" data-text-format="first-letter" placeholder="Search item, brand, size, notes..." value="<?php echo esc_attr($search); ?>">
                 </span>
             </label>
             <button type="submit" class="inventory-search-btn inventory-transaction-filter-btn">

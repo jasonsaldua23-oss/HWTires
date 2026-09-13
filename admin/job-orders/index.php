@@ -453,6 +453,8 @@ $hidden_for_date = [
                     <i class="fas fa-search"></i>
                     <input type="search"
                            name="search"
+                           maxlength="100"
+                           data-text-format="first-letter"
                            value="<?php echo esc_attr($search_filter); ?>"
                            placeholder="Search plate, customer, job order, technician, service...">
                 </label>
