@@ -409,7 +409,7 @@ if ($action === 'stock_in') {
             $supplier_name = inventory_api_clean_text($_POST['supplier_name'] ?? '', 'Supplier / Source name', 150, false);
         }
 
-        $reference_number = inventory_api_clean_text($_POST['reference_number'] ?? '', 'Reference / DR number', 100, false);
+        $reference_number = inventory_api_clean_text($_POST['reference_number'] ?? '', 'Reference number', 100, true);
         $custom_notes = inventory_api_clean_text($_POST['notes'] ?? '', 'Notes', 500, false);
 
         if ($item_id <= 0) {
@@ -793,49 +793,164 @@ if ($action === 'add') {
             throw new Exception('Inventory is only available for inventory branches');
         }
 
-        // Brand resolution (Select or Custom)
-        $raw_brand = trim((string) ($_POST['brand'] ?? ''));
-        $raw_brand_custom = trim((string) ($_POST['brand_custom'] ?? ''));
-        if ($raw_brand === 'Other' || ($raw_brand === '' && $raw_brand_custom !== '')) {
-            $brand = inventory_api_clean_text($raw_brand_custom, 'Custom brand', 100, true);
-        } else {
-            $brand = inventory_api_clean_text($raw_brand, 'Brand', 100, true);
+        $creation_mode = strtolower(trim((string) ($_POST['creation_mode'] ?? 'new')));
+        if (!in_array($creation_mode, ['new', 'existing'], true)) {
+            $creation_mode = 'new';
         }
 
-        // Model resolution (Required for tires, optional for parts/accessories)
-        $is_tire = ($category === 'tire');
-        $raw_model = trim((string) ($_POST['model'] ?? ''));
-        $raw_model_custom = trim((string) ($_POST['model_custom'] ?? ''));
-        if ($raw_model === 'Other' || ($raw_brand === 'Other' && $raw_model_custom !== '')) {
-            $model = inventory_api_clean_text($raw_model_custom, 'Custom model', 100, $is_tire);
-        } else {
-            $model = inventory_api_clean_text($raw_model, 'Model', 100, $is_tire);
+        $pdo->beginTransaction();
+
+        // Acquire global catalog sequence row lock as creation mutex
+        $stmtSeq = $pdo->prepare("
+            SELECT last_catalog_number
+            FROM inventory_catalog_sequence
+            WHERE sequence_key = 'global_catalog'
+            FOR UPDATE
+        ");
+        $stmtSeq->execute();
+        $seqRow = $stmtSeq->fetch(PDO::FETCH_ASSOC);
+        if (!$seqRow) {
+            throw new Exception('Catalog sequence allocator record is missing. Please initialize inventory_catalog_sequence.');
         }
+        $last_catalog_number = (int) $seqRow['last_catalog_number'];
 
-        // Size (Required for tires, optional for parts/accessories)
-        $size = inventory_api_clean_text($_POST['size'] ?? $_POST['tire_size'] ?? '', 'Size', 80, $is_tire);
+        $item_name = '';
+        $category = '';
+        $brand = '';
+        $model = '';
+        $size = '';
+        $description = '';
+        $sku = '';
+        $serial_number = '';
+        $unit_price = 0.00;
+        $reorder_level = 5;
+        $manufacturing_date = null;
 
-        // Core fields
-        $item_name = inventory_api_clean_text($_POST['item_name'] ?? '', 'Item name', 255, true);
-        $description = inventory_api_clean_text($_POST['description'] ?? '', 'Description', 500, false);
-        $sku = inventory_api_clean_code($_POST['sku'] ?? '', 'SKU', 100, true);
-        $unit_price = inventory_api_clean_money($_POST['unit_price'] ?? $_POST['unit_cost'] ?? '', 'Unit price', true);
-        $reorder_level = inventory_api_clean_int($_POST['reorder_level'] ?? 5, 'Reorder level', 1, 100000);
+        if ($creation_mode === 'existing') {
+            $source_item_id = intval($_POST['source_item_id'] ?? 0);
+            $submitted_catalog_num = intval($_POST['catalog_number'] ?? $_POST['existing_catalog_number'] ?? 0);
 
-        // Optional serial number & manufacturing date
-        $serial_number = inventory_api_clean_code($_POST['serial_number'] ?? '', 'Serial number', 120, false);
-        $manufacturing_date = inventory_api_clean_date($_POST['manufacturing_date'] ?? '', 'Manufacturing date', false);
+            if ($source_item_id <= 0) {
+                throw new Exception('Please select an existing catalog product to link.');
+            }
+
+            $stmtSource = $pdo->prepare("
+                SELECT id, branch_id, category, item_name, brand, model, size, description, unit_price, reorder_level, sku, serial_number
+                FROM inventory_items
+                WHERE id = ? AND status = 'active'
+            ");
+            $stmtSource->execute([$source_item_id]);
+            $sourceItem = $stmtSource->fetch(PDO::FETCH_ASSOC);
+            if (!$sourceItem) {
+                throw new Exception('Selected catalog source product was not found or is inactive.');
+            }
+
+            if (!preg_match('/^B[0-9]+-(TIR|PAR|ACC)-([0-9]{5})$/', $sourceItem['sku'], $sm)) {
+                throw new Exception('Selected source product does not use a canonical catalog SKU format.');
+            }
+            $source_cat_prefix = $sm[1];
+            $source_catalog_num = (int) $sm[2];
+
+            if ($submitted_catalog_num > 0 && $submitted_catalog_num !== $source_catalog_num) {
+                throw new Exception('Submitted catalog number does not match the source product catalog identity.');
+            }
+
+            $expected_category = ($source_cat_prefix === 'TIR') ? 'tire' : (($source_cat_prefix === 'ACC') ? 'accessory' : 'part');
+            if ($sourceItem['category'] !== $expected_category) {
+                throw new Exception('Source item category does not match its canonical SKU code.');
+            }
+
+            // Inherit canonical product specs
+            $item_name = $sourceItem['item_name'];
+            $category = $sourceItem['category'];
+            $brand = $sourceItem['brand'];
+            $model = $sourceItem['model'];
+            $size = $sourceItem['size'];
+
+            // Format destination identifiers
+            $sku = sprintf('B%d-%s-%05d', $branch_id, $source_cat_prefix, $source_catalog_num);
+            $suffix = (($source_catalog_num * 7) % 89) + 10;
+            $serial_number = sprintf('HW-%s-B%d-%05d-%02d', $source_cat_prefix, $branch_id, $source_catalog_num, $suffix);
+
+            // Check if destination branch already carries this catalog product (active or archived)
+            $stmtBranchCheck = $pdo->prepare("
+                SELECT id, item_name, status
+                FROM inventory_items
+                WHERE branch_id = ?
+                  AND (sku = ? OR serial_number = ?)
+            ");
+            $stmtBranchCheck->execute([$branch_id, $sku, $serial_number]);
+            $existingBranchItem = $stmtBranchCheck->fetch(PDO::FETCH_ASSOC);
+            if ($existingBranchItem) {
+                $status_msg = ($existingBranchItem['status'] === 'active') ? 'active' : 'archived';
+                throw new Exception("This catalog product (Catalog #{$source_catalog_num}) is already registered at this branch as Item #{$existingBranchItem['id']} ({$status_msg}).");
+            }
+
+            // Destination editable fields
+            $raw_price = trim((string) ($_POST['unit_price'] ?? ''));
+            $unit_price = $raw_price !== '' ? inventory_api_clean_money($raw_price, 'Unit price', true) : floatval($sourceItem['unit_price']);
+            $raw_reorder = trim((string) ($_POST['reorder_level'] ?? ''));
+            $reorder_level = $raw_reorder !== '' ? inventory_api_clean_int($raw_reorder, 'Reorder level', 1, 100000) : intval($sourceItem['reorder_level'] ?: 5);
+            $raw_desc = trim((string) ($_POST['description'] ?? ''));
+            $description = $raw_desc !== '' ? inventory_api_clean_text($raw_desc, 'Description', 500, false) : ($sourceItem['description'] ?: null);
+            $manufacturing_date = inventory_api_clean_date($_POST['manufacturing_date'] ?? '', 'Manufacturing date', false);
+
+        } else {
+            // creation_mode === 'new'
+            $category = strtolower(inventory_api_clean_text($_POST['category'] ?? 'tire', 'Category', 40, true));
+            if (!in_array($category, ['tire', 'accessory', 'part'], true)) {
+                throw new Exception('Invalid inventory category');
+            }
+            $cat_prefix = ($category === 'tire') ? 'TIR' : (($category === 'accessory') ? 'ACC' : 'PAR');
+
+            // Allocate next catalog number
+            $allocated_catalog_num = $last_catalog_number + 1;
+            $stmtUpdateSeq = $pdo->prepare("
+                UPDATE inventory_catalog_sequence
+                SET last_catalog_number = ?
+                WHERE sequence_key = 'global_catalog'
+            ");
+            $stmtUpdateSeq->execute([$allocated_catalog_num]);
+
+            // Brand resolution (Select or Custom)
+            $raw_brand = trim((string) ($_POST['brand'] ?? ''));
+            $raw_brand_custom = trim((string) ($_POST['brand_custom'] ?? ''));
+            if ($raw_brand === 'Other' || ($raw_brand === '' && $raw_brand_custom !== '')) {
+                $brand = inventory_api_clean_text($raw_brand_custom, 'Custom brand', 100, true);
+            } else {
+                $brand = inventory_api_clean_text($raw_brand, 'Brand', 100, true);
+            }
+
+            // Model resolution (Required for tires, optional for parts/accessories)
+            $is_tire = ($category === 'tire');
+            $raw_model = trim((string) ($_POST['model'] ?? ''));
+            $raw_model_custom = trim((string) ($_POST['model_custom'] ?? ''));
+            if ($raw_model === 'Other' || ($raw_brand === 'Other' && $raw_model_custom !== '')) {
+                $model = inventory_api_clean_text($raw_model_custom, 'Custom model', 100, $is_tire);
+            } else {
+                $model = inventory_api_clean_text($raw_model, 'Model', 100, $is_tire);
+            }
+
+            // Size (Required for tires, optional for parts/accessories)
+            $size = inventory_api_clean_text($_POST['size'] ?? $_POST['tire_size'] ?? '', 'Size', 80, $is_tire);
+
+            $item_name = inventory_api_clean_text($_POST['item_name'] ?? '', 'Item name', 255, true);
+            $description = inventory_api_clean_text($_POST['description'] ?? '', 'Description', 500, false);
+            $unit_price = inventory_api_clean_money($_POST['unit_price'] ?? $_POST['unit_cost'] ?? '', 'Unit price', true);
+            $reorder_level = inventory_api_clean_int($_POST['reorder_level'] ?? 5, 'Reorder level', 1, 100000);
+            $manufacturing_date = inventory_api_clean_date($_POST['manufacturing_date'] ?? '', 'Manufacturing date', false);
+
+            $sku = sprintf('B%d-%s-%05d', $branch_id, $cat_prefix, $allocated_catalog_num);
+            $suffix = (($allocated_catalog_num * 7) % 89) + 10;
+            $serial_number = sprintf('HW-%s-B%d-%05d-%02d', $cat_prefix, $branch_id, $allocated_catalog_num, $suffix);
+        }
 
         // Uniqueness checks
         inventory_api_ensure_unique_value('sku', $sku, 'SKU');
-        if ($serial_number !== '') {
-            inventory_api_ensure_unique_value('serial_number', $serial_number, 'Serial number');
-        }
+        inventory_api_ensure_unique_value('serial_number', $serial_number, 'Serial number');
 
         // On-hand available stock always starts at 0 for new product registrations
         $quantity = 0;
-
-        $pdo->beginTransaction();
 
         $insert_columns = [
             'branch_id',
@@ -924,7 +1039,7 @@ if ($action === 'add') {
                 $supplier_name = inventory_api_clean_text($_POST['supplier_name'] ?? '', 'Source name', 150, true);
             }
 
-            $reference_number = inventory_api_clean_text($_POST['reference_number'] ?? '', 'Reference / DR number', 100, false);
+            $reference_number = inventory_api_clean_text($_POST['reference_number'] ?? '', 'Delivery reference number', 100, true);
 
             $expected_arrival_date = '';
             if (!empty($_POST['expected_arrival_date'])) {

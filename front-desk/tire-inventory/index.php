@@ -2192,8 +2192,8 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                         <input type="text" id="stockInSupplier" name="supplier_name" maxlength="150" data-text-format="first-letter" placeholder="e.g., Yokohama Philippines" required>
                     </label>
                     <label class="inventory-stock-field" style="grid-column: span 2;" id="stockInRefGroup">
-                        <span id="stockInRefLabel">DR / Invoice #</span>
-                        <input type="text" id="stockInRef" name="reference_number" maxlength="100" placeholder="e.g., DR-2026-0831 / INV-9921">
+                        <span id="stockInRefLabel">Reference / PO / DR / Invoice # <b style="color: #dc3545;">*</b></span>
+                        <input type="text" id="stockInRef" name="reference_number" maxlength="100" placeholder="e.g., PO-2026-001 / DR-0891 / INV-1234" required>
                     </label>
                 </div>
                 <label class="inventory-stock-field" style="margin-top: 10px; display: block;">
@@ -2583,22 +2583,31 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             stockInSupplier.placeholder = 'e.g., Yokohama Philippines';
             stockInSupplier.required = true;
-            if (stockInRefLabel) stockInRefLabel.textContent = 'DR / Invoice #';
-            if (stockInRef) stockInRef.placeholder = 'e.g., DR-2026-0831 / INV-9921';
+            if (stockInRefLabel) stockInRefLabel.innerHTML = 'Reference / PO / DR / Invoice # <b style="color: #dc3545;">*</b>';
+            if (stockInRef) {
+                stockInRef.placeholder = 'e.g., PO-2026-001 / DR-0891 / INV-1234';
+                stockInRef.required = true;
+            }
         } else if (st === 'tangub_warehouse') {
             if (stockInSupplierLabel) stockInSupplierLabel.innerHTML = 'Warehouse Source';
             stockInSupplier.value = 'Central Warehouse (Tangub Hub)';
             stockInSupplier.readOnly = true;
             stockInSupplier.required = false;
-            if (stockInRefLabel) stockInRefLabel.textContent = 'Dispatch / Transfer Reference #';
-            if (stockInRef) stockInRef.placeholder = 'e.g., TR-2026-104';
+            if (stockInRefLabel) stockInRefLabel.innerHTML = 'Dispatch / Transfer Reference # <b style="color: #dc3545;">*</b>';
+            if (stockInRef) {
+                stockInRef.placeholder = 'e.g., TR-2026-104 or Dispatch #';
+                stockInRef.required = true;
+            }
         } else if (st === 'sancarlos_warehouse') {
             if (stockInSupplierLabel) stockInSupplierLabel.innerHTML = 'Warehouse Source';
             stockInSupplier.value = 'Auxiliary Warehouse (San Carlos Hub)';
             stockInSupplier.readOnly = true;
             stockInSupplier.required = false;
-            if (stockInRefLabel) stockInRefLabel.textContent = 'Dispatch / Transfer Reference #';
-            if (stockInRef) stockInRef.placeholder = 'e.g., TR-2026-104';
+            if (stockInRefLabel) stockInRefLabel.innerHTML = 'Dispatch / Transfer Reference # <b style="color: #dc3545;">*</b>';
+            if (stockInRef) {
+                stockInRef.placeholder = 'e.g., TR-2026-104 or Dispatch #';
+                stockInRef.required = true;
+            }
         } else if (st === 'other') {
             if (stockInSupplierLabel) stockInSupplierLabel.innerHTML = 'Source Name <b style="color: #dc3545;">*</b>';
             stockInSupplier.readOnly = false;
@@ -2607,8 +2616,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             stockInSupplier.placeholder = 'e.g., Custom source / origin';
             stockInSupplier.required = true;
-            if (stockInRefLabel) stockInRefLabel.textContent = 'Reference #';
-            if (stockInRef) stockInRef.placeholder = 'e.g., Reference number or PO #';
+            if (stockInRefLabel) stockInRefLabel.innerHTML = 'Reference # <b style="color: #dc3545;">*</b>';
+            if (stockInRef) {
+                stockInRef.placeholder = 'e.g., Reference number or PO #';
+                stockInRef.required = true;
+            }
         }
     }
 
@@ -2631,6 +2643,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 e.preventDefault();
                 alert('Please enter a source name.');
                 if (stockInSupplier) stockInSupplier.focus();
+                return false;
+            }
+
+            const refVal = stockInRef ? stockInRef.value.trim() : '';
+            if (!refVal) {
+                e.preventDefault();
+                alert('Please enter a reference number.');
+                if (stockInRef) stockInRef.focus();
                 return false;
             }
         });

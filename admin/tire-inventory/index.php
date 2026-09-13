@@ -53,7 +53,8 @@ if (!function_exists('inventory_item_details')) {
 
 if (!function_exists('inventory_item_detail_lines')) {
     function inventory_item_detail_lines($item) {
-        $serial = trim((string) ($item['serial_number'] ?? $item['sku'] ?? ''));
+        $sku = trim((string) ($item['sku'] ?? ''));
+        $serial = trim((string) ($item['serial_number'] ?? ''));
         $model = trim((string) ($item['model'] ?? ''));
         $size = trim((string) ($item['size'] ?? ''));
         $category = strtolower(trim((string) ($item['category'] ?? '')));
@@ -69,12 +70,23 @@ if (!function_exists('inventory_item_detail_lines')) {
             $model = $description;
         }
 
-        return [
+        $lines = [
             ['label' => $size_label, 'value' => $size !== '' ? $size : '-'],
             ['label' => 'Model', 'value' => $model !== '' ? $model : '-'],
-            ['label' => 'Serial/SKU', 'value' => $serial !== '' ? $serial : '-'],
-            ['label' => 'Mfg Date', 'value' => $manufacturing_date !== '' ? format_date($manufacturing_date, 'M d, Y') : '-'],
         ];
+
+        if ($sku !== '') {
+            $lines[] = ['label' => 'SKU', 'value' => $sku];
+        }
+        if ($serial !== '') {
+            $lines[] = ['label' => 'Inventory Serial', 'value' => $serial];
+        } elseif ($sku === '') {
+            $lines[] = ['label' => 'Serial/SKU', 'value' => '-'];
+        }
+
+        $lines[] = ['label' => 'Mfg Date', 'value' => $manufacturing_date !== '' ? format_date($manufacturing_date, 'M d, Y') : '-'];
+
+        return $lines;
     }
 }
 
@@ -285,6 +297,81 @@ foreach ($raw_brand_models as $bm_row) {
     if ($bm_brand !== '' && $bm_model !== '') {
         $brand_models_map[$bm_brand][] = $bm_model;
     }
+}
+
+// Fetch and aggregate canonical company catalog products for Add Inventory Item modal
+$canonical_catalog_products = [];
+try {
+    $canon_stmt = $pdo->query("
+        SELECT i.id, i.branch_id, i.category, i.item_name, i.brand, i.model, i.size, i.description, i.unit_price, i.reorder_level, i.sku, i.serial_number,
+               b.name AS branch_name
+        FROM inventory_items i
+        LEFT JOIN branches b ON b.id = i.branch_id
+        WHERE i.status = 'active' AND i.sku REGEXP '^B[0-9]+-(TIR|PAR|ACC)-[0-9]{5}$'
+        ORDER BY i.id ASC
+    ");
+    $raw_canon_items = $canon_stmt ? $canon_stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    $canon_by_num = [];
+    foreach ($raw_canon_items as $ci) {
+        if (!preg_match('/^B([0-9]+)-(TIR|PAR|ACC)-([0-9]{5})$/', $ci['sku'], $cm)) {
+            continue;
+        }
+        $catCode = $cm[2];
+        $cNum = (int) $cm[3];
+        $bName = inventory_branch_label($ci['branch_name'] ?? ('Branch ' . $ci['branch_id']));
+
+        if (!isset($canon_by_num[$cNum])) {
+            $canon_by_num[$cNum] = [
+                'catalog_number' => $cNum,
+                'category_code' => $catCode,
+                'category' => $ci['category'],
+                'primary_name' => $ci['item_name'],
+                'carrying_branch_names' => [],
+                'carrying_branch_ids' => [],
+                'variants' => [],
+            ];
+        }
+
+        if (!in_array($bName, $canon_by_num[$cNum]['carrying_branch_names'], true)) {
+            $canon_by_num[$cNum]['carrying_branch_names'][] = $bName;
+            $canon_by_num[$cNum]['carrying_branch_ids'][] = (int) $ci['branch_id'];
+        }
+
+        $vKey = strtolower(trim((string)$ci['item_name'])) . '|' .
+                strtolower(trim((string)$ci['brand'])) . '|' .
+                strtolower(trim((string)$ci['model'])) . '|' .
+                strtolower(trim((string)$ci['size']));
+
+        if (!isset($canon_by_num[$cNum]['variants'][$vKey])) {
+            $canon_by_num[$cNum]['variants'][$vKey] = [
+                'sample_item_id' => (int) $ci['id'],
+                'item_name' => $ci['item_name'],
+                'category' => $ci['category'],
+                'brand' => $ci['brand'],
+                'model' => $ci['model'] ?: '',
+                'size' => $ci['size'] ?: '',
+                'description' => $ci['description'] ?: '',
+                'unit_price' => (float) $ci['unit_price'],
+                'reorder_level' => (int) $ci['reorder_level'],
+                'branch_names' => [$bName],
+                'branch_ids' => [(int) $ci['branch_id']],
+            ];
+        } else {
+            if (!in_array($bName, $canon_by_num[$cNum]['variants'][$vKey]['branch_names'], true)) {
+                $canon_by_num[$cNum]['variants'][$vKey]['branch_names'][] = $bName;
+                $canon_by_num[$cNum]['variants'][$vKey]['branch_ids'][] = (int) $ci['branch_id'];
+            }
+        }
+    }
+
+    foreach ($canon_by_num as &$cp) {
+        $cp['variants'] = array_values($cp['variants']);
+        $cp['has_multiple_variants'] = (count($cp['variants']) > 1);
+    }
+    unset($cp);
+    $canonical_catalog_products = array_values($canon_by_num);
+} catch (Exception $e) {
+    $canonical_catalog_products = [];
 }
 
 $valid_inventory_views = ['all', 'stock_in', 'stock_out', 'low_stock', 'last_month_sales'];
@@ -950,6 +1037,12 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
     color: #92400e;
     border: 1px solid #fde68a;
     margin-top: 4px;
+}
+.inventory-form-grid {
+    align-items: flex-start !important;
+}
+.inventory-form-grid label {
+    align-content: flex-start !important;
 }
 </style>
 
@@ -1649,6 +1742,65 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
             </div>
 
             <div class="inventory-modal-body">
+                <!-- Registration Mode Selector -->
+                <div class="mb-3 p-3 bg-light rounded-3 border">
+                    <label class="form-label fw-bold text-dark mb-2 d-block" style="font-size: 13.5px;">
+                        <i class="fas fa-layer-group text-primary me-1"></i> Product Type
+                    </label>
+                    <div class="d-flex flex-wrap gap-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="creation_mode" id="mode_new" value="new" checked style="cursor: pointer;">
+                            <label class="form-check-label fw-semibold text-dark" for="mode_new" style="cursor: pointer;">
+                                <i class="fas fa-plus-circle text-success me-1"></i> Register Brand-New Product
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="creation_mode" id="mode_existing" value="existing" style="cursor: pointer;">
+                            <label class="form-check-label fw-semibold text-dark" for="mode_existing" style="cursor: pointer;">
+                                <i class="fas fa-link text-primary me-1"></i> Existing Company Product
+                            </label>
+                        </div>
+                    </div>
+                    <div class="small text-muted mt-1" id="mode_description">
+                        Create a brand-new catalog product definition with company-standard SKU & Inventory Serial Number.
+                    </div>
+                </div>
+
+                <!-- Existing Company Product Selector (Displayed only in 'existing' mode) -->
+                <div id="existingProductSection" class="d-none mb-3 p-3 border rounded-3 bg-white border-primary-subtle shadow-sm">
+                    <label class="form-label fw-bold text-primary mb-1 d-flex align-items-center justify-content-between">
+                        <span><i class="fas fa-search me-1"></i> Select Company Catalog Product <span class="text-danger">*</span></span>
+                        <span class="badge bg-primary-subtle text-primary" id="catalog_count_badge"><?php echo count($canonical_catalog_products); ?> Canonical Products</span>
+                    </label>
+                    <div class="small text-muted mb-2">Search canonical company catalog by Catalog #, Item Name, Brand, Model, Size, or Category:</div>
+                    <select id="existing_catalog_select" class="form-select mb-2" style="font-size: 13px;">
+                        <option value="">-- Type or Select an Existing Catalog Product --</option>
+                        <?php foreach ($canonical_catalog_products as $cp): ?>
+                            <?php
+                                $stock_str = implode(', ', $cp['carrying_branch_names']);
+                                $v0 = $cp['variants'][0] ?? [];
+                                $spec_parts = array_filter([$v0['brand'] ?? '', $v0['model'] ?? '', $v0['size'] ?? '']);
+                                $spec_str = implode(' • ', $spec_parts);
+                            ?>
+                            <option value="<?php echo (int)$cp['catalog_number']; ?>">
+                                [#<?php echo (int)$cp['catalog_number']; ?>] <?php echo esc_html($cp['primary_name']); ?> (<?php echo esc_html(ucfirst($cp['category'])); ?><?php echo $spec_str !== '' ? ' • ' . esc_html($spec_str) : ''; ?>) — Stocked at: <?php echo esc_html($stock_str); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+
+                    <input type="hidden" name="catalog_number" id="hidden_catalog_number" value="">
+                    <input type="hidden" name="source_item_id" id="hidden_source_item_id" value="">
+
+                    <!-- Metadata Variant Selector (Displayed when a catalog product has multiple differing branch specifications) -->
+                    <div id="metadataVariantContainer" class="d-none mt-3 p-3 bg-light rounded-3 border border-warning-subtle">
+                        <div class="small fw-bold text-dark mb-1">
+                            <i class="fas fa-code-fork text-warning me-1"></i> Product Specification Source:
+                        </div>
+                        <div class="small text-muted mb-2">Existing branch records have differing specifications. Choose which branch specification to inherit:</div>
+                        <div id="metadataVariantRadios" class="d-flex flex-column gap-2"></div>
+                    </div>
+                </div>
+
                 <div class="mb-3">
                     <h6 class="fw-bold text-dark mb-2 pb-1 border-bottom d-flex align-items-center gap-2">
                         <i class="fas fa-box text-primary"></i> Product Details
@@ -1659,7 +1811,7 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                             <input type="text" name="item_name" id="add_item_name" maxlength="255" data-text-format="first-letter" placeholder="e.g., Bridgestone Turanza T005" required>
                         </label>
                         <label>
-                            <span>Branch <span class="text-danger">*</span></span>
+                            <span>Destination Branch <span class="text-danger">*</span></span>
                             <select name="branch_id" id="add_branch_id" required>
                                 <?php foreach ($inventory_branches as $branch): ?>
                                     <option value="<?php echo (int) $branch['id']; ?>">
@@ -1700,10 +1852,6 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                             <input type="text" name="size" id="add_size" maxlength="80" placeholder="e.g., 205/55R16 or Fitment Spec" required>
                         </label>
                         <label>
-                            <span>SKU <span class="text-danger">*</span></span>
-                            <input type="text" name="sku" id="add_sku" maxlength="100" placeholder="e.g., LAC-TIR-0001" required>
-                        </label>
-                        <label>
                             <span>Unit Price (₱) <span class="text-danger">*</span></span>
                             <input type="number" name="unit_price" id="add_unit_price" min="0.01" step="0.01" placeholder="0.00" required>
                         </label>
@@ -1712,14 +1860,44 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                             <input type="number" name="reorder_level" id="add_reorder_level" min="1" value="5" required>
                         </label>
                         <label>
-                            <span>Serial Number <small class="text-muted fw-normal">(Optional)</small></span>
-                            <input type="text" name="serial_number" id="add_serial_number" maxlength="120" placeholder="e.g., HWT-2026-000001">
-                        </label>
-                        <label>
                             <span>Manufacturing Date <small class="text-muted fw-normal">(Optional)</small></span>
                             <input type="date" name="manufacturing_date" id="add_manufacturing_date" max="<?php echo date('Y-m-d'); ?>">
                         </label>
                     </div>
+
+                    <!-- System-Generated Identifiers Preview Section -->
+                    <div class="p-3 mt-3 rounded-3 border bg-light">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                            <span class="fw-bold text-dark" style="font-size: 13px;">
+                                <i class="fas fa-barcode text-primary me-1"></i> System-Generated Identifiers
+                            </span>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" style="font-size: 11px;">
+                                Auto-Generated
+                            </span>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <div class="p-2 border rounded bg-white">
+                                    <small class="text-muted d-block" style="font-size: 11px;">SKU</small>
+                                    <div class="fw-bold text-dark" id="preview_sku" style="font-family: monospace; font-size: 13px;">
+                                        System-generated on save
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-2 border rounded bg-white">
+                                    <small class="text-muted d-block" style="font-size: 11px;">Inventory Serial Number</small>
+                                    <div class="fw-bold text-dark" id="preview_serial" style="font-family: monospace; font-size: 13px;">
+                                        System-generated on save
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="small text-muted mt-2" style="font-size: 11.5px;">
+                            <i class="fas fa-info-circle me-1"></i> HWTIRES automatically assigns company-standard inventory identifiers.
+                        </div>
+                    </div>
+
                     <label class="inventory-description-field mt-3">
                         <span>Description <small class="text-muted fw-normal">(Optional)</small></span>
                         <textarea name="description" id="add_description" rows="2" maxlength="1000" data-text-format="first-letter" placeholder="Optional item description or technical specs"></textarea>
@@ -1763,8 +1941,8 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                                 <input type="text" name="supplier_name" id="add_supplier_name" maxlength="150" data-text-format="first-letter" placeholder="e.g., Yokohama Philippines">
                             </label>
                             <label id="deliveryReferenceGroup">
-                                <span id="deliveryReferenceLabel">DR / Invoice #</span>
-                                <input type="text" name="reference_number" id="add_reference_number" maxlength="100" placeholder="e.g., DR-2026-0891 or Invoice #">
+                                <span id="deliveryReferenceLabel">Reference / PO / DR / Invoice # <span class="text-danger">*</span></span>
+                                <input type="text" name="reference_number" id="add_reference_number" maxlength="100" placeholder="e.g., PO-2026-001 / DR-0891 / INV-1234">
                             </label>
                             <label>
                                 <span>Expected Arrival Date</span>
@@ -2296,18 +2474,38 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ==========================================
-    // Add Inventory Modal - Dynamic Cascading & Delivery Logic
+    // Add Inventory Modal - Dynamic Cascading, Catalog Mode & Delivery Logic
     // ==========================================
     const catalogBrandModels = <?php echo json_encode($brand_models_map, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?> || {};
+    const canonicalCatalogProducts = <?php echo json_encode($canonical_catalog_products, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?> || [];
+
     const addForm = document.getElementById('addInventoryForm');
+    const modeNewRadio = document.getElementById('mode_new');
+    const modeExistingRadio = document.getElementById('mode_existing');
+    const modeDescription = document.getElementById('mode_description');
+    const existingProductSection = document.getElementById('existingProductSection');
+    const existingCatalogSelect = document.getElementById('existing_catalog_select');
+    const hiddenCatalogNumber = document.getElementById('hidden_catalog_number');
+    const hiddenSourceItemId = document.getElementById('hidden_source_item_id');
+    const metadataVariantContainer = document.getElementById('metadataVariantContainer');
+    const metadataVariantRadios = document.getElementById('metadataVariantRadios');
+
+    const itemNameInput = document.getElementById('add_item_name');
+    const branchSelect = document.getElementById('add_branch_id');
     const categorySelect = document.getElementById('add_category');
     const brandSelect = document.getElementById('add_brand_select');
     const brandCustomInput = document.getElementById('add_brand_custom');
     const modelSelect = document.getElementById('add_model_select');
     const modelCustomInput = document.getElementById('add_model_custom');
     const sizeInput = document.getElementById('add_size');
+    const unitPriceInput = document.getElementById('add_unit_price');
+    const reorderLevelInput = document.getElementById('add_reorder_level');
+    const descriptionInput = document.getElementById('add_description');
     const modelReqMark = document.getElementById('add_model_required_mark');
     const sizeReqMark = document.getElementById('add_size_required_mark');
+
+    const previewSku = document.getElementById('preview_sku');
+    const previewSerial = document.getElementById('preview_serial');
 
     const scheduleToggle = document.getElementById('scheduleDeliveryToggle');
     const deliveryContainer = document.getElementById('deliveryFieldsContainer');
@@ -2319,6 +2517,257 @@ document.addEventListener('DOMContentLoaded', function() {
     const refLabel = document.getElementById('deliveryReferenceLabel');
     const refInput = document.getElementById('add_reference_number');
 
+    function updateIdentifiersPreview() {
+        const isExisting = modeExistingRadio && modeExistingRadio.checked;
+        const bId = branchSelect ? branchSelect.value : '1';
+        const cat = categorySelect ? categorySelect.value : 'tire';
+        const catPrefix = (cat === 'tire' ? 'TIR' : (cat === 'accessory' ? 'ACC' : 'PAR'));
+
+        if (isExisting) {
+            const cNum = hiddenCatalogNumber ? parseInt(hiddenCatalogNumber.value, 10) : 0;
+            if (!isNaN(cNum) && cNum > 0) {
+                const suffix = ((cNum * 7) % 89) + 10;
+                const sku = 'B' + bId + '-' + catPrefix + '-' + String(cNum).padStart(5, '0');
+                const serial = 'HW-' + catPrefix + '-B' + bId + '-' + String(cNum).padStart(5, '0') + '-' + String(suffix).padStart(2, '0');
+                if (previewSku) previewSku.innerHTML = '<span class="text-primary font-monospace fw-bold">' + sku + '</span>';
+                if (previewSerial) previewSerial.innerHTML = '<span class="text-primary font-monospace fw-bold">' + serial + '</span>';
+            } else {
+                if (previewSku) previewSku.innerHTML = '<span class="text-muted fst-italic">Select a catalog product to preview</span>';
+                if (previewSerial) previewSerial.innerHTML = '<span class="text-muted fst-italic">Select a catalog product to preview</span>';
+            }
+        } else {
+            if (previewSku) previewSku.innerHTML = '<span class="text-dark font-monospace">B' + bId + '-' + catPrefix + '-XXXXX <small class="text-muted fw-normal">(on save)</small></span>';
+            if (previewSerial) previewSerial.innerHTML = '<span class="text-dark font-monospace">HW-' + catPrefix + '-B' + bId + '-XXXXX-XX <small class="text-muted fw-normal">(on save)</small></span>';
+        }
+    }
+
+    function applySelectedVariant(variant, catalogNum) {
+        if (!variant) return;
+
+        if (hiddenCatalogNumber) hiddenCatalogNumber.value = catalogNum;
+        if (hiddenSourceItemId) hiddenSourceItemId.value = variant.sample_item_id;
+
+        if (itemNameInput) {
+            itemNameInput.value = variant.item_name;
+            itemNameInput.readOnly = true;
+            itemNameInput.classList.add('bg-light');
+        }
+
+        if (categorySelect) {
+            categorySelect.value = variant.category;
+            categorySelect.disabled = true;
+        }
+
+        if (brandSelect) {
+            let foundBrand = false;
+            for (let i = 0; i < brandSelect.options.length; i++) {
+                if (brandSelect.options[i].value === variant.brand) {
+                    brandSelect.selectedIndex = i;
+                    foundBrand = true;
+                    break;
+                }
+            }
+            if (!foundBrand && variant.brand) {
+                const opt = document.createElement('option');
+                opt.value = variant.brand;
+                opt.textContent = variant.brand;
+                brandSelect.insertBefore(opt, brandSelect.lastElementChild);
+                brandSelect.value = variant.brand;
+            }
+            brandSelect.disabled = true;
+        }
+
+        if (brandCustomInput) {
+            brandCustomInput.classList.add('d-none');
+            brandCustomInput.value = '';
+            brandCustomInput.required = false;
+        }
+
+        updateModelDropdown(variant.brand);
+        if (modelSelect) {
+            let foundModel = false;
+            for (let i = 0; i < modelSelect.options.length; i++) {
+                if (modelSelect.options[i].value === variant.model) {
+                    modelSelect.selectedIndex = i;
+                    foundModel = true;
+                    break;
+                }
+            }
+            if (!foundModel && variant.model) {
+                const mOpt = document.createElement('option');
+                mOpt.value = variant.model;
+                mOpt.textContent = variant.model;
+                modelSelect.insertBefore(mOpt, modelSelect.lastElementChild);
+                modelSelect.value = variant.model;
+            }
+            modelSelect.disabled = true;
+        }
+
+        if (modelCustomInput) {
+            modelCustomInput.classList.add('d-none');
+            modelCustomInput.value = '';
+            modelCustomInput.required = false;
+        }
+
+        if (sizeInput) {
+            sizeInput.value = variant.size;
+            sizeInput.readOnly = true;
+            sizeInput.classList.add('bg-light');
+        }
+
+        if (unitPriceInput) {
+            unitPriceInput.value = Number(variant.unit_price).toFixed(2);
+        }
+
+        if (reorderLevelInput) {
+            reorderLevelInput.value = variant.reorder_level || 5;
+        }
+
+        if (descriptionInput && (!descriptionInput.value || descriptionInput.value === '')) {
+            descriptionInput.value = variant.description || '';
+        }
+
+        updateCategoryRequirements();
+        updateIdentifiersPreview();
+    }
+
+    function resetToNewMode() {
+        if (modeNewRadio) modeNewRadio.checked = true;
+        if (modeDescription) modeDescription.textContent = 'Create a brand-new catalog product definition with company-standard SKU & Inventory Serial Number.';
+        if (existingProductSection) existingProductSection.classList.add('d-none');
+        if (metadataVariantContainer) metadataVariantContainer.classList.add('d-none');
+        if (hiddenCatalogNumber) hiddenCatalogNumber.value = '';
+        if (hiddenSourceItemId) hiddenSourceItemId.value = '';
+        if (existingCatalogSelect) existingCatalogSelect.value = '';
+
+        if (itemNameInput) {
+            itemNameInput.readOnly = false;
+            itemNameInput.classList.remove('bg-light');
+        }
+
+        if (categorySelect) {
+            categorySelect.disabled = false;
+        }
+
+        if (brandSelect) {
+            brandSelect.disabled = false;
+        }
+
+        if (modelSelect) {
+            modelSelect.disabled = false;
+        }
+
+        if (sizeInput) {
+            sizeInput.readOnly = false;
+            sizeInput.classList.remove('bg-light');
+        }
+
+        updateCategoryRequirements();
+        updateIdentifiersPreview();
+    }
+
+    if (modeNewRadio) {
+        modeNewRadio.addEventListener('change', function() {
+            if (this.checked) {
+                resetToNewMode();
+            }
+        });
+    }
+
+    if (modeExistingRadio) {
+        modeExistingRadio.addEventListener('change', function() {
+            if (this.checked) {
+                if (existingProductSection) existingProductSection.classList.remove('d-none');
+                if (modeDescription) modeDescription.textContent = 'Link an existing canonical catalog product to another branch. Reuses the 5-digit catalog number without allocating a new one.';
+                if (existingCatalogSelect && existingCatalogSelect.value) {
+                    existingCatalogSelect.dispatchEvent(new Event('change'));
+                } else {
+                    updateIdentifiersPreview();
+                }
+            }
+        });
+    }
+
+    if (existingCatalogSelect) {
+        existingCatalogSelect.addEventListener('change', function() {
+            const selectedNum = parseInt(this.value, 10);
+            if (isNaN(selectedNum) || selectedNum <= 0) {
+                if (hiddenCatalogNumber) hiddenCatalogNumber.value = '';
+                if (hiddenSourceItemId) hiddenSourceItemId.value = '';
+                if (metadataVariantContainer) metadataVariantContainer.classList.add('d-none');
+                if (itemNameInput) {
+                    itemNameInput.readOnly = false;
+                    itemNameInput.classList.remove('bg-light');
+                    itemNameInput.value = '';
+                }
+                if (categorySelect) categorySelect.disabled = false;
+                if (brandSelect) brandSelect.disabled = false;
+                if (modelSelect) modelSelect.disabled = false;
+                if (sizeInput) {
+                    sizeInput.readOnly = false;
+                    sizeInput.classList.remove('bg-light');
+                    sizeInput.value = '';
+                }
+                updateIdentifiersPreview();
+                return;
+            }
+
+            const cp = canonicalCatalogProducts.find(function(p) {
+                return p.catalog_number === selectedNum;
+            });
+
+            if (!cp) return;
+
+            if (cp.has_multiple_variants && cp.variants.length > 1) {
+                if (metadataVariantContainer) metadataVariantContainer.classList.remove('d-none');
+                if (metadataVariantRadios) {
+                    metadataVariantRadios.innerHTML = '';
+                    cp.variants.forEach(function(v, idx) {
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'form-check p-2 rounded border bg-white';
+                        wrapper.style.cursor = 'pointer';
+
+                        const radio = document.createElement('input');
+                        radio.className = 'form-check-input ms-0 me-2';
+                        radio.type = 'radio';
+                        radio.name = 'metadata_variant_choice';
+                        radio.id = 'var_choice_' + idx;
+                        radio.value = idx;
+                        if (idx === 0) radio.checked = true;
+
+                        const label = document.createElement('label');
+                        label.className = 'form-check-label text-dark fw-semibold small';
+                        label.htmlFor = 'var_choice_' + idx;
+                        label.style.cursor = 'pointer';
+
+                        const specList = [v.brand || '', v.model || '', v.size || ''].filter(Boolean).join(' • ');
+                        label.innerHTML = '<strong>' + v.branch_names.join(', ') + ' Spec:</strong> ' +
+                                          (specList ? specList : 'Standard') +
+                                          ' <span class="badge bg-secondary-subtle text-secondary ms-1">₱' + Number(v.unit_price).toFixed(2) + '</span>';
+
+                        wrapper.appendChild(radio);
+                        wrapper.appendChild(label);
+                        metadataVariantRadios.appendChild(wrapper);
+
+                        radio.addEventListener('change', function() {
+                            if (this.checked) {
+                                applySelectedVariant(v, cp.catalog_number);
+                            }
+                        });
+                    });
+                }
+                applySelectedVariant(cp.variants[0], cp.catalog_number);
+            } else {
+                if (metadataVariantContainer) metadataVariantContainer.classList.add('d-none');
+                applySelectedVariant(cp.variants[0], cp.catalog_number);
+            }
+        });
+    }
+
+    if (branchSelect) {
+        branchSelect.addEventListener('change', updateIdentifiersPreview);
+    }
+
     function updateCategoryRequirements() {
         if (!categorySelect) return;
         const isTire = (categorySelect.value === 'tire');
@@ -2326,12 +2775,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (modelReqMark) modelReqMark.style.display = isTire ? '' : 'none';
         if (sizeReqMark) sizeReqMark.style.display = isTire ? '' : 'none';
 
-        if (sizeInput) {
+        if (sizeInput && !sizeInput.readOnly) {
             sizeInput.required = isTire;
             sizeInput.placeholder = isTire ? 'e.g., 205/55R16' : 'Size, fitment, or short detail';
         }
 
         updateModelRequirement();
+        updateIdentifiersPreview();
     }
 
     function updateModelRequirement() {
@@ -2339,10 +2789,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const isTire = (categorySelect.value === 'tire');
         const isCustomModel = modelCustomInput && !modelCustomInput.classList.contains('d-none');
 
-        if (modelSelect) {
+        if (modelSelect && !modelSelect.disabled) {
             modelSelect.required = isTire && !isCustomModel;
         }
-        if (modelCustomInput) {
+        if (modelCustomInput && !modelCustomInput.classList.contains('d-none')) {
             modelCustomInput.required = isTire && isCustomModel;
         }
     }
@@ -2454,22 +2904,31 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             supplierNameInput.placeholder = 'e.g., Yokohama Philippines';
             supplierNameInput.required = isScheduled;
-            if (refLabel) refLabel.textContent = 'DR / Invoice #';
-            if (refInput) refInput.placeholder = 'e.g., DR-2026-0891 or Invoice #';
+            if (refLabel) refLabel.innerHTML = 'Reference / PO / DR / Invoice # <span class="text-danger">*</span>';
+            if (refInput) {
+                refInput.placeholder = 'e.g., PO-2026-001 / DR-0891 / INV-1234';
+                refInput.required = isScheduled;
+            }
         } else if (st === 'tangub_warehouse') {
             if (supplierLabel) supplierLabel.innerHTML = 'Warehouse Source';
             supplierNameInput.value = 'Central Warehouse (Tangub Hub)';
             supplierNameInput.readOnly = true;
             supplierNameInput.required = false;
-            if (refLabel) refLabel.textContent = 'Dispatch / Transfer Reference #';
-            if (refInput) refInput.placeholder = 'e.g., TR-2026-104';
+            if (refLabel) refLabel.innerHTML = 'Dispatch / Transfer Reference # <span class="text-danger">*</span>';
+            if (refInput) {
+                refInput.placeholder = 'e.g., TR-2026-104 or Dispatch #';
+                refInput.required = isScheduled;
+            }
         } else if (st === 'sancarlos_warehouse') {
             if (supplierLabel) supplierLabel.innerHTML = 'Warehouse Source';
             supplierNameInput.value = 'Auxiliary Warehouse (San Carlos Hub)';
             supplierNameInput.readOnly = true;
             supplierNameInput.required = false;
-            if (refLabel) refLabel.textContent = 'Dispatch / Transfer Reference #';
-            if (refInput) refInput.placeholder = 'e.g., TR-2026-104';
+            if (refLabel) refLabel.innerHTML = 'Dispatch / Transfer Reference # <span class="text-danger">*</span>';
+            if (refInput) {
+                refInput.placeholder = 'e.g., TR-2026-104 or Dispatch #';
+                refInput.required = isScheduled;
+            }
         } else if (st === 'other') {
             if (supplierLabel) supplierLabel.innerHTML = 'Source Name <span class="text-danger">*</span>';
             supplierNameInput.readOnly = false;
@@ -2478,8 +2937,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             supplierNameInput.placeholder = 'e.g., Custom source / origin';
             supplierNameInput.required = isScheduled;
-            if (refLabel) refLabel.textContent = 'Reference #';
-            if (refInput) refInput.placeholder = 'e.g., Reference number or PO #';
+            if (refLabel) refLabel.innerHTML = 'Reference # <span class="text-danger">*</span>';
+            if (refInput) {
+                refInput.placeholder = 'e.g., Reference number or PO #';
+                refInput.required = isScheduled;
+            }
         }
     }
 
@@ -2507,6 +2969,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     supplierNameInput.value = '';
                 }
                 if (refInput) {
+                    refInput.required = false;
                     refInput.value = '';
                 }
                 updateDeliverySourceUI();
@@ -2518,41 +2981,57 @@ document.addEventListener('DOMContentLoaded', function() {
         sourceTypeSelect.addEventListener('change', updateDeliverySourceUI);
     }
 
-    // Add Form Validation
+    // Add Form Validation & Submission Handling
     if (addForm) {
         addForm.addEventListener('submit', function(e) {
-            const isTire = (categorySelect && categorySelect.value === 'tire');
-            const brandVal = brandSelect ? brandSelect.value : '';
-            const brandCustomVal = brandCustomInput ? brandCustomInput.value.trim() : '';
-            const modelVal = modelSelect ? modelSelect.value : '';
-            const modelCustomVal = modelCustomInput ? modelCustomInput.value.trim() : '';
-            const sizeVal = sizeInput ? sizeInput.value.trim() : '';
+            const isExisting = modeExistingRadio && modeExistingRadio.checked;
 
-            if (brandVal === 'Other' && !brandCustomVal) {
-                e.preventDefault();
-                alert('Please enter a custom brand name.');
-                if (brandCustomInput) brandCustomInput.focus();
-                return;
-            }
-
-            if (isTire) {
-                if (modelVal === 'Other' && !modelCustomVal) {
+            if (isExisting) {
+                const sourceId = hiddenSourceItemId ? hiddenSourceItemId.value : '';
+                if (!sourceId) {
                     e.preventDefault();
-                    alert('Please enter a model name for this tire.');
-                    if (modelCustomInput) modelCustomInput.focus();
+                    alert('Please select an existing catalog product to link.');
+                    if (existingCatalogSelect) existingCatalogSelect.focus();
                     return;
                 }
-                if (!modelVal) {
+                // Temporarily re-enable select fields before native POST submit so their values are sent
+                if (categorySelect) categorySelect.disabled = false;
+                if (brandSelect) brandSelect.disabled = false;
+                if (modelSelect) modelSelect.disabled = false;
+            } else {
+                const isTire = (categorySelect && categorySelect.value === 'tire');
+                const brandVal = brandSelect ? brandSelect.value : '';
+                const brandCustomVal = brandCustomInput ? brandCustomInput.value.trim() : '';
+                const modelVal = modelSelect ? modelSelect.value : '';
+                const modelCustomVal = modelCustomInput ? modelCustomInput.value.trim() : '';
+                const sizeVal = sizeInput ? sizeInput.value.trim() : '';
+
+                if (brandVal === 'Other' && !brandCustomVal) {
                     e.preventDefault();
-                    alert('Please select or specify a model for this tire.');
-                    if (modelSelect) modelSelect.focus();
+                    alert('Please enter a custom brand name.');
+                    if (brandCustomInput) brandCustomInput.focus();
                     return;
                 }
-                if (!sizeVal) {
-                    e.preventDefault();
-                    alert('Please enter the tire size.');
-                    if (sizeInput) sizeInput.focus();
-                    return;
+
+                if (isTire) {
+                    if (modelVal === 'Other' && !modelCustomVal) {
+                        e.preventDefault();
+                        alert('Please enter a model name for this tire.');
+                        if (modelCustomInput) modelCustomInput.focus();
+                        return;
+                    }
+                    if (!modelVal) {
+                        e.preventDefault();
+                        alert('Please select or specify a model for this tire.');
+                        if (modelSelect) modelSelect.focus();
+                        return;
+                    }
+                    if (!sizeVal) {
+                        e.preventDefault();
+                        alert('Please enter the tire size.');
+                        if (sizeInput) sizeInput.focus();
+                        return;
+                    }
                 }
             }
 
@@ -2579,9 +3058,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (supplierNameInput) supplierNameInput.focus();
                     return;
                 }
+
+                const refVal = refInput ? refInput.value.trim() : '';
+                if (!refVal) {
+                    e.preventDefault();
+                    alert('Please enter a delivery reference number.');
+                    if (refInput) refInput.focus();
+                    return;
+                }
             }
         });
     }
+
+    // Initial setup on load
+    updateCategoryRequirements();
+    updateIdentifiersPreview();
 
     // Scroll to & highlight newly created item row if added_id is in URL
     const urlParams = new URLSearchParams(window.location.search);
