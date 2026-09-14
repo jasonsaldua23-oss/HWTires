@@ -277,6 +277,15 @@ if ($action === 'update_status') {
             throw new Exception('Unauthorized access');
         }
 
+        if ($status === 'completed') {
+            $transfer_states = job_progress_get_transfer_states_for_job($pdo, $job_order_id);
+            foreach ($transfer_states as $task_state) {
+                if (!empty($task_state['requires_transfer']) && empty($task_state['is_ready'])) {
+                    throw new Exception('Cannot complete this job order because one or more required items are still awaiting transfer.');
+                }
+            }
+        }
+
         $notes = app_compose_record_notes($user['name'] ?? 'Front Desk', $assigned_technician_name ?: ($job_order['assigned_technician_name'] ?? ''), $notes);
 
         if ($status === 'in-progress') {

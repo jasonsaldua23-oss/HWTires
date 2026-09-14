@@ -387,7 +387,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                 </select>
             </label>
             <label class="customer-filter-field customer-operation-field">
-                <span>Service Operation</span>
+                <span>Latest Operation</span>
                 <select name="operation_status" class="customer-operation-select">
                     <?php foreach (cv_records_operation_filter_options() as $operation_value => $operation_label): ?>
                         <option value="<?php echo esc_attr($operation_value); ?>" <?php echo $operation_status_filter === $operation_value ? 'selected' : ''; ?>>
@@ -397,7 +397,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                 </select>
             </label>
             <label class="customer-filter-field customer-status-field">
-                <span>Service Status</span>
+                <span>Latest Service Status</span>
                 <select name="status" class="customer-status-select">
                     <?php foreach (cv_records_status_filter_options() as $status_value => $status_label): ?>
                         <option value="<?php echo esc_attr($status_value); ?>" <?php echo $status_filter === $status_value ? 'selected' : ''; ?>>
@@ -474,8 +474,8 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                         <th>Customer Name</th>
                         <th>Contact Number</th>
                         <th>Last Visited Branch</th>
-                        <th>Service Operation</th>
-                        <th>Service Status</th>
+                        <th>Latest Operation</th>
+                        <th>Latest Service Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>

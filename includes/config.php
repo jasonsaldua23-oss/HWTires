@@ -52,6 +52,7 @@ if (!defined('APP_URL')) {
     }
 }
 define('APP_TIMEZONE', $get_env_val('APP_TIMEZONE', 'Asia/Manila'));
+date_default_timezone_set(APP_TIMEZONE);
 
 // Session configuration
 define('SESSION_TIMEOUT', 3600); // 1 hour in seconds

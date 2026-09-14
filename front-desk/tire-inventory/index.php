@@ -670,16 +670,18 @@ try {
     error_log('Front desk incoming inventory requests error: ' . $request_error->getMessage());
 }
 
+$incoming_branch_transfers = array_values(array_filter($incoming_item_requests, static function ($request) use ($branch_id) {
+    $st = strtolower((string) ($request['status'] ?? 'pending'));
+    $is_receiver = (int) ($request['requesting_branch_id'] ?? 0) === (int) $branch_id;
+    return $is_receiver && $st === 'shipped';
+}));
+
 $pending_item_requests = array_values(array_filter($incoming_item_requests, static function ($request) use ($branch_id) {
     $st = strtolower((string) ($request['status'] ?? 'pending'));
     $notes = (string) ($request['notes'] ?? '');
     $is_donor = (int) ($request['donor_branch_id'] ?? 0) === (int) $branch_id;
-    $is_receiver = (int) ($request['requesting_branch_id'] ?? 0) === (int) $branch_id;
 
     if ($is_donor && in_array($st, ['pending', 'approved'], true)) {
-        return true;
-    }
-    if ($is_receiver && $st === 'shipped') {
         return true;
     }
     if ($is_donor && $st === 'cancelled' && strpos($notes, '[RETURN_PENDING]') !== false && strpos($notes, '[RETURNED]') === false) {
@@ -1233,6 +1235,112 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
     });
     </script>
 
+    <details class="inventory-support-details inventory-incoming-transfers-panel" id="incoming-branch-transfers" <?php echo !empty($incoming_branch_transfers) ? 'open' : ''; ?>>
+        <summary class="inventory-support-summary">
+            <span class="inventory-support-title">
+                <i class="fas fa-boxes-packing" style="color: #0d9488;"></i>
+                <strong>Incoming Branch Transfers</strong>
+            </span>
+            <?php $incoming_transfer_count = count($incoming_branch_transfers); ?>
+            <span class="inventory-support-count <?php echo $incoming_transfer_count > 0 ? 'text-white fw-bold' : ''; ?>" style="<?php echo $incoming_transfer_count > 0 ? 'background: #0d9488 !important;' : ''; ?>">
+                <?php echo (int) $incoming_transfer_count; ?>
+                <?php echo $incoming_transfer_count === 1 ? 'incoming transfer' : 'incoming transfers'; ?>
+            </span>
+        </summary>
+        <div class="inventory-support-body">
+        <?php if (empty($incoming_branch_transfers)): ?>
+            <div class="inventory-service-request-empty">
+                <i class="fas fa-truck-fast me-2 text-muted"></i>No incoming branch transfers currently in transit for this branch.
+            </div>
+        <?php else: ?>
+            <div class="inventory-service-request-grid">
+                <?php foreach ($incoming_branch_transfers as $request): ?>
+                    <?php
+                    $donor_label = trim((string) ($request['donor_branch_name'] ?? ''));
+                    if ($donor_label === '') {
+                        $donor_label = 'Awaiting source branch assignment';
+                    }
+                    $req_label = trim((string) ($request['requesting_branch_name'] ?? ''));
+                    if ($req_label === '') {
+                        $req_label = 'This Branch';
+                    }
+                    $approved_quantity = (int) ($request['approved_quantity'] ?? 0);
+                    $display_quantity = $approved_quantity > 0
+                        ? $approved_quantity
+                        : (int) ($request['requested_quantity'] ?? 1);
+                    $shipping_date_display = !empty($request['shipping_date'])
+                        ? app_format_datetime_pht($request['shipping_date'], 'M j, Y g:i A')
+                        : (!empty($request['created_at']) ? app_format_datetime_pht($request['created_at'], 'M j, Y g:i A') : '-');
+                    ?>
+                    <article class="inventory-service-request-card status-shipped" style="border-left: 4px solid #0d9488; background: #f0fdfa;">
+                        <div class="inventory-service-request-card-top">
+                            <div>
+                                <h3 style="font-size: 1rem; font-weight: 700; color: #134e4a; margin-bottom: 3px;">
+                                    <?php echo esc_html(app_display_item_name($request['item_name'] ?? 'Requested item')); ?>
+                                </h3>
+                                <p style="font-size: 0.82rem; color: #0f766e; margin: 0;">
+                                    From: <strong><?php echo esc_html($donor_label); ?></strong>
+                                    &bull; To: <strong><?php echo esc_html($req_label); ?></strong>
+                                    <?php if (!empty($request['quotation_number'])): ?>
+                                        &bull; <?php echo esc_html($request['quotation_number']); ?>
+                                    <?php endif; ?>
+                                </p>
+                            </div>
+                            <span class="badge px-2 py-1" style="font-size: 0.75rem; font-weight: 700; border-radius: 6px; background: #ccfbf1; color: #0f766e; border: 1px solid #99f6e4;">
+                                <i class="fas fa-truck-fast me-1"></i> In Transit (Awaiting Receipt)
+                            </span>
+                        </div>
+                        <div class="inventory-service-request-meta" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.82rem; margin: 10px 0; background: #e6fffa; padding: 10px 12px; border-radius: 8px; border: 1px solid #b2f5ea;">
+                            <div>
+                                <span style="color: #134e4a; display: block; font-size: 0.74rem; text-transform: uppercase; font-weight: 700;">Quantity Shipped</span>
+                                <strong style="font-size: 1.05rem; color: #0f766e;"><?php echo $display_quantity; ?> unit(s)</strong>
+                            </div>
+                            <div>
+                                <span style="color: #134e4a; display: block; font-size: 0.74rem; text-transform: uppercase; font-weight: 700;">Request Number</span>
+                                <strong style="color: #1e293b;"><?php echo esc_html($request['request_number'] ?? '-'); ?></strong>
+                            </div>
+                            <div>
+                                <span style="color: #134e4a; display: block; font-size: 0.74rem; text-transform: uppercase; font-weight: 700;">Shipped Date</span>
+                                <span style="color: #1e293b; font-weight: 600;"><?php echo esc_html($shipping_date_display); ?></span>
+                            </div>
+                            <div>
+                                <span style="color: #134e4a; display: block; font-size: 0.74rem; text-transform: uppercase; font-weight: 700;">Customer / Reason</span>
+                                <span style="color: #1e293b; font-weight: 600;"><?php echo esc_html(($request['customer_name'] ?? '') ?: ($request['reason'] ?? 'Service Operation')); ?></span>
+                            </div>
+                        </div>
+                        <div class="inventory-service-request-footer" style="display: flex; gap: 8px; width: 100%; border-top: 1px solid #ccfbf1; padding-top: 10px; margin-top: 4px;">
+                            <button type="button"
+                                    class="inventory-service-request-done-btn js-transfer-accept-btn"
+                                    style="background: #0d9488; flex: 1; font-weight: 700; padding: 7px 14px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;"
+                                    data-transfer-accept
+                                    data-transfer-id="<?php echo (int) ($request['id'] ?? 0); ?>"
+                                    data-request-number="<?php echo esc_attr($request['request_number'] ?? 'this request'); ?>"
+                                    data-item-name="<?php echo esc_attr(app_display_item_name($request['item_name'] ?? 'this item')); ?>"
+                                    data-donor-branch="<?php echo esc_attr($request['donor_branch_name'] ?? 'Donor branch'); ?>"
+                                    data-qty="<?php echo $display_quantity; ?>"
+                                    title="Accept transfer and add to inventory">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Receive Transfer</span>
+                            </button>
+                            <button type="button"
+                                    class="inventory-service-request-done-btn js-transfer-reject-btn"
+                                    style="background: #ef4444; flex: 0 0 100px; font-weight: 700; padding: 7px 14px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;"
+                                    data-transfer-reject
+                                    data-transfer-id="<?php echo (int) ($request['id'] ?? 0); ?>"
+                                    data-request-number="<?php echo esc_attr($request['request_number'] ?? 'this request'); ?>"
+                                    data-item-name="<?php echo esc_attr(app_display_item_name($request['item_name'] ?? 'this item')); ?>"
+                                    title="Reject transfer and initiate return">
+                                <i class="fas fa-times-circle"></i>
+                                <span>Reject</span>
+                            </button>
+                        </div>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+        </div>
+    </details>
+
     <details class="inventory-support-details inventory-pending-arrivals-panel" id="pending-arrivals" <?php echo !empty($pending_arrivals) ? 'open' : ''; ?>>
         <summary class="inventory-support-summary">
             <span class="inventory-support-title">
@@ -1267,7 +1375,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                     $ref_label = $is_warehouse_source ? 'Dispatch / Transfer Ref #' : ($source_type === 'other' ? 'Reference #' : 'DR / Invoice #');
                     $ref_no = trim((string) ($incoming['reference_number'] ?? ''));
                     $arrival_date = !empty($incoming['expected_arrival_date']) ? format_date($incoming['expected_arrival_date'], 'M j, Y') : 'Not specified';
-                    $created_date = !empty($incoming['created_at']) ? format_date($incoming['created_at'], 'M j, Y g:i A') : '-';
+                    $created_date = !empty($incoming['created_at']) ? app_format_datetime_pht($incoming['created_at'], 'M j, Y g:i A') : '-';
                     $spec_parts = array_filter([
                         $incoming['brand'] ?? '',
                         $incoming['model'] ?? '',
@@ -1412,15 +1520,23 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                         <div>
                                             <h3><?php echo esc_html(app_display_item_name($request['item_name'] ?? 'Requested item')); ?></h3>
                                             <p>
-                                                <?php if ($is_receiver): ?>
-                                                    From: <strong><?php echo esc_html($request['donor_branch_name'] ?? 'Donor branch'); ?></strong>
-                                                <?php else: ?>
-                                                    To: <strong><?php echo esc_html($request['requesting_branch_name'] ?? 'Requesting branch'); ?></strong>
-                                                <?php endif; ?>
-                                                <?php if (!empty($request['quotation_number'])): ?>
-                                                    &bull; <?php echo esc_html($request['quotation_number']); ?>
-                                                <?php endif; ?>
-                                            </p>
+                                                <?php
+                                                $donor_label = trim((string) ($request['donor_branch_name'] ?? ''));
+                                                if ($donor_label === '') {
+                                                    $donor_label = 'Awaiting source branch assignment';
+                                                }
+                                                $req_label = trim((string) ($request['requesting_branch_name'] ?? ''));
+                                                if ($req_label === '') {
+                                                    $req_label = 'Requesting branch';
+                                                }
+                                                ?>
+                                                <p>
+                                                    From: <strong><?php echo esc_html($donor_label); ?></strong>
+                                                    &bull; To: <strong><?php echo esc_html($req_label); ?></strong>
+                                                    <?php if (!empty($request['quotation_number'])): ?>
+                                                        &bull; <?php echo esc_html($request['quotation_number']); ?>
+                                                    <?php endif; ?>
+                                                </p>
                                         </div>
                                         <span class="inventory-service-request-status"><?php echo esc_html($request_status_label); ?></span>
                                     </div>
@@ -1429,37 +1545,10 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                         <?php if (!empty($request['customer_name'])): ?>
                                             <span>Customer: <strong><?php echo esc_html($request['customer_name']); ?></strong></span>
                                         <?php endif; ?>
-                                        <span>Requested: <strong><?php echo esc_html(date('M j, Y g:i A', strtotime($request['created_at'] ?? 'now'))); ?></strong></span>
+                                        <span>Requested: <strong><?php echo esc_html(app_format_datetime_pht($request['created_at'] ?? 'now', 'M j, Y g:i A')); ?></strong></span>
                                     </div>
                                     <div class="inventory-service-request-footer">
-                                        <?php if ($is_receiver && $request_status === 'shipped'): ?>
-                                            <div style="display: flex; gap: 8px; width: 100%;">
-                                                <button type="button"
-                                                        class="inventory-service-request-done-btn js-transfer-accept-btn"
-                                                        style="background: #0d9488; flex: 1;"
-                                                        data-transfer-accept
-                                                        data-transfer-id="<?php echo (int) ($request['id'] ?? 0); ?>"
-                                                        data-request-number="<?php echo esc_attr($request['request_number'] ?? 'this request'); ?>"
-                                                        data-item-name="<?php echo esc_attr(app_display_item_name($request['item_name'] ?? 'this item')); ?>"
-                                                        data-donor-branch="<?php echo esc_attr($request['donor_branch_name'] ?? 'Donor branch'); ?>"
-                                                        data-qty="<?php echo $display_quantity; ?>"
-                                                        title="Accept transfer and add to inventory">
-                                                    <i class="fas fa-check-circle"></i>
-                                                    <span>Accept</span>
-                                                </button>
-                                                <button type="button"
-                                                        class="inventory-service-request-done-btn js-transfer-reject-btn"
-                                                        style="background: #ef4444; flex: 1;"
-                                                        data-transfer-reject
-                                                        data-transfer-id="<?php echo (int) ($request['id'] ?? 0); ?>"
-                                                        data-request-number="<?php echo esc_attr($request['request_number'] ?? 'this request'); ?>"
-                                                        data-item-name="<?php echo esc_attr(app_display_item_name($request['item_name'] ?? 'this item')); ?>"
-                                                        title="Reject transfer and initiate return">
-                                                    <i class="fas fa-times-circle"></i>
-                                                    <span>Reject</span>
-                                                </button>
-                                            </div>
-                                        <?php elseif ($is_donor && in_array($request_status, ['pending', 'approved'], true)): ?>
+                                        <?php if ($is_donor && in_array($request_status, ['pending', 'approved'], true)): ?>
                                             <button type="button"
                                                     class="inventory-service-request-done-btn"
                                                     data-transfer-done
@@ -1523,11 +1612,23 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                         <div>
                                             <h3><?php echo esc_html(app_display_item_name($request['item_name'] ?? 'Requested item')); ?></h3>
                                             <p>
-                                                <?php echo esc_html($request['requesting_branch_name'] ?? 'Requesting branch'); ?>
-                                                <?php if (!empty($request['quotation_number'])): ?>
-                                                    &bull; <?php echo esc_html($request['quotation_number']); ?>
-                                                <?php endif; ?>
-                                            </p>
+                                                <?php
+                                                $donor_label = trim((string) ($request['donor_branch_name'] ?? ''));
+                                                if ($donor_label === '') {
+                                                    $donor_label = 'Awaiting source branch assignment';
+                                                }
+                                                $req_label = trim((string) ($request['requesting_branch_name'] ?? ''));
+                                                if ($req_label === '') {
+                                                    $req_label = 'Requesting branch';
+                                                }
+                                                ?>
+                                                <p>
+                                                    From: <strong><?php echo esc_html($donor_label); ?></strong>
+                                                    &bull; To: <strong><?php echo esc_html($req_label); ?></strong>
+                                                    <?php if (!empty($request['quotation_number'])): ?>
+                                                        &bull; <?php echo esc_html($request['quotation_number']); ?>
+                                                    <?php endif; ?>
+                                                </p>
                                         </div>
                                         <span class="inventory-service-request-status"><?php echo $is_returned ? 'Returned' : 'Transferred'; ?></span>
                                     </div>
@@ -1536,7 +1637,7 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                         <?php if (!empty($request['customer_name'])): ?>
                                             <span>Customer: <strong><?php echo esc_html($request['customer_name']); ?></strong></span>
                                         <?php endif; ?>
-                                        <span><?php echo $is_returned ? 'Returned:' : 'Transferred:'; ?> <strong><?php echo esc_html(date('M j, Y g:i A', strtotime($request['received_date'] ?? $request['updated_at'] ?? $request['created_at'] ?? 'now'))); ?></strong></span>
+                                        <span><?php echo $is_returned ? 'Returned:' : 'Transferred:'; ?> <strong><?php echo esc_html(app_format_datetime_pht($request['received_date'] ?? $request['updated_at'] ?? $request['created_at'] ?? 'now', 'M j, Y g:i A')); ?></strong></span>
                                     </div>
                                     <div class="inventory-service-request-footer">
                                         <?php if ($is_returned): ?>
@@ -3647,6 +3748,24 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     <?php endif; ?>
+
+    const currentHash = window.location.hash;
+    if (currentHash) {
+        const targetPanel = document.querySelector(currentHash);
+        if (targetPanel && targetPanel.tagName === 'DETAILS') {
+            targetPanel.open = true;
+            targetPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    } else {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('transfer_request')) {
+            const incomingPanel = document.getElementById('incoming-branch-transfers');
+            if (incomingPanel) {
+                incomingPanel.open = true;
+                incomingPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+    }
 });
 </script>
 

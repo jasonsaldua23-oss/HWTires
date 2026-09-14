@@ -81,7 +81,13 @@ if (!function_exists('job_progress_get_transfer_states_for_job')) {
             return [];
         }
 
-        $tasks_stmt = $pdo->prepare("\n            SELECT jp.task_key, qi.id AS quotation_item_id, qi.item_name, qi.item_type, qi.source, qi.notes\n            FROM job_order_progress jp\n            INNER JOIN quotation_items qi ON qi.id = jp.quotation_item_id\n            WHERE jp.job_order_id = ?\n            ORDER BY jp.id ASC\n        ");
+        $tasks_stmt = $pdo->prepare("
+            SELECT jp.task_key, qi.id AS quotation_item_id, qi.item_name, qi.item_type, qi.source, qi.notes
+            FROM job_order_progress jp
+            INNER JOIN quotation_items qi ON qi.id = jp.quotation_item_id
+            WHERE jp.job_order_id = ?
+            ORDER BY jp.id ASC
+        ");
         $tasks_stmt->execute([$job_order_id]);
 
         $states = [];
@@ -108,40 +114,147 @@ if (!function_exists('job_progress_get_transfer_states_for_job')) {
             ];
 
             if ($requires_transfer) {
-                if ($inventory_item_id <= 0) {
-                    $state['is_ready'] = false;
-                    $state['status'] = 'not-sent';
-                    $state['label'] = 'Waiting for transfer';
-                    $state['message'] = 'This item has not been linked to an inventory transfer yet.';
-                    $states[$task_key] = $state;
-                    continue;
+                $transfer = null;
+                $donor_branch_name = '';
+                $donor_branch_id = 0;
+                $status = 'missing';
+
+                // 1. If explicit donor branch ID is provided in metadata, search with all parameters
+                if ($inventory_item_id > 0 && $inventory_branch_id > 0) {
+                    $transfer_stmt = $pdo->prepare("
+                        SELECT tr.status, tr.request_number, tr.donor_branch_id, tr.requesting_branch_id, b.name AS donor_branch_name
+                        FROM inter_branch_transfer_requests tr
+                        LEFT JOIN branches b ON b.id = tr.donor_branch_id
+                        WHERE tr.quotation_id = ?
+                          AND tr.item_id = ?
+                          AND tr.requesting_branch_id = ?
+                          AND tr.donor_branch_id = ?
+                        ORDER BY tr.id DESC
+                        LIMIT 1
+                    ");
+                    $transfer_stmt->execute([
+                        (int) $job['quotation_id'],
+                        $inventory_item_id,
+                        $job_branch_id,
+                        $inventory_branch_id,
+                    ]);
+                    $transfer = $transfer_stmt->fetch(PDO::FETCH_ASSOC);
                 }
 
-                $transfer_stmt = $pdo->prepare("\n                    SELECT tr.status, tr.request_number, tr.donor_branch_id, tr.requesting_branch_id, b.name AS donor_branch_name\n                    FROM inter_branch_transfer_requests tr\n                    LEFT JOIN branches b ON b.id = tr.donor_branch_id\n                    WHERE tr.quotation_id = ?\n                      AND tr.item_id = ?\n                      AND tr.requesting_branch_id = ?\n                      AND tr.donor_branch_id = ?\n                    ORDER BY tr.id DESC\n                    LIMIT 1\n                ");
-                $transfer_stmt->execute([
-                    (int) $job['quotation_id'],
-                    $inventory_item_id,
-                    $job_branch_id,
-                    $inventory_branch_id,
-                ]);
-                $transfer = $transfer_stmt->fetch(PDO::FETCH_ASSOC);
+                // 2. If no transfer matched with specific donor branch ID, check by quotation_id, item_id, requesting_branch_id
+                if (!$transfer && $inventory_item_id > 0) {
+                    $transfer_stmt = $pdo->prepare("
+                        SELECT tr.status, tr.request_number, tr.donor_branch_id, tr.requesting_branch_id, b.name AS donor_branch_name
+                        FROM inter_branch_transfer_requests tr
+                        LEFT JOIN branches b ON b.id = tr.donor_branch_id
+                        WHERE tr.quotation_id = ?
+                          AND tr.item_id = ?
+                          AND tr.requesting_branch_id = ?
+                        ORDER BY tr.id DESC
+                    ");
+                    $transfer_stmt->execute([
+                        (int) $job['quotation_id'],
+                        $inventory_item_id,
+                        $job_branch_id,
+                    ]);
+                    $matches = $transfer_stmt->fetchAll(PDO::FETCH_ASSOC);
+                    if (count($matches) === 1) {
+                        $transfer = $matches[0];
+                    } elseif (count($matches) > 1) {
+                        $first_donor = (int) ($matches[0]['donor_branch_id'] ?? 0);
+                        $all_same_donor = true;
+                        foreach ($matches as $m) {
+                            if ((int) ($m['donor_branch_id'] ?? 0) !== $first_donor) {
+                                $all_same_donor = false;
+                                break;
+                            }
+                        }
+                        if ($all_same_donor) {
+                            $transfer = $matches[0];
+                        }
+                    }
+                }
 
-                $branch_name = $transfer['donor_branch_name'] ?? ('Branch ' . $inventory_branch_id);
-                $status = strtolower((string) ($transfer['status'] ?? 'missing'));
+                // 3. If still not matched, check by quotation_id, item_name, requesting_branch_id
+                if (!$transfer && !empty($task['item_name'])) {
+                    $transfer_stmt = $pdo->prepare("
+                        SELECT tr.status, tr.request_number, tr.donor_branch_id, tr.requesting_branch_id, b.name AS donor_branch_name
+                        FROM inter_branch_transfer_requests tr
+                        LEFT JOIN branches b ON b.id = tr.donor_branch_id
+                        WHERE tr.quotation_id = ?
+                          AND tr.requesting_branch_id = ?
+                          AND tr.item_name = ?
+                        ORDER BY tr.id DESC
+                    ");
+                    $transfer_stmt->execute([
+                        (int) $job['quotation_id'],
+                        $job_branch_id,
+                        $task['item_name'],
+                    ]);
+                    $matches = $transfer_stmt->fetchAll(PDO::FETCH_ASSOC);
+                    if (count($matches) === 1) {
+                        $transfer = $matches[0];
+                    } elseif (count($matches) > 1) {
+                        $first_donor = (int) ($matches[0]['donor_branch_id'] ?? 0);
+                        $all_same_donor = true;
+                        foreach ($matches as $m) {
+                            if ((int) ($m['donor_branch_id'] ?? 0) !== $first_donor) {
+                                $all_same_donor = false;
+                                break;
+                            }
+                        }
+                        if ($all_same_donor) {
+                            $transfer = $matches[0];
+                        }
+                    }
+                }
+
+                if ($transfer) {
+                    $donor_branch_id = (int) ($transfer['donor_branch_id'] ?? 0);
+                    $donor_branch_name = trim((string) ($transfer['donor_branch_name'] ?? ''));
+                    $status = strtolower((string) ($transfer['status'] ?? 'missing'));
+                } elseif ($inventory_branch_id > 0) {
+                    $donor_branch_id = $inventory_branch_id;
+                }
+
+                if ($donor_branch_name === '' && $donor_branch_id > 0) {
+                    $b_stmt = $pdo->prepare("SELECT name FROM branches WHERE id = ? LIMIT 1");
+                    $b_stmt->execute([$donor_branch_id]);
+                    $donor_branch_name = trim((string) ($b_stmt->fetchColumn() ?: ''));
+                }
+
+                $has_known_branch = ($donor_branch_name !== '');
+                $branch_name = $has_known_branch ? $donor_branch_name : '';
 
                 if ($status === 'received') {
+                    $state['is_ready'] = true;
                     $state['status'] = 'transferred';
-                    $state['label'] = 'Transferred';
-                    $state['message'] = 'Transferred from ' . $branch_name;
+                    $state['label'] = $has_known_branch
+                        ? ('Transferred from ' . $branch_name . ' — Ready to Service')
+                        : 'Transferred — Ready to Service';
+                    $state['message'] = $has_known_branch
+                        ? ('Transferred from ' . $branch_name . ' — Ready to Service.')
+                        : 'Transferred — Ready to Service.';
                     $state['branch_name'] = $branch_name;
                 } else {
                     $state['is_ready'] = false;
-                    $state['status'] = $status === 'missing' ? 'not-sent' : $status;
-                    $state['label'] = 'Waiting for transfer';
-                    $state['message'] = $status === 'missing'
-                        ? 'This item has not been sent from ' . $branch_name . ' yet.'
-                        : 'Waiting for transfer from ' . $branch_name . '.';
+                    $state['status'] = ($status === 'missing' ? 'not-sent' : $status);
                     $state['branch_name'] = $branch_name;
+
+                    if ($status === 'shipped') {
+                        $state['label'] = $has_known_branch
+                            ? ('In transit from ' . $branch_name)
+                            : 'In transit';
+                        $state['message'] = $has_known_branch
+                            ? ('In transit from ' . $branch_name . '.')
+                            : 'Item is in transit to this branch.';
+                    } elseif ($has_known_branch) {
+                        $state['label'] = 'Waiting for transfer from ' . $branch_name;
+                        $state['message'] = 'Waiting for transfer from ' . $branch_name . '.';
+                    } else {
+                        $state['label'] = 'Awaiting source branch assignment';
+                        $state['message'] = 'Awaiting source branch assignment.';
+                    }
                 }
             }
 
@@ -227,13 +340,24 @@ if (!function_exists('job_progress_sync')) {
         }
 
         if ($mark_completed_tasks && ($job['status'] ?? '') === 'completed') {
-            $done_stmt = $pdo->prepare("
-                UPDATE job_order_progress
-                SET is_done = 1,
-                    completed_at = COALESCE(completed_at, NOW())
-                WHERE job_order_id = ?
-            ");
-            $done_stmt->execute([$job_order_id]);
+            $transfer_states = job_progress_get_transfer_states_for_job($pdo, $job_order_id);
+            $has_blocked_transfer = false;
+            foreach ($transfer_states as $ts) {
+                if (!empty($ts['requires_transfer']) && empty($ts['is_ready'])) {
+                    $has_blocked_transfer = true;
+                    break;
+                }
+            }
+
+            if (!$has_blocked_transfer) {
+                $done_stmt = $pdo->prepare("
+                    UPDATE job_order_progress
+                    SET is_done = 1,
+                        completed_at = COALESCE(completed_at, NOW())
+                    WHERE job_order_id = ?
+                ");
+                $done_stmt->execute([$job_order_id]);
+            }
         }
     }
 }
@@ -248,12 +372,24 @@ if (!function_exists('job_progress_sync_many')) {
 }
 
 if (!function_exists('job_progress_summary_from_tasks')) {
-    function job_progress_summary_from_tasks(array $tasks) {
+    function job_progress_summary_from_tasks(array $tasks, array $transfer_states = []) {
         $total = count($tasks);
         $done = 0;
 
         foreach ($tasks as $task) {
-            if (!empty($task['is_done'])) {
+            $task_key = (string) ($task['task_key'] ?? '');
+            $is_done = !empty($task['is_done']);
+            $transfer_state = $transfer_states[$task_key] ?? null;
+
+            if ($transfer_state !== null && !empty($transfer_state['requires_transfer']) && empty($transfer_state['is_ready'])) {
+                $is_effective_done = false;
+            } elseif (isset($task['is_ready']) && $task['is_ready'] === false && !empty($task['requires_transfer'])) {
+                $is_effective_done = false;
+            } else {
+                $is_effective_done = $is_done;
+            }
+
+            if ($is_effective_done) {
                 $done++;
             }
         }
@@ -314,7 +450,8 @@ if (!function_exists('job_progress_get_for_jobs')) {
 
         $summaries = [];
         foreach ($job_order_ids as $job_order_id) {
-            $summaries[$job_order_id] = job_progress_summary_from_tasks($grouped[$job_order_id] ?? []);
+            $transfer_states = job_progress_get_transfer_states_for_job($pdo, $job_order_id);
+            $summaries[$job_order_id] = job_progress_summary_from_tasks($grouped[$job_order_id] ?? [], $transfer_states);
         }
 
         return $summaries;
@@ -344,8 +481,10 @@ if (!function_exists('job_progress_get_for_job_unsynced')) {
             ORDER BY id ASC
         ");
         $stmt->execute([$job_order_id]);
+        $tasks = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        return job_progress_summary_from_tasks($stmt->fetchAll(PDO::FETCH_ASSOC));
+        $transfer_states = job_progress_get_transfer_states_for_job($pdo, $job_order_id);
+        return job_progress_summary_from_tasks($tasks, $transfer_states);
     }
 }
 
@@ -370,6 +509,12 @@ if (!function_exists('job_progress_update_task')) {
         $task = $task_stmt->fetch(PDO::FETCH_ASSOC);
         if (!$task) {
             throw new Exception('Progress task not found.');
+        }
+
+        $transfer_states = job_progress_get_transfer_states_for_job($pdo, $job_order_id);
+        $task_state = $transfer_states[$task_key] ?? null;
+        if ($is_done && is_array($task_state) && !empty($task_state['requires_transfer']) && empty($task_state['is_ready'])) {
+            throw new Exception($task_state['message'] ?: 'Waiting for transfer from the branch.');
         }
 
         $update_stmt = $pdo->prepare("

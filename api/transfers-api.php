@@ -494,10 +494,9 @@ try {
                 $transfer['donor_branch_id']
             ]);
 
-            $notify_title = "Item Request Shipped";
-            $customer_suffix = !empty($transfer['customer_name']) ? " for {$transfer['customer_name']}" : '';
-            $notify_message = "{$transfer['request_number']} for {$transfer['item_name']}{$customer_suffix} was shipped ({$transfer_qty} unit(s)). Awaiting receiver confirmation.";
-            $receiver_url = "/hwtires/front-desk/tire-inventory/?transfer_request={$transfer_id}#requested-items";
+            $notify_title = "Branch Transfer In Transit";
+            $notify_message = "{$transfer['item_name']} (Qty: {$transfer_qty}) was shipped from {$transfer['donor_branch_name']} to {$transfer['requesting_branch_name']}. Please receive it when it arrives.";
+            $receiver_url = "/hwtires/front-desk/tire-inventory/?transfer_request={$transfer_id}#incoming-branch-transfers";
 
             foreach ($notify_users_stmt->fetchAll(PDO::FETCH_ASSOC) as $notify_user) {
                 $notification_stmt->execute([
@@ -677,6 +676,34 @@ try {
                 WHERE id = ?
             ");
             $stmt->execute([$transfer_id]);
+
+            // Notify donor branch that the transfer has been received and accepted
+            $donor_notif_stmt = $pdo->prepare("
+                INSERT INTO transfer_notifications
+                (branch_id, user_id, transfer_request_id, title, message, type, action_url)
+                VALUES (?, ?, ?, ?, ?, 'success', ?)
+            ");
+            $donor_users_stmt = $pdo->prepare("
+                SELECT id, branch_id
+                FROM users
+                WHERE branch_id = ?
+                  AND status = 'active'
+            ");
+            $donor_users_stmt->execute([(int) $transfer['donor_branch_id']]);
+            $received_title = "Branch Transfer Received";
+            $received_message = "{$transfer['donor_item_name']} (Qty: {$transfer_qty}) has been received by {$transfer['requesting_branch_name']}.";
+            $donor_action_url = "/hwtires/front-desk/tire-inventory/?transfer_request={$transfer_id}#requested-items";
+
+            foreach ($donor_users_stmt->fetchAll(PDO::FETCH_ASSOC) as $donor_user) {
+                $donor_notif_stmt->execute([
+                    $donor_user['branch_id'],
+                    $donor_user['id'],
+                    $transfer_id,
+                    $received_title,
+                    $received_message,
+                    $donor_action_url
+                ]);
+            }
 
             log_audit('inter_branch_transfer_requests', 'UPDATE', $transfer_id,
                       ['status' => 'shipped'], ['status' => 'received', 'quantity' => $transfer_qty]);

@@ -204,51 +204,135 @@ if (!function_exists('record_date_range_label')) {
 }
 
 if (!function_exists('record_date_filter_condition')) {
-    function record_date_filter_condition($column, array $filter, array &$params) {
+    function record_date_filter_condition($column, array $filter, array &$params, $column_type = 'event_timestamp') {
         $scope = $filter['scope'] ?? 'all';
 
         if ($scope === 'all') {
             return '';
         }
 
-        if ($scope === 'day') {
-            $params[] = $filter['day'];
-            return "DATE($column) = ?";
-        }
+        $manila = new DateTimeZone('Asia/Manila');
+        $utc = new DateTimeZone('UTC');
 
-        if ($scope === 'week') {
-            [$year, $week] = explode('-W', $filter['week']);
-            $start = new DateTime();
-            $start->setISODate((int) $year, (int) $week, 1);
-            $end = clone $start;
-            $end->modify('+6 days');
+        // Check if column is an event timestamp (stored in UTC) or a DATE-only column
+        if ($column_type === 'event_timestamp') {
+            if ($scope === 'day') {
+                $day = record_date_filter_valid_date($filter['day'] ?? date('Y-m-d'));
+                $start = new DateTimeImmutable($day . ' 00:00:00', $manila);
+                $params[] = $start->setTimezone($utc)->format('Y-m-d H:i:s');
+                $params[] = $start->modify('+1 day')->setTimezone($utc)->format('Y-m-d H:i:s');
+                return "$column >= ? AND $column < ?";
+            }
+
+            if ($scope === 'week') {
+                $week_str = $filter['week'] ?? date('o-\WW');
+                if (strpos($week_str, '-W') !== false) {
+                    [$year, $week] = explode('-W', $week_str);
+                } else {
+                    $year = date('o');
+                    $week = date('W');
+                }
+                $start = (new DateTimeImmutable('now', $manila))
+                    ->setISODate((int) $year, (int) $week, 1)
+                    ->setTime(0, 0, 0);
+                $params[] = $start->setTimezone($utc)->format('Y-m-d H:i:s');
+                $params[] = $start->modify('+7 days')->setTimezone($utc)->format('Y-m-d H:i:s');
+                return "$column >= ? AND $column < ?";
+            }
+
+            if ($scope === 'month') {
+                $month = preg_match('/^\d{4}-\d{2}$/', (string) ($filter['month'] ?? ''))
+                    ? (string) $filter['month']
+                    : date('Y-m');
+                $start = new DateTimeImmutable($month . '-01 00:00:00', $manila);
+                $params[] = $start->setTimezone($utc)->format('Y-m-d H:i:s');
+                $params[] = $start->modify('+1 month')->setTimezone($utc)->format('Y-m-d H:i:s');
+                return "$column >= ? AND $column < ?";
+            }
+
+            if ($scope === 'year') {
+                $year = (int) ($filter['year'] ?? date('Y'));
+                $year = max(2020, min(2100, $year));
+                $start = new DateTimeImmutable($year . '-01-01 00:00:00', $manila);
+                $params[] = $start->setTimezone($utc)->format('Y-m-d H:i:s');
+                $params[] = $start->modify('+1 year')->setTimezone($utc)->format('Y-m-d H:i:s');
+                return "$column >= ? AND $column < ?";
+            }
+
+            if ($scope === 'range') {
+                $from = record_date_filter_valid_date($filter['from'] ?? date('Y-m-d'));
+                $to = record_date_filter_valid_date($filter['to'] ?? $from, $from);
+                if (strtotime($from) > strtotime($to)) {
+                    [$from, $to] = [$to, $from];
+                }
+                $start = new DateTimeImmutable($from . ' 00:00:00', $manila);
+                $end = new DateTimeImmutable($to . ' 00:00:00', $manila);
+                $params[] = $start->setTimezone($utc)->format('Y-m-d H:i:s');
+                $params[] = $end->modify('+1 day')->setTimezone($utc)->format('Y-m-d H:i:s');
+                return "$column >= ? AND $column < ?";
+            }
+
+            $start = new DateTimeImmutable('monday this week 00:00:00', $manila);
+            $params[] = $start->setTimezone($utc)->format('Y-m-d H:i:s');
+            $params[] = $start->modify('+7 days')->setTimezone($utc)->format('Y-m-d H:i:s');
+            return "$column >= ? AND $column < ?";
+        } else {
+            // Pure DATE column mode (e.g. comparing YYYY-MM-DD directly)
+            if ($scope === 'day') {
+                $params[] = record_date_filter_valid_date($filter['day'] ?? date('Y-m-d'));
+                return "$column = ?";
+            }
+
+            if ($scope === 'week') {
+                $week_str = $filter['week'] ?? date('o-\WW');
+                if (strpos($week_str, '-W') !== false) {
+                    [$year, $week] = explode('-W', $week_str);
+                } else {
+                    $year = date('o');
+                    $week = date('W');
+                }
+                $start = (new DateTimeImmutable('now', $manila))
+                    ->setISODate((int) $year, (int) $week, 1)
+                    ->setTime(0, 0, 0);
+                $params[] = $start->format('Y-m-d');
+                $params[] = $start->modify('+6 days')->format('Y-m-d');
+                return "$column BETWEEN ? AND ?";
+            }
+
+            if ($scope === 'month') {
+                $month = preg_match('/^\d{4}-\d{2}$/', (string) ($filter['month'] ?? ''))
+                    ? (string) $filter['month']
+                    : date('Y-m');
+                $start = new DateTimeImmutable($month . '-01', $manila);
+                $params[] = $start->format('Y-m-d');
+                $params[] = $start->format('Y-m-t');
+                return "$column BETWEEN ? AND ?";
+            }
+
+            if ($scope === 'year') {
+                $year = (int) ($filter['year'] ?? date('Y'));
+                $year = max(2020, min(2100, $year));
+                $params[] = "$year-01-01";
+                $params[] = "$year-12-31";
+                return "$column BETWEEN ? AND ?";
+            }
+
+            if ($scope === 'range') {
+                $from = record_date_filter_valid_date($filter['from'] ?? date('Y-m-d'));
+                $to = record_date_filter_valid_date($filter['to'] ?? $from, $from);
+                if (strtotime($from) > strtotime($to)) {
+                    [$from, $to] = [$to, $from];
+                }
+                $params[] = $from;
+                $params[] = $to;
+                return "$column BETWEEN ? AND ?";
+            }
+
+            $start = new DateTimeImmutable('monday this week', $manila);
             $params[] = $start->format('Y-m-d');
-            $params[] = $end->format('Y-m-d');
-            return "DATE($column) BETWEEN ? AND ?";
+            $params[] = $start->modify('+6 days')->format('Y-m-d');
+            return "$column BETWEEN ? AND ?";
         }
-
-        if ($scope === 'month') {
-            $params[] = $filter['month'];
-            return "DATE_FORMAT($column, '%Y-%m') = ?";
-        }
-
-        if ($scope === 'year') {
-            $params[] = (int) $filter['year'];
-            return "YEAR($column) = ?";
-        }
-
-        if ($scope === 'range') {
-            $params[] = $filter['from'];
-            $params[] = $filter['to'];
-            return "DATE($column) BETWEEN ? AND ?";
-        }
-
-        $start = new DateTime('monday this week');
-        $end = clone $start;
-        $end->modify('+6 days');
-        $params[] = $start->format('Y-m-d');
-        $params[] = $end->format('Y-m-d');
-        return "DATE($column) BETWEEN ? AND ?";
     }
 }
 

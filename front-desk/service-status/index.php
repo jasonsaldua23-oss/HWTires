@@ -267,6 +267,107 @@ $progress_csrf_token = generate_csrf_token();
 <?php require_once '../../includes/sidebar.php'; ?>
 
 <div class="service-status-page">
+    <style>
+    .service-status-page .service-task-list-modal {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .service-status-page .service-task-check {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        justify-content: center !important;
+        gap: 4px !important;
+        min-height: 42px !important;
+        padding: 9px 12px !important;
+        box-sizing: border-box !important;
+        width: 100% !important;
+        background: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 8px !important;
+        cursor: pointer !important;
+        transition: all 0.15s ease-in-out !important;
+    }
+    .service-status-page .service-task-check.is-done {
+        color: #008d43 !important;
+        background: #ecfdf3 !important;
+        border-color: #bbf7d0 !important;
+    }
+    .service-status-page .service-task-check.is-transfer-pending {
+        background: #fffbeb !important;
+        border-color: #fde68a !important;
+        cursor: not-allowed !important;
+    }
+    .service-status-page .service-task-check .service-task-main {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        gap: 10px !important;
+        width: 100% !important;
+    }
+    .service-status-page .service-task-check input[type="checkbox"],
+    .service-status-page .service-task-check input.service-progress-checkbox {
+        display: inline-block !important;
+        flex: 0 0 18px !important;
+        width: 18px !important;
+        height: 18px !important;
+        margin: 0 !important;
+        vertical-align: middle !important;
+        flex-shrink: 0 !important;
+        accent-color: #0096b6 !important;
+    }
+    .service-status-page .service-task-check.is-transfer-pending input[type="checkbox"],
+    .service-status-page .service-task-check.is-transfer-pending input.service-progress-checkbox {
+        accent-color: #b45309 !important;
+    }
+    .service-status-page .service-task-check .service-task-name {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        flex: 1 1 auto !important;
+        line-height: 1.35 !important;
+        font-size: 13.5px !important;
+        font-weight: 650 !important;
+        color: #16223c !important;
+        white-space: normal !important;
+        word-break: break-word !important;
+    }
+    .service-status-page .service-task-check.is-done .service-task-name {
+        color: #008d43 !important;
+    }
+    .service-status-page .service-task-check.is-transfer-pending .service-task-name {
+        color: #92400e !important;
+    }
+    .service-status-page .service-task-check .service-task-quantity {
+        display: inline-block !important;
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        color: #64748b !important;
+        margin-left: 2px !important;
+    }
+    .service-status-page .service-task-check .service-task-transfer-status {
+        margin-left: 28px !important;
+        font-size: 12.5px !important;
+        font-weight: 500 !important;
+        line-height: 1.35 !important;
+        word-break: break-word !important;
+    }
+    .service-status-page .service-task-check .service-task-transfer-status.is-pending {
+        color: #b45309 !important;
+    }
+    .service-status-page .service-task-check .service-task-transfer-status.is-shipped {
+        color: #c2410c !important;
+    }
+    .service-status-page .service-task-check .service-task-transfer-status.is-no-source {
+        color: #92400e !important;
+    }
+    .service-status-page .service-task-check .service-task-transfer-status.is-ready {
+        color: #0f766e !important;
+    }
+    </style>
+
     <section class="service-status-hero">
         <h1>Vehicle Service Status</h1>
         <p>Track and update service status</p>
@@ -517,29 +618,39 @@ $progress_csrf_token = generate_csrf_token();
                                             <div class="service-task-list service-task-list-modal" aria-label="Job order checklist">
                                                 <?php foreach (($progress['tasks'] ?? []) as $task): ?>
                                                     <?php
-                                                    $task_done = !empty($task['is_done']);
-                                                    $task_quantity = max(1, (int) ($task['quantity'] ?? 1));
-                                                    $transfer_state = $transfer_states_by_job[$job_id][$task['task_key']] ?? ['requires_transfer' => false, 'is_ready' => true, 'status' => 'ready', 'label' => 'Ready', 'message' => ''];
+                                                    $transfer_state = $transfer_states_by_job[$job_id][$task['task_key']] ?? ['requires_transfer' => false, 'is_ready' => true, 'status' => 'ready', 'label' => 'Ready', 'message' => '', 'branch_name' => ''];
                                                     $transfer_blocked = !empty($transfer_state['requires_transfer']) && empty($transfer_state['is_ready']);
+                                                    $task_done = !empty($task['is_done']) && !$transfer_blocked;
+                                                    $task_quantity = max(1, (int) ($task['quantity'] ?? 1));
                                                     ?>
-                                                    <label class="service-task-check <?php echo $task_done ? 'is-done' : ''; ?> <?php echo $transfer_blocked ? 'is-transfer-pending' : ''; ?>"
+                                                    <label class="service-task-check <?php echo $task_done ? 'is-done' : ''; ?> <?php echo $transfer_blocked ? 'is-transfer-pending' : ''; ?> <?php echo !empty($transfer_state['requires_transfer']) ? 'has-transfer-status' : ''; ?>"
                                                            <?php if (!empty($transfer_state['message'])): ?>data-transfer-message="<?php echo esc_attr($transfer_state['message']); ?>"<?php endif; ?>>
-                                                        <input type="checkbox"
-                                                               class="service-progress-checkbox"
-                                                               data-job-id="<?php echo $job_id; ?>"
-                                                               data-task-key="<?php echo esc_attr($task['task_key']); ?>"
-                                                               <?php echo $transfer_blocked ? 'disabled' : ''; ?>
-                                                               <?php echo $task_done ? 'checked' : ''; ?>>
-                                                        <span>
-                                                            <?php echo esc_html($task['task_name']); ?>
-                                                            <?php if ($task_quantity > 1): ?>
-                                                                <small>x<?php echo $task_quantity; ?></small>
-                                                            <?php endif; ?>
-                                                        </span>
+                                                        <div class="service-task-main">
+                                                            <input type="checkbox"
+                                                                   class="service-progress-checkbox"
+                                                                   data-job-id="<?php echo $job_id; ?>"
+                                                                   data-task-key="<?php echo esc_attr($task['task_key']); ?>"
+                                                                   <?php echo $transfer_blocked ? 'disabled' : ''; ?>
+                                                                   <?php echo $task_done ? 'checked' : ''; ?>>
+                                                            <span class="service-task-name">
+                                                                <?php echo esc_html($task['task_name']); ?>
+                                                                <?php if ($task_quantity > 1): ?>
+                                                                    <small class="service-task-quantity">x<?php echo $task_quantity; ?></small>
+                                                                <?php endif; ?>
+                                                            </span>
+                                                        </div>
                                                         <?php if (!empty($transfer_state['requires_transfer'])): ?>
-                                                            <small class="service-transfer-badge <?php echo $transfer_blocked ? 'is-pending' : 'is-ready'; ?>">
-                                                                <?php echo esc_html($transfer_blocked ? ($transfer_state['label'] ?? 'Waiting for transfer') : 'Transferred'); ?>
-                                                            </small>
+                                                            <?php
+                                                            $transfer_status_class = $transfer_blocked ? 'is-pending' : 'is-ready';
+                                                            if ($transfer_state['status'] === 'shipped') {
+                                                                $transfer_status_class = 'is-shipped';
+                                                            } elseif ($transfer_state['status'] === 'not-sent' || empty($transfer_state['branch_name'])) {
+                                                                $transfer_status_class = 'is-no-source';
+                                                            }
+                                                            ?>
+                                                            <div class="service-task-transfer-status <?php echo $transfer_status_class; ?>">
+                                                                <?php echo esc_html($transfer_state['label'] ?? ($transfer_blocked ? 'Waiting for transfer' : 'Transferred — Ready to Service')); ?>
+                                                            </div>
                                                         <?php endif; ?>
                                                     </label>
                                                 <?php endforeach; ?>

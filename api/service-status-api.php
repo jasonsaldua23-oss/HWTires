@@ -190,6 +190,15 @@ if (!function_exists('service_status_apply_job_status')) {
             throw new Exception('Completed job orders cannot be moved back from this screen.');
         }
 
+        if ($status === 'completed') {
+            $transfer_states = job_progress_get_transfer_states_for_job($pdo, $job_order_id);
+            foreach ($transfer_states as $task_state) {
+                if (!empty($task_state['requires_transfer']) && empty($task_state['is_ready'])) {
+                    throw new Exception('Cannot complete this job order because one or more required items are still awaiting transfer.');
+                }
+            }
+        }
+
         $skip_inventory_consumption = !empty($options['skip_inventory_consumption']);
         if (in_array($status, ['in-progress', 'completed'], true) && !$skip_inventory_consumption) {
             job_order_apply_inventory_consumption($pdo, $job_order_id, $user['id'] ?? null);

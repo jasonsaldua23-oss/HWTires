@@ -559,6 +559,7 @@ if (!function_exists('cv_records_load_latest_service_operation_summary')) {
         }
 
         $placeholders = implode(',', array_fill(0, count($vehicle_ids), '?'));
+        $params = array_merge($vehicle_ids, $vehicle_ids);
         $stmt = $pdo->prepare("
             SELECT vehicle_id, quotation_id, quotation_branch_id, quotation_status
             FROM (
@@ -572,14 +573,33 @@ if (!function_exists('cv_records_load_latest_service_operation_summary')) {
                            ELSE COALESCE(q.status, 'pending')
                        END AS quotation_status,
                        CAST(CONCAT(q.quotation_date, ' ', COALESCE(TIME(q.updated_at), TIME(q.created_at), '00:00:00')) AS DATETIME) AS activity_at,
-                       q.id AS source_id
+                       q.id AS source_id,
+                       1 AS source_rank
                 FROM quotations q
                 WHERE q.vehicle_id IN ($placeholders)
                   AND q.status <> 'archived'
+
+                UNION ALL
+
+                SELECT jo.vehicle_id,
+                       q.id AS quotation_id,
+                       COALESCE(q.branch_id, jo.branch_id) AS quotation_branch_id,
+                       CASE
+                           WHEN q.status = 'rejected' THEN 'rejected'
+                           WHEN q.status = 'pending' THEN 'pending'
+                           ELSE 'approved'
+                       END AS quotation_status,
+                       CAST(CONCAT(jo.job_date, ' ', COALESCE(TIME(jo.updated_at), TIME(jo.created_at), '00:00:00')) AS DATETIME) AS activity_at,
+                       q.id AS source_id,
+                       2 AS source_rank
+                FROM job_orders jo
+                INNER JOIN quotations q ON jo.quotation_id = q.id
+                WHERE jo.vehicle_id IN ($placeholders)
+                  AND jo.status NOT IN ('archived', 'cancelled')
             ) vehicle_quote_activity
-            ORDER BY vehicle_id ASC, activity_at DESC, source_id DESC
+            ORDER BY vehicle_id ASC, activity_at DESC, source_rank ASC, source_id DESC
         ");
-        $stmt->execute($vehicle_ids);
+        $stmt->execute($params);
 
         foreach ($stmt->fetchAll() as $row) {
             $vehicle_id = (int) ($row['vehicle_id'] ?? 0);
@@ -621,7 +641,12 @@ if (!function_exists('cv_records_load_latest_service_status_summary')) {
                        jo.branch_id AS service_job_branch_id,
                        CAST(CONCAT(jo.job_date, ' ', COALESCE(TIME(jo.updated_at), TIME(jo.created_at), '00:00:00')) AS DATETIME) AS activity_at,
                        jo.id AS source_id,
-                       1 AS source_rank
+                       CASE
+                           WHEN jo.status = 'in-progress' THEN 1
+                           WHEN jo.status IN ('waiting', 'pending') THEN 2
+                           WHEN jo.status = 'completed' THEN 3
+                           ELSE 4
+                       END AS priority_rank
                 FROM job_orders jo
                 WHERE jo.vehicle_id IN ($placeholders)
                   AND jo.status NOT IN ('archived', 'cancelled')
@@ -630,15 +655,15 @@ if (!function_exists('cv_records_load_latest_service_status_summary')) {
 
                 SELECT sh.vehicle_id,
                        'completed' AS service_status,
-                       NULL AS service_job_id,
+                       COALESCE(sh.job_order_id, 0) AS service_job_id,
                        sh.branch_id AS service_job_branch_id,
                        CAST(CONCAT(sh.service_date, ' ', COALESCE(TIME(sh.created_at), '00:00:00')) AS DATETIME) AS activity_at,
                        sh.id AS source_id,
-                       2 AS source_rank
+                       5 AS priority_rank
                 FROM service_history sh
                 WHERE sh.vehicle_id IN ($placeholders)
             ) vehicle_service_activity
-            ORDER BY vehicle_id ASC, activity_at DESC, source_rank ASC, source_id DESC
+            ORDER BY vehicle_id ASC, priority_rank ASC, activity_at DESC, source_id DESC
         ");
         $stmt->execute($params);
 
@@ -686,7 +711,12 @@ if (!function_exists('cv_records_align_service_status_with_operation')) {
                            jo.branch_id AS service_job_branch_id,
                            CAST(CONCAT(jo.job_date, ' ', COALESCE(TIME(jo.updated_at), TIME(jo.created_at), '00:00:00')) AS DATETIME) AS activity_at,
                            jo.id AS source_id,
-                           1 AS source_rank
+                           CASE
+                               WHEN jo.status = 'in-progress' THEN 1
+                               WHEN jo.status IN ('waiting', 'pending') THEN 2
+                               WHEN jo.status = 'completed' THEN 3
+                               ELSE 4
+                           END AS priority_rank
                     FROM job_orders jo
                     WHERE jo.quotation_id IN ($placeholders)
                       AND jo.status NOT IN ('archived', 'cancelled')
@@ -695,15 +725,15 @@ if (!function_exists('cv_records_align_service_status_with_operation')) {
 
                     SELECT sh.quotation_id,
                            'completed' AS service_status,
-                           sh.job_order_id AS service_job_id,
+                           COALESCE(sh.job_order_id, 0) AS service_job_id,
                            sh.branch_id AS service_job_branch_id,
                            CAST(CONCAT(sh.service_date, ' ', COALESCE(TIME(sh.created_at), '00:00:00')) AS DATETIME) AS activity_at,
                            sh.id AS source_id,
-                           2 AS source_rank
+                           5 AS priority_rank
                     FROM service_history sh
                     WHERE sh.quotation_id IN ($placeholders)
                 ) linked_service_activity
-                ORDER BY quotation_id ASC, activity_at DESC, source_rank ASC, source_id DESC
+                ORDER BY quotation_id ASC, priority_rank ASC, activity_at DESC, source_id DESC
             ");
             $stmt->execute($params);
 
@@ -720,77 +750,78 @@ if (!function_exists('cv_records_align_service_status_with_operation')) {
         }
 
         $aligned_status_by_vehicle = [];
-        foreach ($fallback_status_by_vehicle as $vehicle_id => $fallback) {
-            $operation_summary = $operation_summary_by_vehicle[$vehicle_id] ?? null;
-            if (!$operation_summary || empty($operation_summary['quotation_id'])) {
-                $aligned_status_by_vehicle[$vehicle_id] = [
-                    'status' => 'no-service',
-                    'job_id' => 0,
-                    'job_branch_id' => (int) ($fallback['job_branch_id'] ?? 0),
-                ];
+        $all_keys = array_unique(array_merge(array_keys($fallback_status_by_vehicle), array_keys($operation_summary_by_vehicle)));
+
+        foreach ($all_keys as $vehicle_id) {
+            $vehicle_id = (int) $vehicle_id;
+            if ($vehicle_id <= 0) {
                 continue;
             }
 
-            $operation_status = cv_records_operation_status_normalize($operation_summary['status'] ?? '');
-            $quotation_id = (int) ($operation_summary['quotation_id'] ?? 0);
-            $quotation_branch_id = (int) ($operation_summary['quotation_branch_id'] ?? 0);
+            $fallback = $fallback_status_by_vehicle[$vehicle_id] ?? [
+                'status' => 'no-service',
+                'job_id' => 0,
+                'job_branch_id' => 0
+            ];
+            $fallback_status = cv_records_service_status_normalize($fallback['status'] ?? 'no-service');
+            $fallback_job_id = (int) ($fallback['job_id'] ?? 0);
+            $fallback_branch_id = (int) ($fallback['job_branch_id'] ?? 0);
 
-            if ($operation_status === 'rejected') {
-                $aligned_status_by_vehicle[$vehicle_id] = [
-                    'status' => 'no-service',
-                    'job_id' => 0,
-                    'job_branch_id' => $quotation_branch_id,
-                ];
-                continue;
+            $op = $operation_summary_by_vehicle[$vehicle_id] ?? null;
+            $op_status = $op ? cv_records_operation_status_normalize($op['status'] ?? '') : 'no-service';
+            $quotation_id = (int) ($op['quotation_id'] ?? 0);
+            $quotation_branch_id = (int) ($op['quotation_branch_id'] ?? $fallback_branch_id);
+
+            // Priority 1: Direct link from the latest operation / quotation to its Job Order or Service History
+            if ($quotation_id > 0 && isset($status_by_quotation[$quotation_id])) {
+                $linked = $status_by_quotation[$quotation_id];
+                $linked_status = cv_records_service_status_normalize($linked['status'] ?? '');
+                if ($linked_status !== 'no-service') {
+                    $aligned_status_by_vehicle[$vehicle_id] = [
+                        'status' => $linked_status,
+                        'job_id' => (int) ($linked['job_id'] ?? 0),
+                        'job_branch_id' => (int) ($linked['job_branch_id'] ?? $quotation_branch_id),
+                    ];
+                    continue;
+                }
             }
 
-            if ($operation_status === 'pending') {
-                $aligned_status_by_vehicle[$vehicle_id] = [
-                    'status' => 'pending',
-                    'job_id' => 0,
-                    'job_branch_id' => $quotation_branch_id,
-                ];
-                continue;
-            }
-
-            if ($operation_status === 'approved') {
-                $aligned_status_by_vehicle[$vehicle_id] = $status_by_quotation[$quotation_id] ?? [
-                    'status' => 'pending',
-                    'job_id' => 0,
-                    'job_branch_id' => $quotation_branch_id,
-                ];
-            }
-        }
-
-        foreach ($operation_summary_by_vehicle as $summary_vehicle_id => $operation_summary) {
-            $vehicle_id = (int) $summary_vehicle_id;
-            if ($vehicle_id <= 0 || isset($aligned_status_by_vehicle[$vehicle_id])) {
-                continue;
-            }
-
-            $operation_status = cv_records_operation_status_normalize($operation_summary['status'] ?? '');
-            $quotation_id = (int) ($operation_summary['quotation_id'] ?? 0);
-            $quotation_branch_id = (int) ($operation_summary['quotation_branch_id'] ?? 0);
-
-            if ($operation_status === 'rejected' || empty($quotation_id)) {
+            // Priority 2: Latest operation is Rejected -> current cycle has no service
+            if ($op_status === 'rejected') {
                 $aligned_status_by_vehicle[$vehicle_id] = [
                     'status' => 'no-service',
                     'job_id' => 0,
                     'job_branch_id' => $quotation_branch_id,
                 ];
-            } elseif ($operation_status === 'pending') {
+                continue;
+            }
+
+            // Priority 3: Latest operation is Approved or Pending without Job Order yet -> cycle status is Pending
+            if ($op_status === 'approved' || $op_status === 'pending') {
                 $aligned_status_by_vehicle[$vehicle_id] = [
                     'status' => 'pending',
                     'job_id' => 0,
                     'job_branch_id' => $quotation_branch_id,
                 ];
-            } elseif ($operation_status === 'approved') {
-                $aligned_status_by_vehicle[$vehicle_id] = $status_by_quotation[$quotation_id] ?? [
-                    'status' => 'pending',
-                    'job_id' => 0,
-                    'job_branch_id' => $quotation_branch_id,
-                ];
+                continue;
             }
+
+            // Priority 4: Standalone active Job Order on vehicle (e.g. if not linked to any quotation)
+            if (in_array($fallback_status, ['ongoing', 'pending'], true) && $fallback_job_id > 0) {
+                $aligned_status_by_vehicle[$vehicle_id] = [
+                    'status' => $fallback_status,
+                    'job_id' => $fallback_job_id,
+                    'job_branch_id' => $fallback_branch_id,
+                ];
+                continue;
+            }
+
+            // Priority 5: Default / No Operation -> No Service
+            $aligned_status_by_vehicle[$vehicle_id] = [
+                'status' => 'no-service',
+                'job_id' => 0,
+                'job_branch_id' => $quotation_branch_id ?: $fallback_branch_id,
+            ];
         }
 
         return $aligned_status_by_vehicle;
