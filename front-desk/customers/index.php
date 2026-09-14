@@ -99,6 +99,7 @@ $vehicle_main_activity_expr = record_activity_datetime_expr('v.last_service_date
 $vehicle_main_record_date_expr = record_business_datetime_expr('v.last_service_date', 'v.created_at');
 $vehicle_job_record_date_expr = record_business_datetime_expr('jo_date.job_date', 'jo_date.created_at');
 $vehicle_quote_record_date_expr = record_business_datetime_expr('q_date.quotation_date', 'q_date.created_at');
+$vehicle_history_record_date_expr = record_business_datetime_expr('sh_date.service_date', 'sh_date.created_at');
 $vehicle_sort_expr = "GREATEST(
     COALESCE((
         SELECT MAX(sh.service_date)
