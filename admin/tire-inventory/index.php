@@ -1073,6 +1073,104 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
 .inventory-form-grid label {
     align-content: flex-start !important;
 }
+.inventory-modal-body .product-type-option,
+.inventory-modal-body .form-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 0;
+    padding-left: 0;
+    cursor: pointer;
+}
+.inventory-modal-body input[type="radio"],
+.inventory-modal-body .form-check-input[type="radio"] {
+    appearance: auto !important;
+    -webkit-appearance: radio !important;
+    -moz-appearance: radio !important;
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    max-width: 18px !important;
+    min-height: 18px !important;
+    max-height: 18px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    flex: 0 0 18px !important;
+    border-radius: 50% !important;
+    background-color: #ffffff !important;
+    border: 2px solid #94a3b8 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+    accent-color: var(--primary-color, #14b8a6) !important;
+    vertical-align: middle !important;
+}
+.inventory-modal-body input[type="radio"]:checked,
+.inventory-modal-body .form-check-input[type="radio"]:checked {
+    border-color: var(--primary-color, #14b8a6) !important;
+    accent-color: var(--primary-color, #14b8a6) !important;
+}
+.inventory-modal-body input[type="radio"]:focus,
+.inventory-modal-body .form-check-input[type="radio"]:focus {
+    box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.25) !important;
+}
+.inventory-modal-body .form-check-label {
+    margin-bottom: 0;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1.4;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+}
+.inventory-modal-body .schedule-delivery-checkbox,
+.inventory-modal-body input#scheduleDeliveryToggle[type="checkbox"] {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    max-width: 18px !important;
+    min-height: 18px !important;
+    max-height: 18px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    flex: 0 0 18px !important;
+    border: 2px solid #94a3b8 !important;
+    border-radius: 50% !important;
+    background-color: #ffffff !important;
+    cursor: pointer !important;
+    position: relative !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    vertical-align: middle !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+.inventory-modal-body .schedule-delivery-checkbox:checked,
+.inventory-modal-body input#scheduleDeliveryToggle[type="checkbox"]:checked {
+    background-color: var(--primary-color, #14b8a6) !important;
+    border-color: var(--primary-color, #14b8a6) !important;
+}
+.inventory-modal-body .schedule-delivery-checkbox:checked::after,
+.inventory-modal-body input#scheduleDeliveryToggle[type="checkbox"]:checked::after {
+    content: "✓" !important;
+    color: #ffffff !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    display: block !important;
+    position: absolute !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -52%) !important;
+}
+.inventory-modal-body .schedule-delivery-checkbox:focus,
+.inventory-modal-body input#scheduleDeliveryToggle[type="checkbox"]:focus {
+    box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.25) !important;
+}
 </style>
 
 <main class="inventory-records-page">
@@ -1776,21 +1874,21 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                     <label class="form-label fw-bold text-dark mb-2 d-block" style="font-size: 13.5px;">
                         <i class="fas fa-layer-group text-primary me-1"></i> Product Type
                     </label>
-                    <div class="d-flex flex-wrap gap-4">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="creation_mode" id="mode_new" value="new" checked style="cursor: pointer;">
-                            <label class="form-check-label fw-semibold text-dark" for="mode_new" style="cursor: pointer;">
-                                <i class="fas fa-plus-circle text-success me-1"></i> Register Brand-New Product
+                    <div class="d-flex flex-wrap gap-4 align-items-center">
+                        <div class="form-check product-type-option">
+                            <input class="form-check-input" type="radio" name="creation_mode" id="mode_new" value="new" checked>
+                            <label class="form-check-label fw-semibold text-dark" for="mode_new">
+                                <i class="fas fa-plus-circle text-success me-1"></i> Register as Brand-New Product
                             </label>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="creation_mode" id="mode_existing" value="existing" style="cursor: pointer;">
-                            <label class="form-check-label fw-semibold text-dark" for="mode_existing" style="cursor: pointer;">
+                        <div class="form-check product-type-option">
+                            <input class="form-check-input" type="radio" name="creation_mode" id="mode_existing" value="existing">
+                            <label class="form-check-label fw-semibold text-dark" for="mode_existing">
                                 <i class="fas fa-link text-primary me-1"></i> Existing Company Product
                             </label>
                         </div>
                     </div>
-                    <div class="small text-muted mt-1" id="mode_description">
+                    <div class="small text-muted mt-2" id="mode_description">
                         Create a brand-new catalog product definition with company-standard SKU & Inventory Serial Number.
                     </div>
                 </div>
@@ -1937,8 +2035,8 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                 <div class="mt-4 p-3 rounded-3 border bg-light">
                     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                         <div class="d-flex align-items-center gap-2">
-                            <input class="form-check-input mt-0" type="checkbox" name="schedule_delivery" id="scheduleDeliveryToggle" value="1" style="width: 18px; height: 18px; cursor: pointer;">
-                            <label class="form-check-label fw-bold text-dark mb-0" for="scheduleDeliveryToggle" style="cursor: pointer;">
+                            <input class="form-check-input mt-0 schedule-delivery-checkbox" type="checkbox" name="schedule_delivery" id="scheduleDeliveryToggle" value="1">
+                            <label class="form-check-label fw-bold text-dark mb-0 d-inline-flex align-items-center" for="scheduleDeliveryToggle" style="cursor: pointer;">
                                 <i class="fas fa-truck text-primary me-1"></i> Schedule Initial Delivery (Pending Arrival)
                             </label>
                         </div>
