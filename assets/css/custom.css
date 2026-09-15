@@ -27542,3 +27542,1384 @@ textarea {
     }
 }
 
+/* ==========================================================================
+   23. HWTIRES SCOPED UNIVERSAL FILTER UI STANDARD (Phase 1 Pilot - Round 3 Final Polish)
+   ========================================================================== */
+
+/* Filter Card Container */
+.hw-filter-card,
+.main-content .content .hw-filter-card,
+.customer-records-page .hw-filter-card,
+.service-status-page .hw-filter-card,
+.admin-job-order-page .hw-filter-card,
+.quotation-records-page .hw-filter-card,
+.inventory-records-page .hw-filter-card,
+.transfers-filter-card.hw-filter-card,
+.inventory-filter-card.hw-filter-card,
+.customer-records-filter-card.hw-filter-card,
+.forecasting-page .hw-filter-card,
+.reports-page .hw-filter-card,
+.user-management-page .hw-filter-card {
+    display: block !important;
+    background: var(--company-surface, #ffffff) !important;
+    border: 1px solid var(--company-border, #d7dde5) !important;
+    border-radius: 8px !important;
+    box-shadow: var(--company-shadow-soft, 0 1px 3px rgba(0, 0, 0, 0.05)) !important;
+    padding: 14px 16px !important;
+    margin-bottom: 20px !important;
+    overflow: visible !important;
+}
+
+/* Filter Toolbar Flex Layout */
+.hw-filter-toolbar,
+.customer-records-page .hw-filter-toolbar,
+.service-status-page .hw-filter-toolbar,
+.admin-job-order-page .hw-filter-toolbar,
+.quotation-records-page .hw-filter-toolbar,
+.inventory-records-page .hw-filter-toolbar,
+.transfers-unified-filter-form.hw-filter-toolbar,
+.inventory-unified-filter-form.hw-filter-toolbar,
+.customer-records-filter.hw-filter-toolbar,
+.forecasting-page .hw-filter-toolbar,
+.reports-page .hw-filter-toolbar,
+.user-management-page .hw-filter-toolbar,
+.audit-trail-filter-form.hw-filter-toolbar {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 6px !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    overflow: visible !important;
+}
+
+/* Filter Clusters (for multi-form alignments) */
+.hw-filter-cluster {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+    flex: 1 1 auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+}
+
+/* Date Controls + Action Pair Wrapper (Strict content-fit action pair) */
+.hw-date-actions-wrapper {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: flex-end !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+    width: auto !important;
+    max-width: max-content !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    flex: 0 0 auto !important;
+}
+
+.hw-search-cluster {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-end !important;
+    justify-content: flex-end !important;
+    gap: 6px !important;
+    flex: 0 1 360px !important;
+    min-width: 240px !important;
+    margin-left: auto !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+}
+
+/* Filter Group Items */
+.hw-filter-group {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    gap: 4px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    flex: 0 0 auto !important;
+    min-width: 130px !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.hw-filter-group.hw-group-sm {
+    min-width: 125px !important;
+    max-width: 165px !important;
+    flex: 0 1 145px !important;
+}
+
+.hw-filter-group.hw-group-priority {
+    min-width: 135px !important;
+    max-width: 175px !important;
+    flex: 0 1 155px !important;
+}
+
+.hw-filter-group.hw-group-md {
+    min-width: 135px !important;
+    max-width: 180px !important;
+    flex: 0 1 160px !important;
+}
+
+.hw-filter-group.hw-group-lg {
+    min-width: 160px !important;
+    max-width: 220px !important;
+    flex: 0 1 190px !important;
+}
+
+/* Specific Field Preset Sizes (Prevents Option Text Truncation) */
+.hw-filter-group.hw-group-branch {
+    min-width: 170px !important;
+    max-width: 215px !important;
+    flex: 0 1 200px !important;
+}
+
+.hw-filter-group.hw-group-operation {
+    min-width: 200px !important;
+    max-width: 240px !important;
+    flex: 0 1 220px !important;
+}
+
+.hw-filter-group.hw-group-service-status {
+    min-width: 180px !important;
+    max-width: 220px !important;
+    flex: 0 1 200px !important;
+}
+
+.hw-filter-group.hw-group-status {
+    min-width: 145px !important;
+    max-width: 175px !important;
+    flex: 0 1 160px !important;
+}
+
+.hw-filter-group.hw-group-date {
+    min-width: 130px !important;
+    max-width: 160px !important;
+    flex: 0 1 145px !important;
+}
+
+.hw-filter-group.hw-group-search,
+.hw-filter-search {
+    flex: 1 1 240px !important;
+    min-width: 200px !important;
+    max-width: 360px !important;
+    margin: 0 !important;
+    margin-left: auto !important;
+}
+
+/* Filter Labels */
+.hw-filter-label,
+.hw-filter-group > label,
+.hw-filter-group > .hw-filter-label {
+    display: block !important;
+    color: #475569 !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    margin: 0 0 2px 0 !important;
+    white-space: nowrap !important;
+    letter-spacing: 0.01em !important;
+    text-transform: none !important;
+}
+
+/* Filter Controls (Select & Input) */
+.hw-filter-control,
+.hw-filter-select,
+.hw-filter-input,
+.hw-filter-group select,
+.hw-filter-group input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+.hw-filter-toolbar select,
+.hw-filter-toolbar input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]) {
+    display: block !important;
+    width: 100% !important;
+    min-height: 38px !important;
+    max-height: 38px !important;
+    height: 38px !important;
+    padding: 6px 12px !important;
+    font-size: 0.875rem !important; /* 14px */
+    font-weight: 500 !important;
+    line-height: 1.4 !important;
+    color: #1e293b !important;
+    background-color: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+    outline: none !important;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out !important;
+    box-sizing: border-box !important;
+}
+
+.hw-filter-control:focus,
+.hw-filter-select:focus,
+.hw-filter-input:focus,
+.hw-filter-group select:focus,
+.hw-filter-group input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):focus {
+    border-color: var(--primary-color, #14b8a6) !important;
+    box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.18) !important;
+}
+
+.hw-filter-select,
+.hw-filter-group select {
+    padding-right: 28px !important;
+    cursor: pointer !important;
+}
+
+/* Search Wrapper & Input Standards */
+.hw-search-wrapper {
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.hw-search-icon {
+    display: none !important;
+}
+
+.hw-search-input,
+.hw-search-wrapper > .hw-search-input,
+.hw-search-wrapper > input,
+input.hw-search-input,
+.hw-filter-group .hw-search-input,
+.hw-filter-group .hw-search-wrapper input {
+    width: 100% !important;
+    min-height: 38px !important;
+    height: 38px !important;
+    padding: 6px 12px !important;
+    padding-left: 12px !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: #1e293b !important;
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    outline: none !important;
+    box-shadow: none !important;
+    box-sizing: border-box !important;
+}
+
+.hw-search-input:focus,
+.hw-search-wrapper > .hw-search-input:focus,
+.hw-search-wrapper > input:focus,
+input.hw-search-input:focus,
+.hw-filter-group .hw-search-input:focus,
+.hw-filter-group .hw-search-wrapper input:focus {
+    border-color: var(--primary-color, #14b8a6) !important;
+    box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.18) !important;
+}
+
+.hw-search-input::placeholder,
+.hw-search-wrapper > .hw-search-input::placeholder,
+.hw-search-wrapper > input::placeholder,
+input.hw-search-input::placeholder,
+.hw-filter-group .hw-search-input::placeholder,
+.hw-filter-group .hw-search-wrapper input::placeholder {
+    color: #94a3b8 !important;
+    font-size: 0.8125rem !important;
+    font-weight: 400 !important;
+}
+
+.hw-search-input::-webkit-search-decoration,
+.hw-search-input::-webkit-search-cancel-button,
+.hw-search-input::-webkit-search-results-button,
+.hw-search-input::-webkit-search-results-decoration {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+}
+
+/* Action Buttons & Icon-Only Sizing */
+.hw-filter-actions {
+    display: inline-flex !important;
+    align-items: flex-end !important;
+    gap: 6px !important;
+    flex: 0 0 auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.hw-filter-icon-btn,
+.hw-date-action-pair .hw-filter-icon-btn,
+.hw-filter-actions .btn,
+.hw-search-cluster .btn,
+.hw-date-actions-wrapper .btn,
+.hw-date-actions-wrapper a.btn,
+.hw-filter-cluster > .btn,
+.hw-filter-cluster > a.btn,
+.records-date-filter a.btn,
+.records-date-filter a.hw-btn-reset {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 38px !important;
+    width: 38px !important;
+    max-width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    max-height: 38px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    cursor: pointer !important;
+    line-height: 1 !important;
+    box-sizing: border-box !important;
+    transition: all 0.15s ease-in-out !important;
+    text-decoration: none !important;
+    flex: 0 0 38px !important;
+    align-self: flex-end !important;
+}
+
+.hw-filter-icon-btn i,
+.hw-date-action-pair .hw-filter-icon-btn i,
+.hw-filter-actions .btn i,
+.hw-search-cluster .btn i,
+.hw-date-actions-wrapper .btn i,
+.hw-date-actions-wrapper a.btn i,
+.hw-filter-cluster > .btn i,
+.hw-filter-cluster > a.btn i,
+.records-date-filter a.btn i,
+.records-date-filter a.hw-btn-reset i {
+    display: inline-block !important;
+    font-size: 14px !important;
+    line-height: 1 !important;
+    margin: 0 !important;
+    color: inherit !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    vertical-align: middle !important;
+}
+
+/* Primary Action Buttons (HWTIRES System Teal) - Applied to BOTH Filter and Search */
+.hw-btn-primary,
+.hw-btn-filter,
+.hw-filter-icon-btn.hw-btn-filter,
+.hw-filter-icon-btn.btn-primary,
+.hw-filter-actions .btn-primary,
+.hw-search-cluster .btn-primary,
+.hw-btn-search,
+.hw-filter-icon-btn.hw-btn-search,
+.hw-date-action-pair button,
+.records-date-filter button:not([hidden]),
+.hw-filter-toolbar .records-date-filter button:not([hidden]) {
+    color: #ffffff !important;
+    background-color: var(--primary-color, #14b8a6) !important;
+    border: 1px solid var(--primary-color, #14b8a6) !important;
+}
+
+.hw-btn-primary:hover,
+.hw-btn-filter:hover,
+.hw-filter-icon-btn.hw-btn-filter:hover,
+.hw-filter-icon-btn.btn-primary:hover,
+.hw-filter-actions .btn-primary:hover,
+.hw-search-cluster .btn-primary:hover,
+.hw-btn-search:hover,
+.hw-filter-icon-btn.hw-btn-search:hover,
+.hw-date-action-pair button:hover,
+.records-date-filter button:hover,
+.hw-filter-toolbar .records-date-filter button:hover {
+    background-color: var(--primary-dark, #0d9488) !important;
+    border-color: var(--primary-dark, #0d9488) !important;
+    color: #ffffff !important;
+}
+
+/* Reset / Clear Action (Light / Outlined) */
+.hw-btn-reset,
+.hw-filter-icon-btn.hw-btn-reset,
+.hw-filter-icon-btn.btn-outline-secondary,
+.hw-filter-actions .btn-outline-secondary,
+.hw-filter-cluster > .btn-outline-secondary,
+.hw-filter-cluster > a.hw-btn-reset,
+.hw-date-actions-wrapper > a.hw-btn-reset,
+.hw-date-action-pair a.hw-btn-reset,
+.records-date-filter a.hw-btn-reset,
+.records-date-filter a.btn-outline-secondary,
+.hw-search-cluster .btn-outline-secondary {
+    color: #64748b !important;
+    background-color: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+.hw-btn-reset:hover,
+.hw-filter-icon-btn.hw-btn-reset:hover,
+.hw-filter-icon-btn.btn-outline-secondary:hover,
+.hw-filter-actions .btn-outline-secondary:hover,
+.hw-filter-cluster > .btn-outline-secondary:hover,
+.hw-filter-cluster > a.hw-btn-reset:hover,
+.hw-date-actions-wrapper > a.hw-btn-reset:hover,
+.hw-date-action-pair a.hw-btn-reset:hover,
+.records-date-filter a.hw-btn-reset:hover,
+.records-date-filter a.btn-outline-secondary:hover,
+.hw-search-cluster .btn-outline-secondary:hover {
+    color: #0f1f3d !important;
+    background-color: #e2e8f0 !important;
+    border-color: #94a3b8 !important;
+}
+
+/* Date / Calendar Inline Integration */
+.hw-date-inline,
+.hw-date-range {
+    display: inline-flex !important;
+    align-items: flex-end !important;
+    gap: 6px !important;
+}
+
+/* Strict Hidden State Rules (Prevents hidden date controls & dynamically hidden filters from occupying ANY width/space) */
+[hidden],
+[data-date-input][hidden],
+label[data-date-input][hidden],
+label[hidden],
+.records-date-filter label[hidden],
+.records-date-filter label[data-date-input][hidden],
+.records-date-filter [hidden],
+.hw-filter-toolbar label[hidden],
+.hw-filter-toolbar [hidden],
+.hw-filter-toolbar .records-date-filter label[hidden],
+.hw-filter-toolbar .records-date-filter label[data-date-input][hidden],
+.hw-filter-toolbar .records-date-filter [hidden],
+.hw-filter-group[hidden],
+.hw-filter-group[data-date-input][hidden],
+.hw-filter-group[style*="display: none"],
+.hw-filter-group[style*="display:none"],
+.hw-filter-group.d-none {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    flex: 0 0 0 !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
+}
+
+.hw-filter-group[data-date-input]:not([hidden]) {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    gap: 4px !important;
+    min-width: 125px !important;
+    max-width: 155px !important;
+    flex: 0 1 135px !important;
+}
+
+.hw-filter-group[data-date-input="year"]:not([hidden]) {
+    min-width: 85px !important;
+    max-width: 100px !important;
+    flex: 0 1 90px !important;
+}
+
+/* ==========================================================================
+   PAGE-SCOPED RULES: JOB ORDER (.admin-job-order-page) & HISTORICAL TRANSACTIONS (.quotation-records-page)
+   Enforces strict single horizontal line (nowrap), unified bottom baseline alignment,
+   and prevents Records select + [Filter][Reset] from stacking.
+   ========================================================================== */
+
+:is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .hw-filter-toolbar {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: flex-end !important;
+    justify-content: space-between !important;
+    gap: 8px 12px !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+:is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .hw-filter-cluster {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: flex-end !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    flex: 0 1 auto !important;
+    width: auto !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+:is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .hw-filter-cluster .hw-filter-group {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    align-self: flex-end !important;
+    gap: 4px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    box-sizing: border-box !important;
+}
+
+:is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .hw-filter-cluster .hw-group-branch {
+    min-width: 135px !important;
+    max-width: 180px !important;
+}
+
+:is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .hw-filter-cluster .hw-group-status {
+    min-width: 120px !important;
+    max-width: 155px !important;
+}
+
+:is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .hw-date-actions-wrapper {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: flex-end !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+    width: auto !important;
+    max-width: max-content !important;
+    flex: 0 0 auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    align-self: flex-end !important;
+}
+
+:is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .records-date-filter {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: flex-end !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: max-content !important;
+    margin: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding: 0 !important;
+    padding-top: 0 !important;
+    border: 0 !important;
+    border-top: 0 !important;
+    flex: 0 0 auto !important;
+    align-self: flex-end !important;
+}
+
+:is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .records-date-filter label:not([hidden]) {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    align-self: flex-end !important;
+    gap: 4px !important;
+    min-width: 120px !important;
+    max-width: 155px !important;
+    width: auto !important;
+    margin: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding: 0 !important;
+    flex: 0 0 auto !important;
+    box-sizing: border-box !important;
+}
+
+:is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .records-date-filter label[hidden],
+:is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .records-date-filter [hidden] {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    flex: 0 0 0 !important;
+    visibility: hidden !important;
+}
+
+:is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .records-date-filter span {
+    display: block !important;
+    color: #475569 !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    margin: 0 0 2px 0 !important;
+    white-space: nowrap !important;
+    letter-spacing: 0.01em !important;
+    text-transform: none !important;
+}
+
+:is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .records-date-filter select,
+:is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .records-date-filter input {
+    display: block !important;
+    width: 100% !important;
+    min-height: 38px !important;
+    height: 38px !important;
+    max-height: 38px !important;
+    padding: 6px 12px !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: #1e293b !important;
+    background-color: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+    outline: none !important;
+    box-sizing: border-box !important;
+}
+
+:is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .records-date-filter select:focus,
+:is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .records-date-filter input:focus {
+    border-color: var(--primary-color, #14b8a6) !important;
+    box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.18) !important;
+}
+
+:is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .hw-date-action-pair {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    align-self: flex-end !important;
+    gap: 6px !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    height: 38px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+:is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .hw-date-action-pair > .hw-filter-icon-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    max-height: 38px !important;
+    flex: 0 0 38px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 6px !important;
+    align-self: flex-end !important;
+    box-sizing: border-box !important;
+}
+
+:is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .hw-search-cluster {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: flex-end !important;
+    justify-content: flex-end !important;
+    gap: 6px !important;
+    flex: 0 1 340px !important;
+    min-width: 200px !important;
+    max-width: 380px !important;
+    margin: 0 0 0 auto !important;
+    align-self: flex-end !important;
+}
+
+/* General Fallback for other pages */
+.records-date-filter,
+.hw-filter-toolbar .records-date-filter,
+.hw-filter-cluster .records-date-filter,
+.hw-date-actions-wrapper .records-date-filter,
+.service-status-page .records-date-filter,
+.customer-records-page .records-date-filter {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: flex-end !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: max-content !important;
+    margin: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding: 0 !important;
+    padding-top: 0 !important;
+    border: 0 !important;
+    border-top: 0 !important;
+    flex: 0 0 auto !important;
+    align-self: flex-end !important;
+    float: none !important;
+    clear: none !important;
+}
+
+.records-date-filter label,
+.records-date-filter label:first-child,
+.records-date-filter label:not([hidden]),
+.hw-filter-toolbar .records-date-filter label,
+.hw-filter-cluster .records-date-filter label,
+.hw-date-actions-wrapper .records-date-filter label,
+.service-status-page .records-date-filter label,
+.customer-records-page .records-date-filter label {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    align-self: flex-end !important;
+    gap: 4px !important;
+    min-width: 125px !important;
+    max-width: 155px !important;
+    width: auto !important;
+    margin: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding: 0 !important;
+    flex: 0 0 auto !important;
+    box-sizing: border-box !important;
+    float: none !important;
+}
+
+.records-date-filter span,
+.hw-filter-toolbar .records-date-filter span,
+.hw-filter-cluster .records-date-filter span,
+.hw-date-actions-wrapper .records-date-filter span,
+.service-status-page .records-date-filter span,
+.customer-records-page .records-date-filter span {
+    display: block !important;
+    color: #475569 !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    margin: 0 0 2px 0 !important;
+    white-space: nowrap !important;
+    letter-spacing: 0.01em !important;
+    text-transform: none !important;
+}
+
+.records-date-filter select,
+.records-date-filter input,
+.hw-filter-toolbar .records-date-filter select,
+.hw-filter-toolbar .records-date-filter input,
+.hw-filter-cluster .records-date-filter select,
+.hw-filter-cluster .records-date-filter input,
+.hw-date-actions-wrapper .records-date-filter select,
+.hw-date-actions-wrapper .records-date-filter input,
+.service-status-page .records-date-filter select,
+.service-status-page .records-date-filter input,
+.customer-records-page .records-date-filter select,
+.customer-records-page .records-date-filter input {
+    display: block !important;
+    width: 100% !important;
+    min-height: 38px !important;
+    height: 38px !important;
+    max-height: 38px !important;
+    padding: 6px 12px !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: #1e293b !important;
+    background-color: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+    outline: none !important;
+    box-sizing: border-box !important;
+}
+
+.records-date-filter select:focus,
+.records-date-filter input:focus,
+.hw-filter-toolbar .records-date-filter select:focus,
+.hw-filter-toolbar .records-date-filter input:focus,
+.hw-filter-cluster .records-date-filter select:focus,
+.hw-filter-cluster .records-date-filter input:focus,
+.hw-date-actions-wrapper .records-date-filter select:focus,
+.hw-date-actions-wrapper .records-date-filter input:focus,
+.service-status-page .records-date-filter select:focus,
+.service-status-page .records-date-filter input:focus,
+.customer-records-page .records-date-filter select:focus,
+.customer-records-page .records-date-filter input:focus {
+    border-color: var(--primary-color, #14b8a6) !important;
+    box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.18) !important;
+}
+
+/* Action Pair Container for Date Controls (Filter Button + Reset Anchor) */
+.hw-date-action-pair,
+.records-date-filter .hw-date-action-pair {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    align-self: flex-end !important;
+    gap: 6px !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.hw-date-action-pair > .hw-filter-icon-btn,
+.records-date-filter .hw-date-action-pair > .hw-filter-icon-btn {
+    flex: 0 0 38px !important;
+    width: 38px !important;
+    height: 38px !important;
+    margin: 0 !important;
+}
+
+/* Specific Desktop Rule for >= 1200px */
+@media (min-width: 1200px) {
+    :is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .hw-filter-toolbar {
+        flex-wrap: nowrap !important;
+    }
+    :is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .hw-filter-cluster {
+        flex-wrap: nowrap !important;
+    }
+    :is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .hw-date-actions-wrapper {
+        flex-wrap: nowrap !important;
+    }
+    :is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .records-date-filter {
+        flex-wrap: nowrap !important;
+    }
+    :is(.main-content .content .admin-job-order-page, .main-content .content .quotation-records-page) .hw-date-action-pair {
+        flex-wrap: nowrap !important;
+    }
+}
+
+/* Responsive Rules */
+@media (max-width: 991.98px) {
+    .hw-filter-toolbar {
+        gap: 6px !important;
+    }
+    .hw-filter-group.hw-group-search,
+    .hw-filter-search {
+        flex: 1 1 100% !important;
+        max-width: 100% !important;
+        margin-left: 0 !important;
+    }
+    .hw-search-cluster {
+        flex: 1 1 100% !important;
+        max-width: 100% !important;
+        margin-left: 0 !important;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .hw-filter-group {
+        flex: 1 1 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+    }
+    .hw-filter-actions {
+        width: 100% !important;
+        justify-content: flex-end !important;
+    }
+}
+
+/* Page-Specific Filter Arrangements for Target Admin Modules */
+.main-content .content :is(
+    .forecasting-page,
+    .reports-page,
+    .user-management-page,
+    .hw-filter-card
+) :is(.hw-filter-toolbar, .audit-trail-filter-form) :is(
+    select,
+    input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+    button,
+    .hw-filter-icon-btn
+) {
+    min-height: 38px !important;
+    max-height: 38px !important;
+    height: 38px !important;
+    box-sizing: border-box !important;
+}
+
+/* Unified Single-Row Arrangements for Target Admin Modules */
+.forecasting-page .forecasting-filters-row,
+.reports-page .hw-filter-cluster,
+.user-management-page .hw-filter-cluster,
+.audit-trail-filter-form.hw-filter-toolbar .audit-filters-row {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+}
+
+/* Specific Desktop Rules for Target Admin Modules (>= 1200px) */
+@media (min-width: 1200px) {
+    /* All target admin toolbars stay in a single horizontal row on desktop */
+    .main-content .content :is(
+        .forecasting-page .forecasting-unified-filter-form,
+        .reports-page .reports-detail-filter-form,
+        .user-management-page .users-filter-form,
+        .audit-trail-filter-form
+    ).hw-filter-toolbar {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: flex-end !important;
+        justify-content: flex-start !important;
+        gap: 6px !important;
+        width: 100% !important;
+    }
+
+    .main-content .content :is(
+        .forecasting-page .forecasting-filters-row,
+        .reports-page .hw-filter-cluster,
+        .user-management-page .hw-filter-cluster,
+        .audit-trail-filter-form .audit-filters-row
+    ) {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: flex-end !important;
+        justify-content: flex-start !important;
+        gap: 6px !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        width: auto !important;
+    }
+
+    .main-content .content :is(
+        .forecasting-page,
+        .reports-page,
+        .user-management-page,
+        .audit-trail-filter-form
+    ) .hw-search-cluster {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: flex-end !important;
+        justify-content: flex-end !important;
+        gap: 6px !important;
+        flex: 0 0 360px !important;
+        width: 360px !important;
+        min-width: 280px !important;
+        max-width: 360px !important;
+        margin-left: auto !important;
+        margin-top: 0 !important;
+        align-self: flex-end !important;
+    }
+
+    .main-content .content :is(
+        .forecasting-page,
+        .reports-page,
+        .user-management-page,
+        .audit-trail-filter-form
+    ) .hw-search-cluster .hw-group-search {
+        flex: 1 1 auto !important;
+        width: 100% !important;
+        min-width: 240px !important;
+        max-width: 316px !important;
+    }
+
+    /* Proportional compact min-widths so filters fit neatly without wrapping */
+    .main-content .content .forecasting-page .forecasting-filters-row .hw-filter-group {
+        flex: 1 1 auto !important;
+        min-width: 78px !important;
+        max-width: 140px !important;
+    }
+    .main-content .content .forecasting-page .forecasting-filters-row .hw-group-branch {
+        min-width: 95px !important;
+        max-width: 160px !important;
+    }
+
+    .main-content .content .reports-page .hw-filter-cluster .hw-filter-group {
+        flex: 1 1 auto !important;
+        min-width: 110px !important;
+        max-width: 180px !important;
+    }
+    .main-content .content .reports-page .hw-filter-cluster .hw-group-branch {
+        min-width: 130px !important;
+        max-width: 200px !important;
+    }
+
+    .main-content .content .audit-trail-filter-form .audit-filters-row .hw-filter-group {
+        flex: 1 1 auto !important;
+        min-width: 95px !important;
+        max-width: 160px !important;
+    }
+    .main-content .content .audit-trail-filter-form .audit-filters-row .hw-group-date {
+        min-width: 115px !important;
+        max-width: 145px !important;
+    }
+}
+
+/* Front Desk Standardized Filter Toolbars */
+.main-content .content :is(
+    .quotation-records-page,
+    .front-job-create-page,
+    .service-status-page,
+    .customer-records-page,
+    .front-inventory-page,
+    .frontdesk-forecasting-page,
+    .frontdesk-reports-page
+) :is(.hw-filter-toolbar, .quotation-panel-controls, .job-orders-panel-controls) {
+    box-sizing: border-box !important;
+}
+
+.main-content .content :is(
+    .quotation-records-page,
+    .front-job-create-page,
+    .service-status-page,
+    .customer-records-page,
+    .front-inventory-page,
+    .frontdesk-forecasting-page,
+    .frontdesk-reports-page
+) :is(.hw-filter-toolbar, .quotation-panel-controls, .job-orders-panel-controls) :is(
+    select,
+    input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+    button,
+    .hw-filter-icon-btn
+) {
+    min-height: 38px !important;
+    max-height: 38px !important;
+    height: 38px !important;
+    box-sizing: border-box !important;
+    border-radius: 6px !important;
+}
+
+.main-content .content :is(
+    .quotation-records-page,
+    .front-job-create-page,
+    .service-status-page,
+    .customer-records-page,
+    .front-inventory-page,
+    .frontdesk-forecasting-page,
+    .frontdesk-reports-page
+) :is(.hw-filter-icon-btn, .hw-btn-search, .hw-btn-filter, .hw-btn-reset) {
+    width: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    max-height: 38px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 6px !important;
+    box-sizing: border-box !important;
+}
+
+.main-content .content :is(
+    .quotation-records-page,
+    .front-job-create-page,
+    .service-status-page,
+    .customer-records-page,
+    .front-inventory-page,
+    .frontdesk-forecasting-page,
+    .frontdesk-reports-page
+) .records-date-filter {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: flex-end !important;
+    gap: 6px !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+}
+
+.main-content .content :is(
+    .quotation-records-page,
+    .front-job-create-page,
+    .service-status-page,
+    .customer-records-page,
+    .front-inventory-page,
+    .frontdesk-forecasting-page,
+    .frontdesk-reports-page
+) .records-date-filter label {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    gap: 4px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-width: auto !important;
+    width: auto !important;
+    flex: 0 0 auto !important;
+}
+
+.main-content .content :is(
+    .quotation-records-page,
+    .front-job-create-page,
+    .service-status-page,
+    .customer-records-page,
+    .front-inventory-page,
+    .frontdesk-forecasting-page,
+    .frontdesk-reports-page
+) .records-date-filter label span {
+    display: block !important;
+    color: #475569 !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    margin: 0 0 2px 0 !important;
+    white-space: nowrap !important;
+}
+
+@media (min-width: 1200px) {
+    .main-content .content :is(
+        .quotation-records-page,
+        .front-job-create-page,
+        .service-status-page,
+        .front-inventory-page,
+        .frontdesk-reports-page
+    ) :is(.hw-filter-toolbar, .quotation-panel-controls, .job-orders-panel-controls) {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: flex-end !important;
+        justify-content: flex-start !important;
+        gap: 8px !important;
+        width: 100% !important;
+    }
+
+    .main-content .content .frontdesk-forecasting-page .hw-filter-toolbar {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        align-items: flex-end !important;
+        justify-content: flex-start !important;
+        gap: 8px !important;
+        width: 100% !important;
+    }
+
+    .main-content .content :is(
+        .quotation-records-page,
+        .front-job-create-page,
+        .service-status-page,
+        .front-inventory-page,
+        .frontdesk-forecasting-page,
+        .frontdesk-reports-page
+    ) .hw-filter-cluster {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: flex-end !important;
+        justify-content: flex-start !important;
+        gap: 6px !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        width: auto !important;
+    }
+
+    .main-content .content .frontdesk-forecasting-page .hw-filter-cluster {
+        flex-wrap: wrap !important;
+    }
+
+    .main-content .content :is(
+        .quotation-records-page,
+        .front-job-create-page,
+        .service-status-page,
+        .front-inventory-page,
+        .frontdesk-forecasting-page,
+        .frontdesk-reports-page
+    ) .hw-date-actions-wrapper {
+        display: inline-flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: flex-end !important;
+        gap: 6px !important;
+        flex: 0 0 auto !important;
+        width: auto !important;
+    }
+
+    .main-content .content :is(
+        .quotation-records-page,
+        .front-job-create-page,
+        .service-status-page,
+        .front-inventory-page,
+        .frontdesk-forecasting-page,
+        .frontdesk-reports-page
+    ) .hw-date-action-pair {
+        display: inline-flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        align-self: flex-end !important;
+        gap: 6px !important;
+        flex: 0 0 auto !important;
+        width: auto !important;
+    }
+
+    .main-content .content :is(
+        .quotation-records-page,
+        .front-job-create-page,
+        .service-status-page,
+        .front-inventory-page,
+        .frontdesk-forecasting-page,
+        .frontdesk-reports-page
+    ) .hw-search-cluster {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: flex-end !important;
+        justify-content: flex-end !important;
+        gap: 6px !important;
+        flex: 0 0 360px !important;
+        width: 360px !important;
+        min-width: 280px !important;
+        max-width: 360px !important;
+        margin-left: auto !important;
+        margin-top: 0 !important;
+        align-self: flex-end !important;
+    }
+
+    .main-content .content :is(
+        .quotation-records-page,
+        .front-job-create-page,
+        .service-status-page,
+        .front-inventory-page,
+        .frontdesk-forecasting-page,
+        .frontdesk-reports-page
+    ) .hw-search-cluster .hw-group-search {
+        flex: 1 1 auto !important;
+        width: 100% !important;
+        min-width: 240px !important;
+        max-width: 316px !important;
+    }
+
+    .main-content .content .quotation-records-page .hw-filter-cluster .hw-filter-group {
+        flex: 1 1 auto !important;
+        min-width: 100px !important;
+        max-width: 170px !important;
+    }
+
+    .main-content .content .front-job-create-page .hw-filter-cluster .hw-filter-group {
+        flex: 1 1 auto !important;
+        min-width: 120px !important;
+        max-width: 180px !important;
+    }
+
+    .main-content .content .service-status-page .hw-filter-cluster .hw-filter-group {
+        flex: 1 1 auto !important;
+        min-width: 140px !important;
+        max-width: 200px !important;
+    }
+
+    .main-content .content .front-inventory-page .hw-filter-cluster .hw-filter-group {
+        flex: 1 1 auto !important;
+        min-width: 110px !important;
+        max-width: 170px !important;
+    }
+
+    /* Front Desk Forecasting Desktop Field Sizing & Readability */
+    .main-content .content .frontdesk-forecasting-page .hw-filter-toolbar {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        align-items: flex-end !important;
+        justify-content: flex-start !important;
+        gap: 6px !important;
+        width: 100% !important;
+    }
+
+    .main-content .content .frontdesk-forecasting-page .hw-filter-cluster {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        align-items: flex-end !important;
+        justify-content: flex-start !important;
+        gap: 6px !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        width: auto !important;
+    }
+
+    @media (min-width: 1350px) {
+        .main-content .content .frontdesk-forecasting-page .hw-filter-toolbar {
+            flex-wrap: nowrap !important;
+        }
+        .main-content .content .frontdesk-forecasting-page .hw-filter-cluster {
+            flex-wrap: nowrap !important;
+            flex: 0 0 auto !important;
+        }
+    }
+
+    .main-content .content .frontdesk-forecasting-page .hw-search-cluster {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: flex-end !important;
+        justify-content: flex-end !important;
+        gap: 6px !important;
+        flex: 0 1 360px !important;
+        width: auto !important;
+        min-width: 284px !important;
+        max-width: 360px !important;
+        margin-left: auto !important;
+        margin-top: 0 !important;
+        align-self: flex-end !important;
+    }
+
+    .main-content .content .frontdesk-forecasting-page .hw-search-cluster .hw-group-search {
+        flex: 1 1 auto !important;
+        width: 100% !important;
+        min-width: 240px !important;
+        max-width: 316px !important;
+    }
+
+    .main-content .content .frontdesk-forecasting-page .hw-filter-cluster :is(.hw-group-category, :has(#frontForecastCategoryFilter)) {
+        min-width: 130px !important;
+        max-width: 145px !important;
+        flex: 0 1 135px !important;
+    }
+
+    .main-content .content .frontdesk-forecasting-page .hw-filter-cluster :is(.hw-group-brand, :has(#frontForecastBrandFilter)) {
+        min-width: 135px !important;
+        max-width: 150px !important;
+        flex: 0 1 140px !important;
+    }
+
+    .main-content .content .frontdesk-forecasting-page .hw-filter-cluster :is(.hw-group-size, :has(#frontForecastSizeFilter)) {
+        min-width: 125px !important;
+        max-width: 140px !important;
+        flex: 0 1 130px !important;
+    }
+
+    .main-content .content .frontdesk-forecasting-page .hw-filter-cluster :is(.hw-group-status, :has(#frontForecastStatusFilter)) {
+        min-width: 135px !important;
+        max-width: 150px !important;
+        flex: 0 1 140px !important;
+    }
+
+    .main-content .content .frontdesk-forecasting-page .hw-filter-cluster :is(.hw-group-forecast, :has(#frontForecastViewFilter)) {
+        min-width: 145px !important;
+        max-width: 165px !important;
+        flex: 0 1 155px !important;
+    }
+
+    .main-content .content .frontdesk-forecasting-page .hw-filter-cluster :is(.hw-group-sort, :has(#frontForecastSortFilter)) {
+        min-width: 175px !important;
+        max-width: 200px !important;
+        flex: 0 1 185px !important;
+    }
+
+    .main-content .content .frontdesk-forecasting-page .hw-filter-cluster :is(.hw-group-year, :has(#frontForecastYearFilter)) {
+        min-width: 150px !important;
+        max-width: 170px !important;
+        flex: 0 1 160px !important;
+    }
+
+    .main-content .content .frontdesk-reports-page .hw-filter-cluster .hw-filter-group {
+        flex: 1 1 auto !important;
+        min-width: 110px !important;
+        max-width: 160px !important;
+    }
+}
+

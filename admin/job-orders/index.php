@@ -341,6 +341,49 @@ $hidden_for_date = [
 .admin-job-order-page .job-order-card.admin-job-order-row .job-order-action {
     justify-content: center !important;
 }
+.main-content .content .admin-job-order-page .records-date-filter {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: flex-end !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+    width: auto !important;
+    max-width: max-content !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    flex: 0 0 auto !important;
+    align-self: flex-end !important;
+}
+.main-content .content .admin-job-order-page .records-date-filter label:not([hidden]) {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    align-self: flex-end !important;
+    gap: 4px !important;
+    min-width: 120px !important;
+    max-width: 155px !important;
+    width: auto !important;
+    margin: 0 !important;
+    flex: 0 0 auto !important;
+}
+.main-content .content .admin-job-order-page .records-date-filter label[hidden] {
+    display: none !important;
+}
+.main-content .content .admin-job-order-page .hw-date-action-pair {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    align-self: flex-end !important;
+    gap: 6px !important;
+    width: auto !important;
+    height: 38px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    flex: 0 0 auto !important;
+}
 </style>
 
 <main class="service-status-page admin-job-order-page" id="job-order-records">
@@ -373,10 +416,10 @@ $hidden_for_date = [
         <?php endforeach; ?>
     </section>
 
-    <section class="service-branch-filter-card admin-job-order-filter-card">
-        <div class="service-filter-grid">
-            <div class="service-filter-left">
-                <form method="GET" action="./#job-order-records" class="service-branch-filter">
+    <section class="service-branch-filter-card admin-job-order-filter-card hw-filter-card">
+        <div class="hw-filter-toolbar">
+            <div class="hw-filter-cluster">
+                <form method="GET" action="./#job-order-records" class="hw-filter-group hw-group-branch">
                     <?php if ($status_filter !== 'all'): ?>
                         <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
                     <?php endif; ?>
@@ -387,8 +430,8 @@ $hidden_for_date = [
                         <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
                     <?php endif; ?>
                     <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
-                    <label for="branchFilter">Branch</label>
-                    <select id="branchFilter" name="branch_id" onchange="this.form.submit()">
+                    <label for="branchFilter" class="hw-filter-label">Branch</label>
+                    <select id="branchFilter" name="branch_id" class="hw-filter-select" onchange="this.form.submit()">
                         <option value="0">All Branches</option>
                         <?php foreach ($branches as $branch): ?>
                             <option value="<?php echo (int) $branch['id']; ?>" <?php echo $branch_filter === (int) $branch['id'] ? 'selected' : ''; ?>>
@@ -396,10 +439,10 @@ $hidden_for_date = [
                             </option>
                         <?php endforeach; ?>
                     </select>
-                    <button type="submit">Apply</button>
+                    <button type="submit" class="visually-hidden">Apply</button>
                 </form>
 
-                <form method="GET" action="./#job-order-records" class="service-branch-filter">
+                <form method="GET" action="./#job-order-records" class="hw-filter-group hw-group-status">
                     <?php if ($branch_filter > 0): ?>
                         <input type="hidden" name="branch_id" value="<?php echo (int) $branch_filter; ?>">
                     <?php endif; ?>
@@ -410,18 +453,18 @@ $hidden_for_date = [
                         <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
                     <?php endif; ?>
                     <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
-                    <label for="jobStatusFilter">Status</label>
-                    <select id="jobStatusFilter" name="status" onchange="this.form.submit()">
+                    <label for="jobStatusFilter" class="hw-filter-label">Status</label>
+                    <select id="jobStatusFilter" name="status" class="hw-filter-select" onchange="this.form.submit()">
                         <?php foreach ($tracked_statuses as $status_value => $status_label): ?>
                             <option value="<?php echo esc_attr($status_value); ?>" <?php echo $status_filter === $status_value ? 'selected' : ''; ?>>
                                 <?php echo esc_html($status_label); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
-                    <button type="submit">Apply</button>
+                    <button type="submit" class="visually-hidden">Apply</button>
                 </form>
 
-                <form method="GET" action="./#job-order-records" class="service-branch-filter">
+                <form method="GET" action="./#job-order-records" class="hw-filter-group hw-group-status">
                     <?php if ($status_filter !== 'all'): ?>
                         <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
                     <?php endif; ?>
@@ -432,39 +475,43 @@ $hidden_for_date = [
                         <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
                     <?php endif; ?>
                     <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
-                    <label for="jobRecordFilter">Archive Status</label>
-                    <select id="jobRecordFilter" name="records" onchange="this.form.submit()">
+                    <label for="jobRecordFilter" class="hw-filter-label">Archive Status</label>
+                    <select id="jobRecordFilter" name="records" class="hw-filter-select" onchange="this.form.submit()">
                         <?php foreach (record_archive_filter_options() as $record_value => $record_label): ?>
                             <option value="<?php echo esc_attr($record_value); ?>" <?php echo $record_filter === $record_value ? 'selected' : ''; ?>>
                                 <?php echo esc_html($record_label); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
-                    <button type="submit">Apply</button>
+                    <button type="submit" class="visually-hidden">Apply</button>
                 </form>
 
-                <?php record_date_filter_controls($date_filter, $hidden_for_date, 'job-order-records'); ?>
+                <div class="hw-date-actions-wrapper">
+                    <?php record_date_filter_controls($date_filter, $hidden_for_date, 'job-order-records', './#job-order-records'); ?>
+                </div>
             </div>
 
-            <form method="GET" action="./#job-order-records" class="records-search-form service-search-form">
+            <form method="GET" action="./#job-order-records" class="hw-search-cluster">
                 <?php record_date_filter_hidden_inputs($hidden_for_search); ?>
                 <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
-                <label class="records-search-field">
-                    <i class="fas fa-search"></i>
-                    <input type="search"
-                           name="search"
-                           maxlength="100"
-                           data-text-format="first-letter"
-                           value="<?php echo esc_attr($search_filter); ?>"
-                           placeholder="Search plate, customer, job order, technician, service...">
-                </label>
-                <button type="submit" class="records-search-btn">Search</button>
-                <?php if ($search_filter !== ''): ?>
-                    <a class="records-search-clear"
-                       href="<?php echo esc_attr(job_order_filter_url($status_filter, $branch_filter, '', $date_filter, 1, $record_filter)); ?>#job-order-records">
-                        Clear
-                    </a>
-                <?php endif; ?>
+                <div class="hw-filter-group hw-group-search flex-grow-1">
+                    <label for="adminJobSearch" class="hw-filter-label">Search</label>
+                    <div class="hw-search-wrapper">
+                        <input id="adminJobSearch"
+                               type="search"
+                               name="search"
+                               maxlength="100"
+                               data-text-format="first-letter"
+                               class="hw-search-input"
+                               value="<?php echo esc_attr($search_filter); ?>"
+                               placeholder="Search plate, customer, job order, technician, service...">
+                    </div>
+                </div>
+                <div class="hw-filter-actions">
+                    <button type="submit" class="btn btn-primary hw-filter-icon-btn hw-btn-search" title="Search" aria-label="Search">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
             </form>
         </div>
     </section>

@@ -403,57 +403,63 @@ $progress_csrf_token = generate_csrf_token();
         </a>
     </section>
 
-    <section class="service-branch-filter-card service-search-filter-card">
-        <form method="GET" action="./#service-records" class="records-select-filter service-status-select-filter">
-            <?php if ($focus_job_id > 0): ?>
-                <input type="hidden" name="job_id" value="<?php echo (int) $focus_job_id; ?>">
-            <?php endif; ?>
-            <?php if ($search_filter !== ''): ?>
-                <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
-            <?php endif; ?>
-            <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
-            <label>
-                <span>Service Status</span>
-                <select name="status" onchange="this.form.submit()" aria-label="Filter service status records">
-                    <option value="all" <?php echo $status_filter === 'all' ? 'selected' : ''; ?>>All Service Statuses</option>
-                    <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active Records</option>
-                    <option value="waiting" <?php echo $status_filter === 'waiting' ? 'selected' : ''; ?>>Waiting</option>
-                    <option value="in-progress" <?php echo $status_filter === 'in-progress' ? 'selected' : ''; ?>>In Progress</option>
-                    <option value="completed" <?php echo $status_filter === 'completed' ? 'selected' : ''; ?>>Completed</option>
-                </select>
-            </label>
-            <button type="submit">Apply</button>
-        </form>
-        <form method="GET" action="./#service-records" class="records-search-form service-search-form">
-            <?php if ($focus_job_id > 0): ?>
-                <input type="hidden" name="job_id" value="<?php echo (int) $focus_job_id; ?>">
-            <?php endif; ?>
-            <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
-            <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
-            <label class="records-search-field">
-                <i class="fas fa-search"></i>
-                <input type="search"
-                       name="search"
-                       maxlength="100"
-                       data-text-format="first-letter"
-                       value="<?php echo esc_attr($search_filter); ?>"
-                       placeholder="Search plate, customer, job order...">
-            </label>
-            <button type="submit" class="records-search-btn">Search</button>
-            <?php if ($search_filter !== ''): ?>
-                <a class="records-search-clear"
-                   href="<?php echo esc_attr(front_service_status_filter_url($status_filter, '', $date_filter)); ?>#service-records">
-                    Clear
-                </a>
-            <?php endif; ?>
-        </form>
-        <?php
-        record_date_filter_controls($date_filter, [
-            'status' => $status_filter !== 'all' ? $status_filter : '',
-            'search' => $search_filter,
-            'job_id' => $focus_job_id > 0 ? $focus_job_id : '',
-        ], 'service-records');
-        ?>
+    <section class="service-branch-filter-card hw-filter-card">
+        <div class="hw-filter-toolbar">
+            <div class="hw-filter-cluster">
+                <form method="GET" action="./#service-records" class="hw-filter-group hw-group-lg">
+                    <?php if ($focus_job_id > 0): ?>
+                        <input type="hidden" name="job_id" value="<?php echo (int) $focus_job_id; ?>">
+                    <?php endif; ?>
+                    <?php if ($search_filter !== ''): ?>
+                        <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
+                    <?php endif; ?>
+                    <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
+                    <label for="frontServiceStatusSelect" class="hw-filter-label">Service Status</label>
+                    <select id="frontServiceStatusSelect" name="status" class="hw-filter-select" onchange="this.form.submit()" aria-label="Filter service status records">
+                        <option value="all" <?php echo $status_filter === 'all' ? 'selected' : ''; ?>>All Service Statuses</option>
+                        <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active Records</option>
+                        <option value="waiting" <?php echo $status_filter === 'waiting' ? 'selected' : ''; ?>>Waiting</option>
+                        <option value="in-progress" <?php echo $status_filter === 'in-progress' ? 'selected' : ''; ?>>In Progress</option>
+                        <option value="completed" <?php echo $status_filter === 'completed' ? 'selected' : ''; ?>>Completed</option>
+                    </select>
+                    <button type="submit" class="visually-hidden">Apply</button>
+                </form>
+                <div class="hw-date-actions-wrapper">
+                    <?php
+                    record_date_filter_controls($date_filter, [
+                        'status' => $status_filter !== 'all' ? $status_filter : '',
+                        'search' => $search_filter,
+                        'job_id' => $focus_job_id > 0 ? $focus_job_id : '',
+                    ], 'service-records', './#service-records');
+                    ?>
+                </div>
+            </div>
+            <form method="GET" action="./#service-records" class="hw-search-cluster">
+                <?php if ($focus_job_id > 0): ?>
+                    <input type="hidden" name="job_id" value="<?php echo (int) $focus_job_id; ?>">
+                <?php endif; ?>
+                <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
+                <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
+                <div class="hw-filter-group hw-group-search flex-grow-1">
+                    <label for="frontServiceSearch" class="hw-filter-label">Search</label>
+                    <div class="hw-search-wrapper">
+                        <input id="frontServiceSearch"
+                               type="search"
+                               name="search"
+                               maxlength="100"
+                               data-text-format="first-letter"
+                               class="hw-search-input"
+                               value="<?php echo esc_attr($search_filter); ?>"
+                               placeholder="Search plate, customer, job order...">
+                    </div>
+                </div>
+                <div class="hw-filter-actions">
+                    <button type="submit" class="btn btn-primary hw-filter-icon-btn hw-btn-search" title="Search" aria-label="Search">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
     </section>
 
     <div id="service-records">

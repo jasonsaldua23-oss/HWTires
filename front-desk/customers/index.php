@@ -390,11 +390,11 @@ $pagination_params .= record_date_filter_query_string($date_filter);
         </div>
     <?php endif; ?>
 
-    <section class="customer-records-filter-card">
-        <form method="GET" action="./#customer-records" class="customer-records-filter" data-record-date-filter>
-            <label class="customer-filter-field customer-branch-field">
-                <span>Branch</span>
-                <select name="branch" class="customer-branch-select">
+    <section class="customer-records-filter-card hw-filter-card">
+        <form method="GET" action="./#customer-records" class="customer-records-filter hw-filter-toolbar" data-record-date-filter>
+            <div class="hw-filter-group hw-group-sm">
+                <label for="frontCustomerBranch" class="hw-filter-label">Branch</label>
+                <select id="frontCustomerBranch" name="branch" class="hw-filter-select customer-branch-select">
                     <option value="all" <?php echo $branch_filter === '' ? 'selected' : ''; ?>>All Branches</option>
                     <?php foreach ($branches as $branch): ?>
                         <?php $branch_label = front_customer_branch_label($branch['name']); ?>
@@ -403,40 +403,40 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                         </option>
                     <?php endforeach; ?>
                 </select>
-            </label>
-            <label class="customer-filter-field customer-operation-field">
-                <span>Latest Operation</span>
-                <select name="operation_status" class="customer-operation-select">
+            </div>
+            <div class="hw-filter-group hw-group-lg">
+                <label for="frontCustomerOperation" class="hw-filter-label">Latest Operation</label>
+                <select id="frontCustomerOperation" name="operation_status" class="hw-filter-select customer-operation-select">
                     <?php foreach (cv_records_operation_filter_options() as $operation_value => $operation_label): ?>
                         <option value="<?php echo esc_attr($operation_value); ?>" <?php echo $operation_status_filter === $operation_value ? 'selected' : ''; ?>>
                             <?php echo esc_html($operation_label); ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
-            </label>
-            <label class="customer-filter-field customer-status-field">
-                <span>Latest Service Status</span>
-                <select name="status" class="customer-status-select">
+            </div>
+            <div class="hw-filter-group hw-group-lg">
+                <label for="frontCustomerStatus" class="hw-filter-label">Latest Service Status</label>
+                <select id="frontCustomerStatus" name="status" class="hw-filter-select customer-status-select">
                     <?php foreach (cv_records_status_filter_options() as $status_value => $status_label): ?>
                         <option value="<?php echo esc_attr($status_value); ?>" <?php echo $status_filter === $status_value ? 'selected' : ''; ?>>
                             <?php echo esc_html($status_label); ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
-            </label>
-            <label class="customer-filter-field customer-record-field">
-                <span>Status</span>
-                <select name="records" class="customer-record-select">
+            </div>
+            <div class="hw-filter-group hw-group-sm">
+                <label for="frontCustomerRecords" class="hw-filter-label">Status</label>
+                <select id="frontCustomerRecords" name="records" class="hw-filter-select customer-record-select">
                     <?php foreach (record_archive_filter_options() as $record_value => $record_label): ?>
                         <option value="<?php echo esc_attr($record_value); ?>" <?php echo $record_filter === $record_value ? 'selected' : ''; ?>>
                             <?php echo esc_html($record_label); ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
-            </label>
-            <label class="customer-filter-field customer-date-scope-field">
-                <span>Period</span>
-                <select name="date_scope" class="records-date-scope customer-date-select" aria-label="Select record period">
+            </div>
+            <div class="hw-filter-group hw-group-date">
+                <label for="frontCustomerDateScope" class="hw-filter-label">Period</label>
+                <select id="frontCustomerDateScope" name="date_scope" class="records-date-scope hw-filter-select customer-date-select" aria-label="Select record period">
                     <option value="all" <?php echo ($date_filter['scope'] ?? 'all') === 'all' ? 'selected' : ''; ?>>All Records</option>
                     <option value="recent" <?php echo ($date_filter['scope'] ?? '') === 'recent' ? 'selected' : ''; ?>>Current Week</option>
                     <option value="day" <?php echo ($date_filter['scope'] ?? '') === 'day' ? 'selected' : ''; ?>>Day</option>
@@ -445,40 +445,52 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                     <option value="year" <?php echo ($date_filter['scope'] ?? '') === 'year' ? 'selected' : ''; ?>>Year</option>
                     <option value="range" <?php echo ($date_filter['scope'] ?? '') === 'range' ? 'selected' : ''; ?>>Date Range</option>
                 </select>
-            </label>
-            <label class="customer-filter-field" data-date-input="day">
-                <span>Day</span>
-                <input type="date" name="date_day" value="<?php echo esc_attr($date_filter['day']); ?>">
-            </label>
-            <label class="customer-filter-field" data-date-input="week">
-                <span>Week</span>
-                <input type="week" name="date_week" value="<?php echo esc_attr($date_filter['week']); ?>">
-            </label>
-            <label class="customer-filter-field" data-date-input="month">
-                <span>Month</span>
-                <input type="month" name="date_month" value="<?php echo esc_attr($date_filter['month']); ?>">
-            </label>
-            <label class="customer-filter-field" data-date-input="year">
-                <span>Year</span>
-                <input type="number" name="date_year" min="2020" max="2100" value="<?php echo (int) $date_filter['year']; ?>">
-            </label>
-            <label class="customer-filter-field" data-date-input="range">
-                <span>From</span>
-                <input type="date" name="date_from" value="<?php echo esc_attr($date_filter['from']); ?>">
-            </label>
-            <label class="customer-filter-field" data-date-input="range">
-                <span>To</span>
-                <input type="date" name="date_to" value="<?php echo esc_attr($date_filter['to']); ?>">
-            </label>
-            <button type="submit" class="customer-records-submit customer-records-apply-btn">Apply</button>
-            <label class="customer-search-field">
-                <i class="fas fa-search"></i>
-                <input id="customerSearchInput" type="text" name="search" maxlength="100" data-text-format="first-letter" placeholder="Search by vehicle, plate number, customer, or branch..." value="<?php echo esc_attr($search); ?>">
-            </label>
-            <button type="submit" class="customer-records-search-btn btn btn-primary">Search</button>
-            <?php if ($search !== '' || (array_key_exists('branch', $_GET) && $branch_filter !== $user_branch_id) || $status_filter !== 'all' || $operation_status_filter !== 'all' || $record_filter !== 'active' || ($date_filter['scope'] ?? 'all') !== 'all'): ?>
-                <a href="./#customer-records" class="btn btn-outline-secondary customer-records-clear">Clear</a>
-            <?php endif; ?>
+            </div>
+            <div class="hw-filter-group" data-date-input="day">
+                <label for="frontCustomerDateDay" class="hw-filter-label">Day</label>
+                <input id="frontCustomerDateDay" type="date" name="date_day" class="hw-filter-input" value="<?php echo esc_attr($date_filter['day']); ?>">
+            </div>
+            <div class="hw-filter-group" data-date-input="week">
+                <label for="frontCustomerDateWeek" class="hw-filter-label">Week</label>
+                <input id="frontCustomerDateWeek" type="week" name="date_week" class="hw-filter-input" value="<?php echo esc_attr($date_filter['week']); ?>">
+            </div>
+            <div class="hw-filter-group" data-date-input="month">
+                <label for="frontCustomerDateMonth" class="hw-filter-label">Month</label>
+                <input id="frontCustomerDateMonth" type="month" name="date_month" class="hw-filter-input" value="<?php echo esc_attr($date_filter['month']); ?>">
+            </div>
+            <div class="hw-filter-group" data-date-input="year">
+                <label for="frontCustomerDateYear" class="hw-filter-label">Year</label>
+                <input id="frontCustomerDateYear" type="number" name="date_year" min="2020" max="2100" class="hw-filter-input" value="<?php echo (int) $date_filter['year']; ?>">
+            </div>
+            <div class="hw-filter-group" data-date-input="range">
+                <label for="frontCustomerDateFrom" class="hw-filter-label">From</label>
+                <input id="frontCustomerDateFrom" type="date" name="date_from" class="hw-filter-input" value="<?php echo esc_attr($date_filter['from']); ?>">
+            </div>
+            <div class="hw-filter-group" data-date-input="range">
+                <label for="frontCustomerDateTo" class="hw-filter-label">To</label>
+                <input id="frontCustomerDateTo" type="date" name="date_to" class="hw-filter-input" value="<?php echo esc_attr($date_filter['to']); ?>">
+            </div>
+            <div class="hw-filter-actions">
+                <button type="submit" class="btn btn-primary hw-filter-icon-btn" title="Apply filters" aria-label="Apply filters">
+                    <i class="fas fa-filter"></i>
+                </button>
+                <a href="./#customer-records" class="btn btn-outline-secondary hw-filter-icon-btn hw-btn-reset" title="Reset filters" aria-label="Reset filters">
+                    <i class="fas fa-rotate-left"></i>
+                </a>
+            </div>
+            <div class="hw-search-cluster">
+                <div class="hw-filter-group hw-group-search flex-grow-1">
+                    <label for="customerSearchInput" class="hw-filter-label">Search</label>
+                    <div class="hw-search-wrapper">
+                        <input id="customerSearchInput" type="text" name="search" maxlength="100" data-text-format="first-letter" class="hw-search-input" placeholder="Search by vehicle, plate number, customer, or branch..." value="<?php echo esc_attr($search); ?>">
+                    </div>
+                </div>
+                <div class="hw-filter-actions">
+                    <button type="submit" class="btn btn-primary hw-filter-icon-btn hw-btn-search" title="Search" aria-label="Search">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
         </form>
     </section>
 

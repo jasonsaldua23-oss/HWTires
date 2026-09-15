@@ -1219,98 +1219,99 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
         <?php endforeach; ?>
     </section>
 
-    <section class="inventory-filter-card">
-        <form class="inventory-unified-filter-form" method="get" action="./#inventory-records">
+    <section class="inventory-filter-card hw-filter-card">
+        <form class="inventory-unified-filter-form hw-filter-toolbar" method="get" action="./#inventory-records">
             <input type="hidden" name="per_page" value="<?php echo (int) $per_page; ?>">
-            <div class="inventory-filter-group-wrap">
-                <div class="inventory-filter-group">
-                    <h2>Category</h2>
-                    <select name="category" id="adminCategoryFilter" aria-label="Filter inventory category" class="form-select">
-                    <?php foreach (['all' => 'All Items', 'tire' => 'Tires', 'accessory' => 'Accessories', 'part' => 'Parts'] as $category_value => $category_label): ?>
-                        <option value="<?php echo esc_attr($category_value); ?>" <?php echo $category_filter === $category_value ? 'selected' : ''; ?>>
-                            <?php echo esc_html($category_label); ?>
-                        </option>
-                    <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="inventory-filter-group" id="adminBrandGroup" style="<?php echo ($category_filter === 'all' && $brand_filter === '') ? 'display: none;' : ''; ?>">
-                    <h2>Brand</h2>
-                    <select name="brand" id="adminBrandFilter" aria-label="Filter inventory brand" class="form-select">
-                        <option value="">All Brands</option>
-                        <?php foreach ($available_brands as $brand_name): ?>
-                            <option value="<?php echo esc_attr($brand_name); ?>" <?php echo $brand_filter === $brand_name ? 'selected' : ''; ?>>
-                                <?php echo esc_html($brand_name); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="inventory-filter-group" id="adminSizeGroup" style="<?php echo ($category_filter === 'all' && $size_filter === '') ? 'display: none;' : ''; ?>">
-                    <h2>Size / Spec</h2>
-                    <select name="size" id="adminSizeFilter" aria-label="Filter inventory size" class="form-select">
-                        <option value="">All Sizes</option>
-                        <?php foreach ($available_sizes as $size_val): ?>
-                            <option value="<?php echo esc_attr($size_val); ?>" <?php echo $size_filter === $size_val ? 'selected' : ''; ?>>
-                                <?php echo esc_html($size_val); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="inventory-filter-group">
-                    <h2>Branch</h2>
-                    <select name="branch" aria-label="Filter inventory branch" class="form-select">
-                        <option value="all" <?php echo $branch_filter === 'all' ? 'selected' : ''; ?>>All Branches</option>
-                    <?php foreach ($inventory_branches as $branch): ?>
-                        <?php $branch_value = (string) (int) $branch['id']; ?>
-                        <option value="<?php echo esc_attr($branch_value); ?>" <?php echo $branch_filter === $branch_value ? 'selected' : ''; ?>>
-                            <?php echo esc_html(inventory_branch_label($branch['name'])); ?>
-                        </option>
-                    <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="inventory-filter-group">
-                    <h2>Status</h2>
-                    <select name="status" aria-label="Filter inventory status" class="form-select">
-                        <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active</option>
-                        <option value="inactive" <?php echo $status_filter === 'inactive' ? 'selected' : ''; ?>>Inactive / Archived</option>
-                        <option value="all" <?php echo $status_filter === 'all' ? 'selected' : ''; ?>>All Statuses</option>
-                    </select>
-                </div>
-                <div class="inventory-filter-group inventory-view-group">
-                    <h2>Record View</h2>
-                    <select name="view" aria-label="Select inventory record view" class="form-select">
-                    <?php foreach ($inventory_view_options as $view_value => $view_option): ?>
-                        <option value="<?php echo esc_attr($view_value); ?>" <?php echo $view_filter === $view_value ? 'selected' : ''; ?>>
-                            <?php echo esc_html($view_option['label']); ?>
-                        </option>
-                    <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="inventory-filter-actions-group">
-                    <button type="submit" class="btn btn-primary inventory-filter-apply-btn">
-                        <i class="fas fa-filter"></i> Apply Filters
-                    </button>
-                    <?php if ($category_filter !== 'all' || $brand_filter !== '' || $size_filter !== '' || $branch_filter !== 'all' || $view_filter !== 'all' || $search_filter !== '' || $status_filter !== 'active'): ?>
-                        <a class="btn btn-outline-secondary inventory-filter-reset-btn"
-                           href="<?php echo esc_attr(inventory_filter_url('all', 'all', '', $per_page, null, 'all', 'all', '', '', 'active')); ?>#inventory-records">
-                            Reset
-                        </a>
-                    <?php endif; ?>
-                </div>
+            <div class="hw-filter-group hw-group-md">
+                <label for="adminCategoryFilter" class="hw-filter-label">Category</label>
+                <select name="category" id="adminCategoryFilter" aria-label="Filter inventory category" class="hw-filter-select">
+                <?php foreach (['all' => 'All Items', 'tire' => 'Tires', 'accessory' => 'Accessories', 'part' => 'Parts'] as $category_value => $category_label): ?>
+                    <option value="<?php echo esc_attr($category_value); ?>" <?php echo $category_filter === $category_value ? 'selected' : ''; ?>>
+                        <?php echo esc_html($category_label); ?>
+                    </option>
+                <?php endforeach; ?>
+                </select>
             </div>
-            <div class="inventory-search-group">
-                <h2>Search</h2>
-                <div class="inventory-search-input-wrap">
-                    <label class="inventory-search-field">
-                        <i class="fas fa-search"></i>
-                        <input type="search"
+            <div class="hw-filter-group hw-group-md" id="adminBrandGroup" style="<?php echo ($category_filter === 'all' && $brand_filter === '') ? 'display: none;' : ''; ?>" <?php echo ($category_filter === 'all' && $brand_filter === '') ? 'hidden' : ''; ?>>
+                <label for="adminBrandFilter" class="hw-filter-label">Brand</label>
+                <select name="brand" id="adminBrandFilter" aria-label="Filter inventory brand" class="hw-filter-select">
+                    <option value="">All Brands</option>
+                    <?php foreach ($available_brands as $brand_name): ?>
+                        <option value="<?php echo esc_attr($brand_name); ?>" <?php echo $brand_filter === $brand_name ? 'selected' : ''; ?>>
+                            <?php echo esc_html($brand_name); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="hw-filter-group hw-group-md" id="adminSizeGroup" style="<?php echo ($category_filter === 'all' && $size_filter === '') ? 'display: none;' : ''; ?>" <?php echo ($category_filter === 'all' && $size_filter === '') ? 'hidden' : ''; ?>>
+                <label for="adminSizeFilter" class="hw-filter-label">Size / Spec</label>
+                <select name="size" id="adminSizeFilter" aria-label="Filter inventory size" class="hw-filter-select">
+                    <option value="">All Sizes</option>
+                    <?php foreach ($available_sizes as $size_val): ?>
+                        <option value="<?php echo esc_attr($size_val); ?>" <?php echo $size_filter === $size_val ? 'selected' : ''; ?>>
+                            <?php echo esc_html($size_val); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="hw-filter-group hw-group-branch">
+                <label for="adminBranchFilter" class="hw-filter-label">Branch</label>
+                <select name="branch" id="adminBranchFilter" aria-label="Filter inventory branch" class="hw-filter-select">
+                    <option value="all" <?php echo $branch_filter === 'all' ? 'selected' : ''; ?>>All Branches</option>
+                <?php foreach ($inventory_branches as $branch): ?>
+                    <?php $branch_value = (string) (int) $branch['id']; ?>
+                    <option value="<?php echo esc_attr($branch_value); ?>" <?php echo $branch_filter === $branch_value ? 'selected' : ''; ?>>
+                        <?php echo esc_html(inventory_branch_label($branch['name'])); ?>
+                    </option>
+                <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="hw-filter-group hw-group-status">
+                <label for="adminStatusFilter" class="hw-filter-label">Status</label>
+                <select name="status" id="adminStatusFilter" aria-label="Filter inventory status" class="hw-filter-select">
+                    <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active</option>
+                    <option value="inactive" <?php echo $status_filter === 'inactive' ? 'selected' : ''; ?>>Inactive / Archived</option>
+                    <option value="all" <?php echo $status_filter === 'all' ? 'selected' : ''; ?>>All Statuses</option>
+                </select>
+            </div>
+            <div class="hw-filter-group hw-group-md inventory-view-group">
+                <label for="adminViewFilter" class="hw-filter-label">Record View</label>
+                <select name="view" id="adminViewFilter" aria-label="Select inventory record view" class="hw-filter-select">
+                <?php foreach ($inventory_view_options as $view_value => $view_option): ?>
+                    <option value="<?php echo esc_attr($view_value); ?>" <?php echo $view_filter === $view_value ? 'selected' : ''; ?>>
+                        <?php echo esc_html($view_option['label']); ?>
+                    </option>
+                <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="hw-filter-actions">
+                <button type="submit" class="btn btn-primary hw-filter-icon-btn" title="Apply filters" aria-label="Apply filters">
+                    <i class="fas fa-filter"></i>
+                </button>
+                <a class="btn btn-outline-secondary hw-filter-icon-btn hw-btn-reset"
+                   title="Reset filters"
+                   aria-label="Reset filters"
+                   href="<?php echo esc_attr(inventory_filter_url('all', 'all', '', $per_page, null, 'all', 'all', '', '', 'active')); ?>#inventory-records">
+                    <i class="fas fa-rotate-left"></i>
+                </a>
+            </div>
+            <div class="hw-search-cluster">
+                <div class="hw-filter-group hw-group-search flex-grow-1">
+                    <label for="adminInventorySearch" class="hw-filter-label">Search</label>
+                    <div class="hw-search-wrapper">
+                        <input id="adminInventorySearch"
+                               type="search"
                                name="search"
                                maxlength="100"
                                data-text-format="first-letter"
+                               class="hw-search-input"
                                value="<?php echo esc_attr($search_filter); ?>"
                                placeholder="Search item, SKU, vehicle...">
-                    </label>
-                    <button type="submit" class="btn btn-secondary inventory-search-btn">
-                        <i class="fas fa-search"></i> Search
+                    </div>
+                </div>
+                <div class="hw-filter-actions">
+                    <button type="submit" class="btn btn-primary hw-filter-icon-btn hw-btn-search" title="Search" aria-label="Search">
+                        <i class="fas fa-search"></i>
                     </button>
                 </div>
             </div>
@@ -1337,15 +1338,15 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
             const currentBrand = brandSelect.value;
 
             if (cat === 'all') {
-                if (brandGroup) brandGroup.style.display = 'none';
-                if (sizeGroup) sizeGroup.style.display = 'none';
+                if (brandGroup) { brandGroup.style.display = 'none'; brandGroup.hidden = true; }
+                if (sizeGroup) { sizeGroup.style.display = 'none'; sizeGroup.hidden = true; }
                 brandSelect.value = '';
                 sizeSelect.value = '';
                 return;
             }
 
-            if (brandGroup) brandGroup.style.display = '';
-            if (sizeGroup) sizeGroup.style.display = '';
+            if (brandGroup) { brandGroup.style.display = ''; brandGroup.hidden = false; }
+            if (sizeGroup) { sizeGroup.style.display = ''; sizeGroup.hidden = false; }
 
             let brands = (cat !== 'all' && brandsByCategory[cat]) ? Object.values(brandsByCategory[cat]) : allBrands;
             

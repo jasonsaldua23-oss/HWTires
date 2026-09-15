@@ -274,99 +274,112 @@ $pagination_params .= record_date_filter_query_string($date_filter);
     <section class="quotation-records-panel" id="quotation-records">
         <div class="quotation-panel-header">
             <h2><?php echo esc_html(record_date_filter_heading('Service Operations', $date_filter)); ?></h2>
-            <div class="quotation-panel-controls">
-                <form method="GET" action="./#quotation-records" class="quotation-branch-filter records-select-filter">
+            <div class="quotation-panel-controls hw-filter-toolbar">
+                <div class="hw-filter-cluster">
+                    <form method="GET" action="./#quotation-records" class="hw-filter-group hw-group-branch">
+                        <?php if ($status_filter !== 'all'): ?>
+                            <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
+                        <?php endif; ?>
+                        <?php if ($record_filter !== 'active'): ?>
+                            <input type="hidden" name="records" value="<?php echo esc_attr($record_filter); ?>">
+                        <?php endif; ?>
+                        <?php if ($search_filter !== ''): ?>
+                            <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
+                        <?php endif; ?>
+                        <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
+                        <label for="frontQuoteBranch" class="hw-filter-label">Branch</label>
+                        <select id="frontQuoteBranch" name="branch" class="hw-filter-select" onchange="this.form.submit()" aria-label="Filter service operations by branch">
+                            <option value="all" <?php echo $branch_filter === '' ? 'selected' : ''; ?>>All Branches</option>
+                            <?php foreach ($branches as $branch_option): ?>
+                                <?php $branch_option_id = (int) $branch_option['id']; ?>
+                                <option value="<?php echo $branch_option_id; ?>" <?php echo $branch_filter === $branch_option_id ? 'selected' : ''; ?>>
+                                    <?php echo esc_html(front_quote_branch_label($branch_option['name'] ?? '')); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button type="submit" class="visually-hidden">Apply</button>
+                    </form>
+
+                    <form method="GET" action="./#quotation-records" class="hw-filter-group hw-group-status">
+                        <?php if ($status_filter !== 'all'): ?>
+                            <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
+                        <?php endif; ?>
+                        <?php if ($search_filter !== ''): ?>
+                            <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
+                        <?php endif; ?>
+                        <input type="hidden" name="branch" value="<?php echo esc_attr((string) $branch_query_value); ?>">
+                        <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
+                        <label for="frontQuoteRecords" class="hw-filter-label">Archive Status</label>
+                        <select id="frontQuoteRecords" name="records" class="hw-filter-select" onchange="this.form.submit()" aria-label="Filter service operations by record state">
+                            <?php foreach (record_archive_filter_options() as $record_value => $record_label): ?>
+                                <option value="<?php echo esc_attr($record_value); ?>" <?php echo $record_filter === $record_value ? 'selected' : ''; ?>>
+                                    <?php echo esc_html($record_label); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button type="submit" class="visually-hidden">Apply</button>
+                    </form>
+
+                    <form method="GET" action="./#quotation-records" class="hw-filter-group hw-group-status">
+                        <?php if ($record_filter !== 'active'): ?>
+                            <input type="hidden" name="records" value="<?php echo esc_attr($record_filter); ?>">
+                        <?php endif; ?>
+                        <?php if ($search_filter !== ''): ?>
+                            <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
+                        <?php endif; ?>
+                        <input type="hidden" name="branch" value="<?php echo esc_attr((string) $branch_query_value); ?>">
+                        <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
+                        <label for="frontQuoteStatus" class="hw-filter-label">Status</label>
+                        <select id="frontQuoteStatus" name="status" class="hw-filter-select" onchange="this.form.submit()" aria-label="Filter service operations by status">
+                            <?php foreach ($allowed_statuses as $status): ?>
+                                <?php $label = $status === 'all' ? 'All' : ucfirst($status); ?>
+                                <option value="<?php echo esc_attr($status); ?>" <?php echo $status_filter === $status ? 'selected' : ''; ?>>
+                                    <?php echo esc_html($label); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button type="submit" class="visually-hidden">Apply</button>
+                    </form>
+
+                    <div class="hw-date-actions-wrapper">
+                        <?php
+                        record_date_filter_controls($date_filter, [
+                            'status' => $status_filter !== 'all' ? $status_filter : '',
+                            'search' => $search_filter,
+                            'records' => $record_filter !== 'active' ? $record_filter : '',
+                            'branch' => $branch_query_value,
+                        ], 'quotation-records', './#quotation-records');
+                        ?>
+                    </div>
+                </div>
+
+                <form method="GET" action="./#quotation-records" class="hw-search-cluster">
                     <?php if ($status_filter !== 'all'): ?>
                         <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
                     <?php endif; ?>
                     <?php if ($record_filter !== 'active'): ?>
                         <input type="hidden" name="records" value="<?php echo esc_attr($record_filter); ?>">
                     <?php endif; ?>
-                    <?php if ($search_filter !== ''): ?>
-                        <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
-                    <?php endif; ?>
-                    <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
-                    <select name="branch" onchange="this.form.submit()" aria-label="Filter service operations by branch">
-                        <option value="all" <?php echo $branch_filter === '' ? 'selected' : ''; ?>>All Branches</option>
-                        <?php foreach ($branches as $branch_option): ?>
-                            <?php $branch_option_id = (int) $branch_option['id']; ?>
-                            <option value="<?php echo $branch_option_id; ?>" <?php echo $branch_filter === $branch_option_id ? 'selected' : ''; ?>>
-                                <?php echo esc_html(front_quote_branch_label($branch_option['name'] ?? '')); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                    <button type="submit">Apply</button>
-                </form>
-                <form method="GET" action="./#quotation-records" class="quotation-branch-filter records-select-filter">
-                    <?php if ($status_filter !== 'all'): ?>
-                        <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
-                    <?php endif; ?>
-                    <?php if ($search_filter !== ''): ?>
-                        <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
-                    <?php endif; ?>
                     <input type="hidden" name="branch" value="<?php echo esc_attr((string) $branch_query_value); ?>">
                     <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
-                    <select name="records" onchange="this.form.submit()" aria-label="Filter service operations by record state">
-                        <?php foreach (record_archive_filter_options() as $record_value => $record_label): ?>
-                            <option value="<?php echo esc_attr($record_value); ?>" <?php echo $record_filter === $record_value ? 'selected' : ''; ?>>
-                                <?php echo esc_html($record_label); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                    <button type="submit">Apply</button>
-                </form>
-                <form method="GET" action="./#quotation-records" class="quotation-branch-filter records-select-filter">
-                    <?php if ($record_filter !== 'active'): ?>
-                        <input type="hidden" name="records" value="<?php echo esc_attr($record_filter); ?>">
-                    <?php endif; ?>
-                    <?php if ($search_filter !== ''): ?>
-                        <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
-                    <?php endif; ?>
-                    <input type="hidden" name="branch" value="<?php echo esc_attr((string) $branch_query_value); ?>">
-                    <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
-                    <select name="status" onchange="this.form.submit()" aria-label="Filter service operations by status">
-                    <?php foreach ($allowed_statuses as $status): ?>
-                        <?php $label = $status === 'all' ? 'All' : ucfirst($status); ?>
-                        <option value="<?php echo esc_attr($status); ?>" <?php echo $status_filter === $status ? 'selected' : ''; ?>>
-                            <?php echo esc_html($label); ?>
-                        </option>
-                    <?php endforeach; ?>
-                    </select>
-                    <button type="submit">Apply</button>
-                </form>
-                <?php
-                record_date_filter_controls($date_filter, [
-                    'status' => $status_filter !== 'all' ? $status_filter : '',
-                    'search' => $search_filter,
-                    'records' => $record_filter !== 'active' ? $record_filter : '',
-                    'branch' => $branch_query_value,
-                ], 'quotation-records');
-                ?>
-                <form method="GET" action="./#quotation-records" class="records-search-form">
-                    <?php if ($status_filter !== 'all'): ?>
-                        <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
-                    <?php endif; ?>
-                    <?php if ($record_filter !== 'active'): ?>
-                        <input type="hidden" name="records" value="<?php echo esc_attr($record_filter); ?>">
-                    <?php endif; ?>
-                    <input type="hidden" name="branch" value="<?php echo esc_attr((string) $branch_query_value); ?>">
-                    <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
-                    <label class="records-search-field">
-                        <i class="fas fa-search"></i>
-                        <input type="search"
-                               name="search"
-                               maxlength="100"
-                               data-text-format="first-letter"
-                               value="<?php echo esc_attr($search_filter); ?>"
-                               placeholder="Search service operation, customer, plate...">
-                    </label>
-                    <button type="submit" class="records-search-btn">Search</button>
-                    <?php if ($search_filter !== ''): ?>
-                        <a class="records-search-clear"
-                           href="<?php echo esc_attr(front_quote_filter_url($status_filter, '', null, $date_filter, $record_filter, $branch_query_value)); ?>#quotation-records">
-                            Clear
-                        </a>
-                    <?php endif; ?>
+                    <div class="hw-filter-group hw-group-search flex-grow-1">
+                        <label for="frontQuoteSearch" class="hw-filter-label">Search</label>
+                        <div class="hw-search-wrapper">
+                            <input id="frontQuoteSearch"
+                                   type="search"
+                                   name="search"
+                                   maxlength="100"
+                                   data-text-format="first-letter"
+                                   class="hw-search-input"
+                                   value="<?php echo esc_attr($search_filter); ?>"
+                                   placeholder="Search service operation, customer, plate...">
+                        </div>
+                    </div>
+                    <div class="hw-filter-actions">
+                        <button type="submit" class="btn btn-primary hw-filter-icon-btn hw-btn-search" title="Search" aria-label="Search">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>

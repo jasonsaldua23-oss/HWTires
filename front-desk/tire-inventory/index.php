@@ -1101,75 +1101,83 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
         <?php endforeach; ?>
     </section>
 
-    <section class="inventory-filter-card front-inventory-filter-card">
-        <form class="inventory-unified-filter-form" method="get" action="./#inventory-records" style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; width: 100%;">
+    <section class="inventory-filter-card front-inventory-filter-card hw-filter-card">
+        <form class="inventory-unified-filter-form hw-filter-toolbar" method="get" action="./#inventory-records">
             <input type="hidden" name="per_page" value="<?php echo (int) $per_page; ?>">
-            <div class="inventory-filter-group" style="flex: 1; min-width: 130px;">
-                <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Category</h2>
-                <select name="category" id="frontCategoryFilter" aria-label="Filter inventory category" class="form-select" style="height: 42px; border-radius: 8px; border-color: #cbd5e1; font-weight: 500;">
-                <?php foreach (['all' => 'All Items', 'tire' => 'Tires', 'accessory' => 'Accessories', 'part' => 'Parts'] as $category_value => $category_label): ?>
-                    <option value="<?php echo esc_attr($category_value); ?>" <?php echo $category_filter === $category_value ? 'selected' : ''; ?>>
-                        <?php echo esc_html($category_label); ?>
-                    </option>
-                <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="inventory-filter-group" id="frontBrandGroup" style="flex: 1; min-width: 130px; <?php echo ($category_filter === 'all' && $brand_filter === '') ? 'display: none;' : ''; ?>">
-                <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Brand</h2>
-                <select name="brand" id="frontBrandFilter" aria-label="Filter inventory brand" class="form-select" style="height: 42px; border-radius: 8px; border-color: #cbd5e1; font-weight: 500;">
-                    <option value="">All Brands</option>
-                    <?php foreach ($available_brands as $brand_name): ?>
-                        <option value="<?php echo esc_attr($brand_name); ?>" <?php echo $brand_filter === $brand_name ? 'selected' : ''; ?>>
-                            <?php echo esc_html($brand_name); ?>
+            <div class="hw-filter-cluster">
+                <div class="hw-filter-group hw-group-md">
+                    <label for="frontCategoryFilter" class="hw-filter-label">Category</label>
+                    <select name="category" id="frontCategoryFilter" aria-label="Filter inventory category" class="hw-filter-select form-select">
+                    <?php foreach (['all' => 'All Items', 'tire' => 'Tires', 'accessory' => 'Accessories', 'part' => 'Parts'] as $category_value => $category_label): ?>
+                        <option value="<?php echo esc_attr($category_value); ?>" <?php echo $category_filter === $category_value ? 'selected' : ''; ?>>
+                            <?php echo esc_html($category_label); ?>
                         </option>
                     <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="inventory-filter-group" id="frontSizeGroup" style="flex: 1; min-width: 130px; <?php echo ($category_filter === 'all' && $size_filter === '') ? 'display: none;' : ''; ?>">
-                <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Size / Spec</h2>
-                <select name="size" id="frontSizeFilter" aria-label="Filter inventory size" class="form-select" style="height: 42px; border-radius: 8px; border-color: #cbd5e1; font-weight: 500;">
-                    <option value="">All Sizes</option>
-                    <?php foreach ($available_sizes as $size_val): ?>
-                        <option value="<?php echo esc_attr($size_val); ?>" <?php echo $size_filter === $size_val ? 'selected' : ''; ?>>
-                            <?php echo esc_html($size_val); ?>
+                    </select>
+                </div>
+                <div class="hw-filter-group hw-group-md" id="frontBrandGroup" style="<?php echo ($category_filter === 'all' && $brand_filter === '') ? 'display: none;' : ''; ?>">
+                    <label for="frontBrandFilter" class="hw-filter-label">Brand</label>
+                    <select name="brand" id="frontBrandFilter" aria-label="Filter inventory brand" class="hw-filter-select form-select">
+                        <option value="">All Brands</option>
+                        <?php foreach ($available_brands as $brand_name): ?>
+                            <option value="<?php echo esc_attr($brand_name); ?>" <?php echo $brand_filter === $brand_name ? 'selected' : ''; ?>>
+                                <?php echo esc_html($brand_name); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="hw-filter-group hw-group-md" id="frontSizeGroup" style="<?php echo ($category_filter === 'all' && $size_filter === '') ? 'display: none;' : ''; ?>">
+                    <label for="frontSizeFilter" class="hw-filter-label">Size / Spec</label>
+                    <select name="size" id="frontSizeFilter" aria-label="Filter inventory size" class="hw-filter-select form-select">
+                        <option value="">All Sizes</option>
+                        <?php foreach ($available_sizes as $size_val): ?>
+                            <option value="<?php echo esc_attr($size_val); ?>" <?php echo $size_filter === $size_val ? 'selected' : ''; ?>>
+                                <?php echo esc_html($size_val); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="hw-filter-group hw-group-md inventory-view-group">
+                    <label for="frontViewGroup" class="hw-filter-label">Record View</label>
+                    <select name="view" id="frontViewGroup" aria-label="Select inventory record view" class="hw-filter-select form-select">
+                    <?php foreach ($inventory_view_options as $view_value => $view_option): ?>
+                        <option value="<?php echo esc_attr($view_value); ?>" <?php echo $view_filter === $view_value ? 'selected' : ''; ?>>
+                            <?php echo esc_html($view_option['label']); ?>
                         </option>
                     <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="inventory-filter-group inventory-view-group" style="flex: 1; min-width: 130px;">
-                <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Record View</h2>
-                <select name="view" aria-label="Select inventory record view" class="form-select" style="height: 42px; border-radius: 8px; border-color: #cbd5e1; font-weight: 500;">
-                <?php foreach ($inventory_view_options as $view_value => $view_option): ?>
-                    <option value="<?php echo esc_attr($view_value); ?>" <?php echo $view_filter === $view_value ? 'selected' : ''; ?>>
-                        <?php echo esc_html($view_option['label']); ?>
-                    </option>
-                <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="inventory-filter-group inventory-search-group" style="flex: 2; min-width: 200px;">
-                <h2 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #475569;">Search</h2>
-                <label class="inventory-search-field" style="margin: 0; width: 100%;">
-                    <i class="fas fa-search"></i>
-                    <input type="search"
-                           name="search"
-                           maxlength="100"
-                           data-text-format="first-letter"
-                           value="<?php echo esc_attr($search_filter); ?>"
-                           placeholder="Search item, SKU, vehicle..."
-                           style="height: 42px; border-radius: 8px; border-color: #cbd5e1;">
-                </label>
-            </div>
-            <div class="inventory-filter-actions-group" style="display: flex; gap: 8px; align-items: center;">
-                <button type="submit" class="btn btn-primary" style="height: 42px; padding: 0 18px; font-weight: 600; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
-                    <i class="fas fa-filter"></i> Apply
-                </button>
-                <?php if ($category_filter !== 'all' || $brand_filter !== '' || $size_filter !== '' || $view_filter !== 'all' || $search_filter !== ''): ?>
-                    <a class="btn btn-outline-secondary"
-                       href="<?php echo esc_attr(front_inventory_filter_url('all', '', $per_page, null, 'all')); ?>#inventory-records"
-                       style="height: 42px; padding: 0 14px; font-weight: 600; border-radius: 8px; display: inline-flex; align-items: center;">
-                        Reset
+                    </select>
+                </div>
+                <div class="hw-filter-actions">
+                    <button type="submit" class="btn btn-primary hw-filter-icon-btn hw-btn-filter" title="Apply filters" aria-label="Apply filters">
+                        <i class="fas fa-filter"></i>
+                    </button>
+                    <a class="btn btn-outline-secondary hw-filter-icon-btn hw-btn-reset"
+                       title="Reset filters"
+                       aria-label="Reset filters"
+                       href="<?php echo esc_attr(front_inventory_filter_url('all', '', $per_page, null, 'all')); ?>#inventory-records">
+                        <i class="fas fa-rotate-left"></i>
                     </a>
-                <?php endif; ?>
+                </div>
+            </div>
+            <div class="hw-search-cluster">
+                <div class="hw-filter-group hw-group-search flex-grow-1">
+                    <label for="frontInventorySearch" class="hw-filter-label">Search</label>
+                    <div class="hw-search-wrapper">
+                        <input id="frontInventorySearch"
+                               type="search"
+                               name="search"
+                               maxlength="100"
+                               data-text-format="first-letter"
+                               class="hw-search-input"
+                               value="<?php echo esc_attr($search_filter); ?>"
+                               placeholder="Search item, SKU, vehicle...">
+                    </div>
+                </div>
+                <div class="hw-filter-actions">
+                    <button type="submit" class="btn btn-primary hw-filter-icon-btn hw-btn-search" title="Search" aria-label="Search">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
             </div>
         </form>
     </section>

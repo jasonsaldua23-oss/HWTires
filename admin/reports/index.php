@@ -2274,73 +2274,92 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
         </div>
     </header>
 
-    <section class="reports-filter-card">
-        <h2>Filters</h2>
-        <form method="GET" class="reports-filter-form reports-detail-filter-form">
-            <label class="reports-type-filter">
-                <span>Report</span>
-                <select name="report" onchange="this.form.submit()">
-                    <?php foreach ($report_tab_options as $tab_value => $tab_option): ?>
-                        <option value="<?php echo esc_attr($tab_value); ?>" <?php echo $report_tab === $tab_value ? 'selected' : ''; ?>>
-                            <?php echo esc_html($tab_option['label']); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-            <label class="reports-branch-filter">
-                <span>Branch</span>
-                <select name="branch" onchange="this.form.submit()">
-                    <option value="">All Branches</option>
-                    <?php foreach ($branches as $branch): ?>
-                        <?php $option_label = reports_branch_label($branch['name']); ?>
-                        <option value="<?php echo (int) $branch['id']; ?>" <?php echo $branch_filter === (int) $branch['id'] ? 'selected' : ''; ?>>
-                            <?php echo esc_html($option_label); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-            <label class="reports-status-filter">
-                <span><?php echo $report_tab === 'services' ? 'Report Status' : 'Status'; ?></span>
-                <select name="status" onchange="this.form.submit()">
-                    <?php foreach ($active_status_options as $status_value => $status_label): ?>
-                        <option value="<?php echo esc_attr($status_value); ?>" <?php echo $status_filter === $status_value ? 'selected' : ''; ?>>
-                            <?php echo esc_html($status_label); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-            <label class="reports-quick-range-filter no-print">
-                <span>Quick Range</span>
-                <select name="quick_range" class="reports-quick-range-select" onchange="reportsSyncQuickRange(this)">
-                    <option value="custom" data-from="<?php echo esc_attr($date_from); ?>" data-to="<?php echo esc_attr($date_to); ?>" <?php echo $quick_report_range_value === 'custom' ? 'selected' : ''; ?>>Custom Range</option>
-                    <?php foreach ($quick_report_ranges as $range_key => $range): ?>
-                        <option value="<?php echo esc_attr((string) $range_key); ?>"
-                                data-from="<?php echo esc_attr($range['date_from']); ?>"
-                                data-to="<?php echo esc_attr($range['date_to']); ?>"
-                                <?php echo $quick_report_range_value === (string) $range_key ? 'selected' : ''; ?>>
-                            <?php echo esc_html($range['label']); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-            <label class="reports-date-from-filter" data-range-custom <?php echo $quick_report_range_value !== 'custom' ? 'hidden' : ''; ?>>
-                <span>Date From</span>
-                <input type="date" name="date_from" value="<?php echo esc_attr($date_from); ?>">
-            </label>
-            <label class="reports-date-to-filter" data-range-custom <?php echo $quick_report_range_value !== 'custom' ? 'hidden' : ''; ?>>
-                <span>Date To</span>
-                <input type="date" name="date_to" value="<?php echo esc_attr($date_to); ?>">
-            </label>
-            <button type="submit" class="reports-filter-apply">Apply</button>
-            <div class="reports-search-group">
-                <label class="reports-search-filter">
-                    <span>Search</span>
-                    <div class="reports-search-input-wrap position-relative">
-                        <i class="fas fa-search position-absolute top-50 translate-middle-y text-muted" style="left: 14px;"></i>
-                        <input type="search" name="search" maxlength="100" data-text-format="first-letter" value="<?php echo esc_attr($search_filter); ?>" placeholder="Customer, plate, item, service, reference...">
+    <section class="reports-filter-card hw-filter-card">
+        <h2 class="visually-hidden">Filters</h2>
+        <form method="GET" class="reports-detail-filter-form hw-filter-toolbar">
+            <div class="hw-filter-cluster">
+                <div class="hw-filter-group hw-group-md">
+                    <label for="reportsTypeFilter" class="hw-filter-label">Report</label>
+                    <select id="reportsTypeFilter" name="report" class="hw-filter-select" onchange="this.form.submit()">
+                        <?php foreach ($report_tab_options as $tab_value => $tab_option): ?>
+                            <option value="<?php echo esc_attr($tab_value); ?>" <?php echo $report_tab === $tab_value ? 'selected' : ''; ?>>
+                                <?php echo esc_html($tab_option['label']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="hw-filter-group hw-group-branch">
+                    <label for="reportsBranchFilter" class="hw-filter-label">Branch</label>
+                    <select id="reportsBranchFilter" name="branch" class="hw-filter-select" onchange="this.form.submit()">
+                        <option value="">All Branches</option>
+                        <?php foreach ($branches as $branch): ?>
+                            <?php $option_label = reports_branch_label($branch['name']); ?>
+                            <option value="<?php echo (int) $branch['id']; ?>" <?php echo $branch_filter === (int) $branch['id'] ? 'selected' : ''; ?>>
+                                <?php echo esc_html($option_label); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="hw-filter-group hw-group-status">
+                    <label for="reportsStatusFilter" class="hw-filter-label"><?php echo $report_tab === 'services' ? 'Report Status' : 'Status'; ?></label>
+                    <select id="reportsStatusFilter" name="status" class="hw-filter-select" onchange="this.form.submit()">
+                        <?php foreach ($active_status_options as $status_value => $status_label): ?>
+                            <option value="<?php echo esc_attr($status_value); ?>" <?php echo $status_filter === $status_value ? 'selected' : ''; ?>>
+                                <?php echo esc_html($status_label); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="hw-filter-group hw-group-md no-print">
+                    <label for="reportsQuickRange" class="hw-filter-label">Quick Range</label>
+                    <select id="reportsQuickRange" name="quick_range" class="hw-filter-select reports-quick-range-select" onchange="reportsSyncQuickRange(this)">
+                        <option value="custom" data-from="<?php echo esc_attr($date_from); ?>" data-to="<?php echo esc_attr($date_to); ?>" <?php echo $quick_report_range_value === 'custom' ? 'selected' : ''; ?>>Custom Range</option>
+                        <?php foreach ($quick_report_ranges as $range_key => $range): ?>
+                            <option value="<?php echo esc_attr((string) $range_key); ?>"
+                                    data-from="<?php echo esc_attr($range['date_from']); ?>"
+                                    data-to="<?php echo esc_attr($range['date_to']); ?>"
+                                    <?php echo $quick_report_range_value === (string) $range_key ? 'selected' : ''; ?>>
+                                <?php echo esc_html($range['label']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="hw-filter-group hw-group-date" data-range-custom <?php echo $quick_report_range_value !== 'custom' ? 'hidden' : ''; ?>>
+                    <label for="reportsDateFrom" class="hw-filter-label">Date From</label>
+                    <input id="reportsDateFrom" type="date" name="date_from" class="hw-filter-input" value="<?php echo esc_attr($date_from); ?>">
+                </div>
+                <div class="hw-filter-group hw-group-date" data-range-custom <?php echo $quick_report_range_value !== 'custom' ? 'hidden' : ''; ?>>
+                    <label for="reportsDateTo" class="hw-filter-label">Date To</label>
+                    <input id="reportsDateTo" type="date" name="date_to" class="hw-filter-input" value="<?php echo esc_attr($date_to); ?>">
+                </div>
+                <div class="hw-filter-actions">
+                    <button type="submit" class="btn btn-primary hw-filter-icon-btn hw-btn-filter" title="Apply filters" aria-label="Apply filters">
+                        <i class="fas fa-filter"></i>
+                    </button>
+                    <a href="/hwtires/admin/reports/" class="btn btn-outline-secondary hw-filter-icon-btn hw-btn-reset" title="Reset filters" aria-label="Reset filters">
+                        <i class="fas fa-rotate-left"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="hw-search-cluster">
+                <div class="hw-filter-group hw-group-search flex-grow-1">
+                    <label for="reportsSearchInput" class="hw-filter-label">Search</label>
+                    <div class="hw-search-wrapper">
+                        <input id="reportsSearchInput"
+                               type="text"
+                               name="search"
+                               maxlength="100"
+                               data-text-format="first-letter"
+                               class="hw-search-input"
+                               value="<?php echo esc_attr($search_filter); ?>"
+                               placeholder="Customer, plate, item, service, reference...">
                     </div>
-                </label>
-                <button type="submit" class="reports-search-submit">Search</button>
+                </div>
+                <div class="hw-filter-actions">
+                    <button type="submit" class="btn btn-primary hw-filter-icon-btn hw-btn-search" title="Search" aria-label="Search">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
             </div>
             <input type="hidden" name="per_page" value="<?php echo (int) $detail_per_page; ?>">
         </form>

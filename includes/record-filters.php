@@ -433,7 +433,7 @@ if (!function_exists('record_date_filter_hidden_inputs')) {
 }
 
 if (!function_exists('record_date_filter_controls')) {
-    function record_date_filter_controls(array $filter, array $hidden_fields = [], $anchor = '') {
+    function record_date_filter_controls(array $filter, array $hidden_fields = [], $anchor = '', ?string $reset_url = null) {
         static $script_printed = false;
         $current_path = $_SERVER['PHP_SELF'] ?? './';
         $action = $current_path . ($anchor !== '' ? '#' . ltrim($anchor, '#') : '');
@@ -453,31 +453,46 @@ if (!function_exists('record_date_filter_controls')) {
                     <option value="range" <?php echo $scope === 'range' ? 'selected' : ''; ?>>Date Range</option>
                 </select>
             </label>
-            <label data-date-input="day">
+            <label data-date-input="day" <?php echo $scope !== 'day' ? 'hidden' : ''; ?>>
                 <span>Day</span>
-                <input type="date" name="date_day" value="<?php echo esc_attr($filter['day']); ?>">
+                <input type="date" name="date_day" value="<?php echo esc_attr($filter['day']); ?>" <?php echo $scope !== 'day' ? 'disabled' : ''; ?>>
             </label>
-            <label data-date-input="week">
+            <label data-date-input="week" <?php echo $scope !== 'week' ? 'hidden' : ''; ?>>
                 <span>Week</span>
-                <input type="week" name="date_week" value="<?php echo esc_attr($filter['week']); ?>">
+                <input type="week" name="date_week" value="<?php echo esc_attr($filter['week']); ?>" <?php echo $scope !== 'week' ? 'disabled' : ''; ?>>
             </label>
-            <label data-date-input="month">
+            <label data-date-input="month" <?php echo $scope !== 'month' ? 'hidden' : ''; ?>>
                 <span>Month</span>
-                <input type="month" name="date_month" value="<?php echo esc_attr($filter['month']); ?>">
+                <input type="month" name="date_month" value="<?php echo esc_attr($filter['month']); ?>" <?php echo $scope !== 'month' ? 'disabled' : ''; ?>>
             </label>
-            <label data-date-input="year">
+            <label data-date-input="year" <?php echo $scope !== 'year' ? 'hidden' : ''; ?>>
                 <span>Year</span>
-                <input type="number" name="date_year" min="2020" max="2100" value="<?php echo (int) $filter['year']; ?>">
+                <input type="number" name="date_year" min="2020" max="2100" value="<?php echo (int) $filter['year']; ?>" <?php echo $scope !== 'year' ? 'disabled' : ''; ?>>
             </label>
-            <label data-date-input="range">
+            <label data-date-input="range" <?php echo $scope !== 'range' ? 'hidden' : ''; ?>>
                 <span>From</span>
-                <input type="date" name="date_from" value="<?php echo esc_attr($filter['from']); ?>">
+                <input type="date" name="date_from" value="<?php echo esc_attr($filter['from']); ?>" <?php echo $scope !== 'range' ? 'disabled' : ''; ?>>
             </label>
-            <label data-date-input="range">
+            <label data-date-input="range" <?php echo $scope !== 'range' ? 'hidden' : ''; ?>>
                 <span>To</span>
-                <input type="date" name="date_to" value="<?php echo esc_attr($filter['to']); ?>">
+                <input type="date" name="date_to" value="<?php echo esc_attr($filter['to']); ?>" <?php echo $scope !== 'range' ? 'disabled' : ''; ?>>
             </label>
-            <button type="submit">Apply</button>
+            <div class="hw-date-action-pair">
+                <button type="submit"
+                        class="hw-filter-icon-btn hw-btn-filter"
+                        title="Apply filters"
+                        aria-label="Apply filters">
+                    <i class="fas fa-filter"></i>
+                </button>
+                <?php if (!empty($reset_url)): ?>
+                    <a href="<?php echo esc_attr($reset_url); ?>"
+                       class="hw-filter-icon-btn hw-btn-reset"
+                       title="Reset filters"
+                       aria-label="Reset filters">
+                        <i class="fas fa-rotate-left"></i>
+                    </a>
+                <?php endif; ?>
+            </div>
         </form>
         <?php
         record_date_filter_script();

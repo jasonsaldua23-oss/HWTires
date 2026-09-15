@@ -574,48 +574,55 @@ if (!empty($job_quotation_ids)) {
     <section class="job-orders-panel" id="job-order-records">
         <div class="job-orders-panel-header">
             <h2><?php echo esc_html(record_date_filter_heading('Job Orders', $date_filter)); ?></h2>
-            <div class="job-orders-panel-controls">
-                <form method="GET" action="./#job-order-records" class="records-select-filter job-status-select-filter">
-                    <?php if ($job_search_filter !== ''): ?>
-                        <input type="hidden" name="search" value="<?php echo esc_attr($job_search_filter); ?>">
-                    <?php endif; ?>
-                    <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
-                    <select name="status" onchange="this.form.submit()" aria-label="Filter job orders by status">
-                    <?php foreach ($allowed_job_statuses as $status => $label): ?>
-                        <option value="<?php echo esc_attr($status); ?>" <?php echo $job_status_filter === $status ? 'selected' : ''; ?>>
-                            <?php echo esc_html($label); ?>
-                        </option>
-                    <?php endforeach; ?>
-                    </select>
-                    <button type="submit">Apply</button>
-                </form>
-                <?php
-                record_date_filter_controls($date_filter, [
-                    'status' => $job_status_filter !== 'all' ? $job_status_filter : '',
-                    'search' => $job_search_filter,
-                ], 'job-order-records');
-                ?>
-                <form method="GET" action="./#job-order-records" class="records-search-form">
+            <div class="job-orders-panel-controls hw-filter-toolbar">
+                <div class="hw-filter-cluster">
+                    <form method="GET" action="./#job-order-records" class="hw-filter-group hw-group-status">
+                        <?php if ($job_search_filter !== ''): ?>
+                            <input type="hidden" name="search" value="<?php echo esc_attr($job_search_filter); ?>">
+                        <?php endif; ?>
+                        <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
+                        <label for="frontJobStatus" class="hw-filter-label">Status</label>
+                        <select id="frontJobStatus" name="status" class="hw-filter-select" onchange="this.form.submit()" aria-label="Filter job orders by status">
+                        <?php foreach ($allowed_job_statuses as $status => $label): ?>
+                            <option value="<?php echo esc_attr($status); ?>" <?php echo $job_status_filter === $status ? 'selected' : ''; ?>>
+                                <?php echo esc_html($label); ?>
+                            </option>
+                        <?php endforeach; ?>
+                        </select>
+                        <button type="submit" class="visually-hidden">Apply</button>
+                    </form>
+                    <div class="hw-date-actions-wrapper">
+                        <?php
+                        record_date_filter_controls($date_filter, [
+                            'status' => $job_status_filter !== 'all' ? $job_status_filter : '',
+                            'search' => $job_search_filter,
+                        ], 'job-order-records', './#job-order-records');
+                        ?>
+                    </div>
+                </div>
+                <form method="GET" action="./#job-order-records" class="hw-search-cluster">
                     <?php if ($job_status_filter !== 'all'): ?>
                         <input type="hidden" name="status" value="<?php echo esc_attr($job_status_filter); ?>">
                     <?php endif; ?>
                     <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
-                    <label class="records-search-field">
-                        <i class="fas fa-search"></i>
-                        <input type="search"
-                               name="search"
-                               maxlength="100"
-                               data-text-format="first-letter"
-                               value="<?php echo esc_attr($job_search_filter); ?>"
-                               placeholder="Search job order, customer, plate...">
-                    </label>
-                    <button type="submit" class="records-search-btn">Search</button>
-                    <?php if ($job_search_filter !== ''): ?>
-                        <a class="records-search-clear"
-                           href="<?php echo esc_attr(front_job_order_filter_url($job_status_filter, '', $date_filter)); ?>#job-order-records">
-                            Clear
-                        </a>
-                    <?php endif; ?>
+                    <div class="hw-filter-group hw-group-search flex-grow-1">
+                        <label for="frontJobSearch" class="hw-filter-label">Search</label>
+                        <div class="hw-search-wrapper">
+                            <input id="frontJobSearch"
+                                   type="search"
+                                   name="search"
+                                   maxlength="100"
+                                   data-text-format="first-letter"
+                                   class="hw-search-input"
+                                   value="<?php echo esc_attr($job_search_filter); ?>"
+                                   placeholder="Search job order, customer, plate...">
+                        </div>
+                    </div>
+                    <div class="hw-filter-actions">
+                        <button type="submit" class="btn btn-primary hw-filter-icon-btn hw-btn-search" title="Search" aria-label="Search">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>

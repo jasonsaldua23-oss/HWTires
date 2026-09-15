@@ -766,132 +766,126 @@ include __DIR__ . '/../../includes/sidebar.php';
     </div>
 
     <!-- Search & Filters Card (Aligned 2-Row Layout) -->
-    <div class="card border-0 shadow-sm rounded-3 mb-4">
-        <div class="card-body p-3 p-md-4">
-            <form method="get" action="/hwtires/admin/audit-trail/">
-                <input type="hidden" name="per_page" value="<?php echo (int) $per_page; ?>">
+    <div class="card border-0 shadow-sm rounded-3 mb-4 hw-filter-card">
+        <form method="get" action="/hwtires/admin/audit-trail/" class="hw-filter-toolbar audit-trail-filter-form">
+            <input type="hidden" name="per_page" value="<?php echo (int) $per_page; ?>">
 
-                <!-- Row 1: Primary Dropdown & Date Filters (Module, Action, User, Start Date, End Date, Filter, Reset) -->
-                <div class="row g-2 align-items-end">
-                    <!-- Module / Table filter -->
-                    <div class="col-12 col-sm-6 col-md-4 col-lg-2">
-                        <label class="form-label small fw-semibold text-secondary mb-1">Module</label>
-                        <select name="module" class="form-select">
-                            <option value="all">All Modules</option>
-                            <?php foreach ($filter_modules as $mod): ?>
-                                <option value="<?php echo esc_attr($mod); ?>" <?php echo $module_filter === $mod ? 'selected' : ''; ?>>
-                                    <?php echo esc_html(audit_table_label($mod)); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <!-- Action filter (Deduplicated Canonical Options) -->
-                    <div class="col-12 col-sm-6 col-md-4 col-lg-2">
-                        <label class="form-label small fw-semibold text-secondary mb-1">Action</label>
-                        <select name="action" class="form-select">
-                            <option value="all">All Actions</option>
-                            <?php foreach ($filter_actions as $act_key => $act_lbl): ?>
-                                <option value="<?php echo esc_attr($act_key); ?>" <?php echo strtolower($action_filter) === strtolower($act_key) ? 'selected' : ''; ?>>
-                                    <?php echo esc_html($act_lbl); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <!-- User filter -->
-                    <div class="col-12 col-sm-6 col-md-4 col-lg-2">
-                        <label class="form-label small fw-semibold text-secondary mb-1">User</label>
-                        <select name="user_id" class="form-select">
-                            <option value="all">All Users</option>
-                            <?php foreach ($filter_users as $u): ?>
-                                <option value="<?php echo (int)$u['id']; ?>" <?php echo (string)$user_filter === (string)$u['id'] ? 'selected' : ''; ?>>
-                                    <?php echo esc_html($u['name']); ?> (<?php echo esc_html(ucfirst($u['role'])); ?>)
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <!-- Date Range: Start -->
-                    <div class="col-6 col-sm-3 col-md-3 col-lg-2">
-                        <label class="form-label small fw-semibold text-secondary mb-1">Start Date</label>
-                        <input type="date" name="start_date" class="form-control" value="<?php echo esc_attr($start_date); ?>">
-                    </div>
-
-                    <!-- Date Range: End -->
-                    <div class="col-6 col-sm-3 col-md-3 col-lg-2">
-                        <label class="form-label small fw-semibold text-secondary mb-1">End Date</label>
-                        <input type="date" name="end_date" class="form-control" value="<?php echo esc_attr($end_date); ?>">
-                    </div>
-
-                    <!-- Action Buttons: Filter & Reset -->
-                    <div class="col-12 col-md-auto d-flex gap-2 ms-lg-auto">
-                        <button type="submit" class="btn btn-primary px-3 text-nowrap">
-                            <i class="fas fa-filter me-1"></i> Filter
-                        </button>
-                        <a href="/hwtires/admin/audit-trail/" class="btn btn-outline-secondary px-3 text-nowrap" title="Reset all filters">
-                            <i class="fas fa-rotate-left me-1"></i> Reset
-                        </a>
-                    </div>
+            <!-- Row 1: Primary Dropdown & Date Filters (Module, Action, User, Start Date, End Date, Filter, Reset) -->
+            <div class="hw-filter-cluster audit-filters-row">
+                <div class="hw-filter-group hw-group-md">
+                    <label for="auditModuleFilter" class="hw-filter-label">Module</label>
+                    <select id="auditModuleFilter" name="module" class="hw-filter-select">
+                        <option value="all">All Modules</option>
+                        <?php foreach ($filter_modules as $mod): ?>
+                            <option value="<?php echo esc_attr($mod); ?>" <?php echo $module_filter === $mod ? 'selected' : ''; ?>>
+                                <?php echo esc_html(audit_table_label($mod)); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
 
-                <!-- Row 2: Status Text on Left & Right-Aligned Search Box with Visible Button -->
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 pt-3 border-top mt-3">
-                    <div class="text-secondary small d-flex align-items-center flex-wrap gap-2">
-                        <?php 
-                        $has_filters = ($module_filter !== '' && $module_filter !== 'all') 
-                                    || ($action_filter !== '' && $action_filter !== 'all') 
-                                    || ($user_filter !== '' && $user_filter !== 'all') 
-                                    || $start_date !== '' 
-                                    || $end_date !== '';
-                        $has_search = ($search_query !== '');
-                        ?>
-                        <?php if ($has_filters || $has_search): ?>
-                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary">
-                                <i class="fas fa-filter me-1"></i>Filters Active
-                            </span>
-                            <?php if ($has_search): ?>
-                                <span class="badge bg-light text-dark border">
-                                    Search: "<strong><?php echo esc_html($search_query); ?></strong>"
-                                </span>
-                            <?php endif; ?>
-                            <?php if ($action_filter !== '' && $action_filter !== 'all'): ?>
-                                <span class="badge bg-light text-dark border">
-                                    Action: <strong><?php echo esc_html(audit_action_label($action_filter)); ?></strong>
-                                </span>
-                            <?php endif; ?>
-                            <?php if ($module_filter !== '' && $module_filter !== 'all'): ?>
-                                <span class="badge bg-light text-dark border">
-                                    Module: <strong><?php echo esc_html(audit_table_label($module_filter)); ?></strong>
-                                </span>
-                            <?php endif; ?>
-                            <span class="text-muted ms-1">Matching records: <strong><?php echo number_format($total_records); ?></strong></span>
-                        <?php else: ?>
-                            <span class="text-muted"><i class="fas fa-info-circle me-1"></i> Showing all system audit records</span>
-                        <?php endif; ?>
-                    </div>
+                <div class="hw-filter-group hw-group-md">
+                    <label for="auditActionFilter" class="hw-filter-label">Action</label>
+                    <select id="auditActionFilter" name="action" class="hw-filter-select">
+                        <option value="all">All Actions</option>
+                        <?php foreach ($filter_actions as $act_key => $act_lbl): ?>
+                            <option value="<?php echo esc_attr($act_key); ?>" <?php echo strtolower($action_filter) === strtolower($act_key) ? 'selected' : ''; ?>>
+                                <?php echo esc_html($act_lbl); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
 
-                    <!-- Right-Aligned Search Group -->
-                    <div class="d-flex align-items-center gap-2" style="max-width: 440px; width: 100%;">
-                        <div class="input-group">
-                            <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
-                            <input type="text"
-                                   id="auditSearchInput"
-                                   name="search"
-                                   maxlength="100"
-                                   data-text-format="first-letter"
-                                   class="form-control bg-light border-start-0"
-                                   placeholder="Search user, action, JO reference, ID..."
-                                   value="<?php echo esc_attr($search_query); ?>"
-                                   autocomplete="off"
-                                   data-no-autocomplete="true">
-                        </div>
-                        <button type="submit" class="btn btn-primary px-3 text-nowrap">
-                            <i class="fas fa-search me-1"></i> Search
-                        </button>
+                <div class="hw-filter-group hw-group-md">
+                    <label for="auditUserFilter" class="hw-filter-label">User</label>
+                    <select id="auditUserFilter" name="user_id" class="hw-filter-select">
+                        <option value="all">All Users</option>
+                        <?php foreach ($filter_users as $u): ?>
+                            <option value="<?php echo (int)$u['id']; ?>" <?php echo (string)$user_filter === (string)$u['id'] ? 'selected' : ''; ?>>
+                                <?php echo esc_html($u['name']); ?> (<?php echo esc_html(ucfirst($u['role'])); ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="hw-filter-group hw-group-date">
+                    <label for="auditStartDate" class="hw-filter-label">Start Date</label>
+                    <input id="auditStartDate" type="date" name="start_date" class="hw-filter-input" value="<?php echo esc_attr($start_date); ?>">
+                </div>
+
+                <div class="hw-filter-group hw-group-date">
+                    <label for="auditEndDate" class="hw-filter-label">End Date</label>
+                    <input id="auditEndDate" type="date" name="end_date" class="hw-filter-input" value="<?php echo esc_attr($end_date); ?>">
+                </div>
+
+                <div class="hw-filter-actions">
+                    <button type="submit" class="btn btn-primary hw-filter-icon-btn hw-btn-filter" title="Apply filters" aria-label="Apply filters">
+                        <i class="fas fa-filter"></i>
+                    </button>
+                    <a href="/hwtires/admin/audit-trail/" class="btn btn-outline-secondary hw-filter-icon-btn hw-btn-reset" title="Reset all filters" aria-label="Reset all filters">
+                        <i class="fas fa-rotate-left"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Right-Aligned Search Group on the Same Toolbar Row -->
+            <div class="hw-search-cluster">
+                <div class="hw-filter-group hw-group-search flex-grow-1">
+                    <label for="auditSearchInput" class="hw-filter-label">Search</label>
+                    <div class="hw-search-wrapper">
+                        <input type="text"
+                               id="auditSearchInput"
+                               name="search"
+                               maxlength="100"
+                               data-text-format="first-letter"
+                               class="hw-search-input"
+                               placeholder="Search user, action, JO reference, ID..."
+                               value="<?php echo esc_attr($search_query); ?>"
+                               autocomplete="off"
+                               data-no-autocomplete="true">
                     </div>
                 </div>
-            </form>
+                <div class="hw-filter-actions">
+                    <button type="submit" class="btn btn-primary hw-filter-icon-btn hw-btn-search" title="Search" aria-label="Search">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+        </form>
+
+        <!-- Status Summary Strip Below Form -->
+        <div class="audit-summary-row d-flex align-items-center flex-wrap gap-2 pt-2 mt-2 border-top text-secondary small">
+            <?php
+            $has_filters = ($module_filter !== '' && $module_filter !== 'all')
+                        || ($action_filter !== '' && $action_filter !== 'all')
+                        || ($user_filter !== '' && $user_filter !== 'all')
+                        || $start_date !== ''
+                        || $end_date !== '';
+            $has_search = ($search_query !== '');
+            ?>
+            <?php if ($has_filters || $has_search): ?>
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary">
+                    <i class="fas fa-filter me-1"></i>Filters Active
+                </span>
+                <?php if ($has_search): ?>
+                    <span class="badge bg-light text-dark border">
+                        Search: "<strong><?php echo esc_html($search_query); ?></strong>"
+                    </span>
+                <?php endif; ?>
+                <?php if ($action_filter !== '' && $action_filter !== 'all'): ?>
+                    <span class="badge bg-light text-dark border">
+                        Action: <strong><?php echo esc_html(audit_action_label($action_filter)); ?></strong>
+                    </span>
+                <?php endif; ?>
+                <?php if ($module_filter !== '' && $module_filter !== 'all'): ?>
+                    <span class="badge bg-light text-dark border">
+                        Module: <strong><?php echo esc_html(audit_table_label($module_filter)); ?></strong>
+                    </span>
+                <?php endif; ?>
+                <span class="text-muted ms-1">Matching records: <strong><?php echo number_format($total_records); ?></strong></span>
+            <?php else: ?>
+                <span class="text-muted"><i class="fas fa-info-circle me-1"></i> Showing all system audit records</span>
+            <?php endif; ?>
         </div>
     </div>
 

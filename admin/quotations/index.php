@@ -247,6 +247,52 @@ $pagination_params .= record_date_filter_query_string($date_filter);
 <?php require_once '../../includes/header.php'; ?>
 <?php require_once '../../includes/sidebar.php'; ?>
 
+<style>
+.main-content .content .quotation-records-page .records-date-filter {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: flex-end !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+    width: auto !important;
+    max-width: max-content !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    flex: 0 0 auto !important;
+    align-self: flex-end !important;
+}
+.main-content .content .quotation-records-page .records-date-filter label:not([hidden]) {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    align-self: flex-end !important;
+    gap: 4px !important;
+    min-width: 120px !important;
+    max-width: 155px !important;
+    width: auto !important;
+    margin: 0 !important;
+    flex: 0 0 auto !important;
+}
+.main-content .content .quotation-records-page .records-date-filter label[hidden] {
+    display: none !important;
+}
+.main-content .content .quotation-records-page .hw-date-action-pair {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    align-self: flex-end !important;
+    gap: 6px !important;
+    width: auto !important;
+    height: 38px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    flex: 0 0 auto !important;
+}
+</style>
+
 <div class="quotation-records-page">
     <section class="quotation-records-hero">
         <h1>Service Operations</h1>
@@ -263,11 +309,10 @@ $pagination_params .= record_date_filter_query_string($date_filter);
         </div>
     <?php endif; ?>
 
-    <section class="quotation-records-panel" id="quotation-records">
-        <div class="quotation-panel-header">
-            <h2><?php echo esc_html(record_date_filter_heading('Service Operations', $date_filter)); ?></h2>
-            <div class="quotation-panel-controls">
-                <form method="GET" action="./#quotation-records" class="quotation-branch-filter records-select-filter">
+    <section class="quotation-records-filter-card hw-filter-card">
+        <div class="hw-filter-toolbar">
+            <div class="hw-filter-cluster">
+                <form method="GET" action="./#quotation-records" class="hw-filter-group hw-group-branch">
                     <?php if ($status_filter !== 'all'): ?>
                         <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
                     <?php endif; ?>
@@ -278,7 +323,8 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                         <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
                     <?php endif; ?>
                     <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
-                    <select name="branch" onchange="this.form.submit()" aria-label="Filter quotations by branch">
+                    <label for="adminQuoteBranch" class="hw-filter-label">Branch</label>
+                    <select id="adminQuoteBranch" name="branch" class="hw-filter-select" onchange="this.form.submit()" aria-label="Filter quotations by branch">
                         <option value="">All Branches</option>
                         <?php foreach ($branches as $branch): ?>
                             <?php $branch_label = quotation_branch_label($branch['name']); ?>
@@ -287,9 +333,10 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                             </option>
                         <?php endforeach; ?>
                     </select>
-                    <button type="submit">Apply</button>
+                    <button type="submit" class="visually-hidden">Apply</button>
                 </form>
-                <form method="GET" action="./#quotation-records" class="quotation-branch-filter records-select-filter">
+
+                <form method="GET" action="./#quotation-records" class="hw-filter-group hw-group-status">
                     <?php if ($status_filter !== 'all'): ?>
                         <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
                     <?php endif; ?>
@@ -300,16 +347,18 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                         <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
                     <?php endif; ?>
                     <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
-                    <select name="records" onchange="this.form.submit()" aria-label="Filter service operations by record state">
+                    <label for="adminQuoteRecords" class="hw-filter-label">Archive Status</label>
+                    <select id="adminQuoteRecords" name="records" class="hw-filter-select" onchange="this.form.submit()" aria-label="Filter service operations by record state">
                         <?php foreach (record_archive_filter_options() as $record_value => $record_label): ?>
                             <option value="<?php echo esc_attr($record_value); ?>" <?php echo $record_filter === $record_value ? 'selected' : ''; ?>>
                                 <?php echo esc_html($record_label); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
-                    <button type="submit">Apply</button>
+                    <button type="submit" class="visually-hidden">Apply</button>
                 </form>
-                <form method="GET" action="./#quotation-records" class="quotation-branch-filter records-select-filter">
+
+                <form method="GET" action="./#quotation-records" class="hw-filter-group hw-group-status">
                     <?php if ($record_filter !== 'active'): ?>
                         <input type="hidden" name="records" value="<?php echo esc_attr($record_filter); ?>">
                     <?php endif; ?>
@@ -320,7 +369,8 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                         <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
                     <?php endif; ?>
                     <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
-                    <select name="status" onchange="this.form.submit()" aria-label="Filter service operations by status">
+                    <label for="adminQuoteStatus" class="hw-filter-label">Status</label>
+                    <select id="adminQuoteStatus" name="status" class="hw-filter-select" onchange="this.form.submit()" aria-label="Filter service operations by status">
                         <?php foreach ($allowed_statuses as $status): ?>
                         <?php $label = $status === 'all' ? 'All' : ucfirst($status); ?>
                             <option value="<?php echo esc_attr($status); ?>" <?php echo $status_filter === $status ? 'selected' : ''; ?>>
@@ -328,45 +378,57 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                             </option>
                         <?php endforeach; ?>
                     </select>
-                    <button type="submit">Apply</button>
+                    <button type="submit" class="visually-hidden">Apply</button>
                 </form>
-                <?php
-                record_date_filter_controls($date_filter, [
-                    'status' => $status_filter !== 'all' ? $status_filter : '',
-                    'branch' => $branch_filter !== '' ? $branch_filter : '',
-                    'search' => $search_filter,
-                    'records' => $record_filter !== 'active' ? $record_filter : '',
-                ], 'quotation-records');
-                ?>
-                <form method="GET" action="./#quotation-records" class="records-search-form">
-                    <?php if ($status_filter !== 'all'): ?>
-                        <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
-                    <?php endif; ?>
-                    <?php if ($branch_filter !== ''): ?>
-                        <input type="hidden" name="branch" value="<?php echo esc_attr((string) $branch_filter); ?>">
-                    <?php endif; ?>
-                    <?php if ($record_filter !== 'active'): ?>
-                        <input type="hidden" name="records" value="<?php echo esc_attr($record_filter); ?>">
-                    <?php endif; ?>
-                    <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
-                    <label class="records-search-field">
-                        <i class="fas fa-search"></i>
-                        <input type="search"
+
+                <div class="hw-date-actions-wrapper">
+                    <?php
+                    record_date_filter_controls($date_filter, [
+                        'status' => $status_filter !== 'all' ? $status_filter : '',
+                        'branch' => $branch_filter !== '' ? $branch_filter : '',
+                        'search' => $search_filter,
+                        'records' => $record_filter !== 'active' ? $record_filter : '',
+                    ], 'quotation-records', './#quotation-records');
+                    ?>
+                </div>
+            </div>
+
+            <form method="GET" action="./#quotation-records" class="hw-search-cluster">
+                <?php if ($status_filter !== 'all'): ?>
+                    <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
+                <?php endif; ?>
+                <?php if ($branch_filter !== ''): ?>
+                    <input type="hidden" name="branch" value="<?php echo esc_attr((string) $branch_filter); ?>">
+                <?php endif; ?>
+                <?php if ($record_filter !== 'active'): ?>
+                    <input type="hidden" name="records" value="<?php echo esc_attr($record_filter); ?>">
+                <?php endif; ?>
+                <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
+                <div class="hw-filter-group hw-group-search flex-grow-1">
+                    <label for="adminQuoteSearch" class="hw-filter-label">Search</label>
+                    <div class="hw-search-wrapper">
+                        <input id="adminQuoteSearch"
+                               type="search"
                                name="search"
                                maxlength="100"
                                data-text-format="first-letter"
+                               class="hw-search-input"
                                value="<?php echo esc_attr($search_filter); ?>"
                                placeholder="Search service operation, customer, plate...">
-                    </label>
-                    <button type="submit" class="records-search-btn">Search</button>
-                    <?php if ($search_filter !== ''): ?>
-                        <a class="records-search-clear"
-                           href="<?php echo esc_attr(quotation_filter_url($status_filter, $branch_filter, '', null, $date_filter, $record_filter)); ?>#quotation-records">
-                            Clear
-                        </a>
-                    <?php endif; ?>
-                </form>
-            </div>
+                    </div>
+                </div>
+                <div class="hw-filter-actions">
+                    <button type="submit" class="btn btn-primary hw-filter-icon-btn hw-btn-search" title="Search" aria-label="Search">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <section class="quotation-records-panel" id="quotation-records">
+        <div class="quotation-panel-header">
+            <h2><?php echo esc_html(record_date_filter_heading('Service Operations', $date_filter)); ?></h2>
         </div>
 
         <?php if (empty($quotations)): ?>
