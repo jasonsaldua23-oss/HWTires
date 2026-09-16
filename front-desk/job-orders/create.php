@@ -95,7 +95,7 @@ if (!function_exists('front_job_estimated_duration')) {
 }
 
 if (!function_exists('front_job_order_filter_url')) {
-    function front_job_order_filter_url($status, $search = '', $date_filter = null) {
+    function front_job_order_filter_url($status, $search = '', $date_filter = null, $page = 1) {
         $query = [];
 
         if ($status !== 'all') {
@@ -111,7 +111,12 @@ if (!function_exists('front_job_order_filter_url')) {
             $query = array_merge($query, record_date_filter_query_params($date_filter));
         }
 
-        return empty($query) ? './' : '?' . http_build_query($query);
+        $page = max(1, (int) $page);
+        if ($page > 1) {
+            $query['page'] = $page;
+        }
+
+        return empty($query) ? './#job-order-records' : '?' . http_build_query($query) . '#job-order-records';
     }
 }
 
@@ -134,6 +139,9 @@ if (function_exists('mb_substr')) {
     $job_search_filter = substr($job_search_filter, 0, 100);
 }
 $date_filter = record_date_filter_current();
+$page = max(1, (int) ($_GET['page'] ?? 1));
+$per_page = 20;
+$offset = ($page - 1) * $per_page;
 
 $branch_stmt = $pdo->prepare("SELECT id, name FROM branches WHERE id = ?");
 $branch_stmt->execute([$user_branch_id]);
@@ -309,6 +317,25 @@ if ($job_search_filter !== '') {
 
 $job_where_sql = implode(' AND ', $job_where);
 
+$job_joins_sql = "
+    FROM job_orders jo
+    LEFT JOIN quotations q ON q.id = jo.quotation_id
+    LEFT JOIN customers c ON c.id = jo.customer_id
+    LEFT JOIN vehicles v ON v.id = jo.vehicle_id
+    LEFT JOIN branches b ON b.id = jo.branch_id
+    LEFT JOIN users u ON u.id = jo.created_by
+";
+
+$total_stmt = $pdo->prepare("SELECT COUNT(DISTINCT jo.id) $job_joins_sql WHERE $job_where_sql");
+$total_stmt->execute($job_params);
+$total_records = (int) $total_stmt->fetchColumn();
+$total_pages = max(1, (int) ceil($total_records / $per_page));
+
+if ($page > $total_pages) {
+    $page = $total_pages;
+    $offset = ($page - 1) * $per_page;
+}
+
 $job_stmt = $pdo->prepare("
     SELECT jo.*,
            c.name AS customer_name,
@@ -324,18 +351,26 @@ $job_stmt = $pdo->prepare("
            q.inspection_findings,
            q.inspection_recommendations,
            q.inspection_mileage
-    FROM job_orders jo
-    LEFT JOIN quotations q ON q.id = jo.quotation_id
-    LEFT JOIN customers c ON c.id = jo.customer_id
-    LEFT JOIN vehicles v ON v.id = jo.vehicle_id
-    LEFT JOIN branches b ON b.id = jo.branch_id
-    LEFT JOIN users u ON u.id = jo.created_by
+    $job_joins_sql
     WHERE $job_where_sql
     ORDER BY $job_record_date_expr DESC, jo.id DESC
-    LIMIT 20
+    LIMIT $per_page OFFSET $offset
 ");
 $job_stmt->execute($job_params);
 $job_orders = $job_stmt->fetchAll();
+
+$displayed_from = $total_records > 0 ? $offset + 1 : 0;
+$displayed_to = min($offset + count($job_orders), $total_records);
+$pagination_pages = [];
+if ($total_pages > 1) {
+    $pagination_pages = array_filter(array_unique(array_merge(
+        [1, $total_pages],
+        range(max(1, $page - 2), min($total_pages, $page + 2))
+    )), static function ($page_number) use ($total_pages) {
+        return $page_number >= 1 && $page_number <= $total_pages;
+    });
+    sort($pagination_pages);
+}
 
 $job_quotation_ids = [];
 foreach ($job_orders as $job) {
@@ -871,6 +906,64 @@ if (!empty($job_quotation_ids)) {
                     </div>
                 <?php endforeach; ?>
             </div>
+
+            <?php if ($total_records > 0): ?>
+                <div class="job-orders-count">
+                    <span>Showing <?php echo (int) $displayed_from; ?>–<?php echo (int) $displayed_to; ?> of <?php echo (int) $total_records; ?> Job Orders</span>
+                    <span>Page <?php echo (int) $page; ?> of <?php echo (int) $total_pages; ?></span>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($total_pages > 1): ?>
+                <nav class="service-pagination" aria-label="Job order pages">
+                    <ul class="pagination-list">
+                        <?php if ($page > 1): ?>
+                            <li>
+                                <a class="pagination-link pagination-text-link"
+                                   href="<?php echo esc_attr(front_job_order_filter_url($job_status_filter, $job_search_filter, $date_filter, $page - 1)); ?>">
+                                    Previous
+                                </a>
+                            </li>
+                        <?php else: ?>
+                            <li>
+                                <span class="pagination-link pagination-text-link is-disabled" aria-disabled="true">
+                                    Previous
+                                </span>
+                            </li>
+                        <?php endif; ?>
+
+                        <?php $last_page_link = 0; ?>
+                        <?php foreach ($pagination_pages as $i): ?>
+                            <?php if ($last_page_link > 0 && $i > $last_page_link + 1): ?>
+                                <li><span class="pagination-link pagination-ellipsis">...</span></li>
+                            <?php endif; ?>
+                            <li>
+                                <a class="pagination-link <?php echo $i === $page ? 'active' : ''; ?>"
+                                   href="<?php echo esc_attr(front_job_order_filter_url($job_status_filter, $job_search_filter, $date_filter, $i)); ?>"
+                                   <?php echo $i === $page ? 'aria-current="page"' : ''; ?>>
+                                    <?php echo $i; ?>
+                                </a>
+                            </li>
+                            <?php $last_page_link = $i; ?>
+                        <?php endforeach; ?>
+
+                        <?php if ($page < $total_pages): ?>
+                            <li>
+                                <a class="pagination-link pagination-text-link"
+                                   href="<?php echo esc_attr(front_job_order_filter_url($job_status_filter, $job_search_filter, $date_filter, $page + 1)); ?>">
+                                    Next
+                                </a>
+                            </li>
+                        <?php else: ?>
+                            <li>
+                                <span class="pagination-link pagination-text-link is-disabled" aria-disabled="true">
+                                    Next
+                                </span>
+                            </li>
+                        <?php endif; ?>
+                    </ul>
+                </nav>
+            <?php endif; ?>
         <?php endif; ?>
     </section>
 </main>

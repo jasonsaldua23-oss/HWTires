@@ -20748,6 +20748,66 @@ body {
     background: var(--job-accent-soft) !important;
 }
 
+.front-job-create-page .service-pagination {
+    margin-top: 14px !important;
+    padding: 12px 0 0 0 !important;
+}
+
+.front-job-create-page .pagination-list {
+    gap: 6px !important;
+}
+
+.front-job-create-page .pagination-link {
+    min-width: 36px !important;
+    min-height: 36px !important;
+    padding: 7px 11px !important;
+    color: var(--job-accent, #0f766e) !important;
+    background: #ffffff !important;
+    border: 1px solid var(--job-border, #e2e8f0) !important;
+    border-radius: 7px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    text-decoration: none !important;
+    transition: all 0.2s ease !important;
+}
+
+.front-job-create-page .pagination-text-link {
+    min-width: 72px !important;
+}
+
+.front-job-create-page .pagination-link.active,
+.front-job-create-page .pagination-link:hover:not(.is-disabled):not(.pagination-ellipsis) {
+    color: #ffffff !important;
+    background: var(--job-accent, #0f766e) !important;
+    border-color: var(--job-accent, #0f766e) !important;
+}
+
+.front-job-create-page .pagination-link.is-disabled {
+    color: #94a3b8 !important;
+    background: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
+}
+
+.front-job-create-page .pagination-ellipsis,
+.front-job-create-page .pagination-ellipsis:hover {
+    color: #667085 !important;
+    background: #ffffff !important;
+    border-color: transparent !important;
+    cursor: default !important;
+}
+
+.front-job-create-page .job-orders-count {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    margin-top: 14px !important;
+    font-size: 13px !important;
+    color: #64748b !important;
+    font-weight: 500 !important;
+}
+
 @media (max-width: 1240px) {
     .front-job-create-page .job-order-records-head,
     .front-job-create-page .job-order-row {
