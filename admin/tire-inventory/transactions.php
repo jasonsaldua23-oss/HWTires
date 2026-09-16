@@ -258,33 +258,32 @@ if (!function_exists('inventory_transaction_vehicle_label')) {
         </article>
     </section>
 
-    <section class="inventory-filter-card inventory-transactions-filter">
-        <form method="GET" class="inventory-transaction-filter-grid" data-record-date-filter>
-            <label class="inventory-type-filter">
-                <span>Type</span>
-                <select name="type">
-                    <option value="all">All Types</option>
-                    <option value="stock_in" <?php echo $transaction_type === 'stock_in' ? 'selected' : ''; ?>>Stock In</option>
-                    <option value="stock_out" <?php echo $transaction_type === 'stock_out' ? 'selected' : ''; ?>>Stock Out</option>
-                    <option value="adjustment" <?php echo $transaction_type === 'adjustment' ? 'selected' : ''; ?>>Adjustment</option>
-                </select>
-            </label>
-            <label class="inventory-branch-filter">
-                <span>Branch</span>
-                <select name="branch">
-                    <option value="">All Branches</option>
-                    <?php foreach ($branches as $branch): ?>
-                        <option value="<?php echo (int) $branch['id']; ?>" <?php echo (string) $branch_filter === (string) $branch['id'] ? 'selected' : ''; ?>>
-                            <?php echo esc_html($branch['name']); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-
-            <div class="records-date-filter" style="display: contents;">
-                <label>
-                    <span>Records</span>
-                    <select name="date_scope" class="records-date-scope" aria-label="Select record period">
+    <section class="inventory-filter-card hw-filter-card">
+        <form method="GET" action="./transactions.php" class="hw-filter-toolbar" data-record-date-filter>
+            <div class="hw-filter-cluster">
+                <div class="hw-filter-group hw-group-type">
+                    <label for="adminTxType" class="hw-filter-label">Type</label>
+                    <select id="adminTxType" name="type" class="hw-filter-select">
+                        <option value="all">All Types</option>
+                        <option value="stock_in" <?php echo $transaction_type === 'stock_in' ? 'selected' : ''; ?>>Stock In</option>
+                        <option value="stock_out" <?php echo $transaction_type === 'stock_out' ? 'selected' : ''; ?>>Stock Out</option>
+                        <option value="adjustment" <?php echo $transaction_type === 'adjustment' ? 'selected' : ''; ?>>Adjustment</option>
+                    </select>
+                </div>
+                <div class="hw-filter-group hw-group-branch">
+                    <label for="adminTxBranch" class="hw-filter-label">Branch</label>
+                    <select id="adminTxBranch" name="branch" class="hw-filter-select">
+                        <option value="">All Branches</option>
+                        <?php foreach ($branches as $branch): ?>
+                            <option value="<?php echo (int) $branch['id']; ?>" <?php echo (string) $branch_filter === (string) $branch['id'] ? 'selected' : ''; ?>>
+                                <?php echo esc_html($branch['name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="hw-filter-group hw-group-date">
+                    <label for="adminTxDateScope" class="hw-filter-label">Records</label>
+                    <select id="adminTxDateScope" name="date_scope" class="records-date-scope hw-filter-select" aria-label="Select record period">
                         <option value="all" <?php echo ($date_filter['scope'] ?? 'all') === 'all' ? 'selected' : ''; ?>>All Records</option>
                         <option value="recent" <?php echo ($date_filter['scope'] ?? '') === 'recent' ? 'selected' : ''; ?>>Current Week</option>
                         <option value="day" <?php echo ($date_filter['scope'] ?? '') === 'day' ? 'selected' : ''; ?>>Day</option>
@@ -293,45 +292,53 @@ if (!function_exists('inventory_transaction_vehicle_label')) {
                         <option value="year" <?php echo ($date_filter['scope'] ?? '') === 'year' ? 'selected' : ''; ?>>Year</option>
                         <option value="range" <?php echo ($date_filter['scope'] ?? '') === 'range' ? 'selected' : ''; ?>>Date Range</option>
                     </select>
-                </label>
-                <label data-date-input="day">
-                    <span>Day</span>
-                    <input type="date" name="date_day" value="<?php echo esc_attr($date_filter['day']); ?>">
-                </label>
-                <label data-date-input="week">
-                    <span>Week</span>
-                    <input type="week" name="date_week" value="<?php echo esc_attr($date_filter['week']); ?>">
-                </label>
-                <label data-date-input="month">
-                    <span>Month</span>
-                    <input type="month" name="date_month" value="<?php echo esc_attr($date_filter['month']); ?>">
-                </label>
-                <label data-date-input="year">
-                    <span>Year</span>
-                    <input type="number" name="date_year" min="2020" max="2100" value="<?php echo (int) $date_filter['year']; ?>">
-                </label>
-                <label data-date-input="range">
-                    <span>From</span>
-                    <input type="date" name="date_from" value="<?php echo esc_attr($date_filter['from']); ?>">
-                </label>
-                <label data-date-input="range">
-                    <span>To</span>
-                    <input type="date" name="date_to" value="<?php echo esc_attr($date_filter['to']); ?>">
-                </label>
-                <button type="submit">Apply</button>
+                </div>
+                <div class="hw-filter-group" data-date-input="day">
+                    <label for="adminTxDateDay" class="hw-filter-label">Day</label>
+                    <input id="adminTxDateDay" type="date" name="date_day" class="hw-filter-input" value="<?php echo esc_attr($date_filter['day']); ?>">
+                </div>
+                <div class="hw-filter-group" data-date-input="week">
+                    <label for="adminTxDateWeek" class="hw-filter-label">Week</label>
+                    <input id="adminTxDateWeek" type="week" name="date_week" class="hw-filter-input" value="<?php echo esc_attr($date_filter['week']); ?>">
+                </div>
+                <div class="hw-filter-group" data-date-input="month">
+                    <label for="adminTxDateMonth" class="hw-filter-label">Month</label>
+                    <input id="adminTxDateMonth" type="month" name="date_month" class="hw-filter-input" value="<?php echo esc_attr($date_filter['month']); ?>">
+                </div>
+                <div class="hw-filter-group" data-date-input="year">
+                    <label for="adminTxDateYear" class="hw-filter-label">Year</label>
+                    <input id="adminTxDateYear" type="number" name="date_year" min="2020" max="2100" class="hw-filter-input" value="<?php echo (int) $date_filter['year']; ?>">
+                </div>
+                <div class="hw-filter-group" data-date-input="range">
+                    <label for="adminTxDateFrom" class="hw-filter-label">From</label>
+                    <input id="adminTxDateFrom" type="date" name="date_from" class="hw-filter-input" value="<?php echo esc_attr($date_filter['from']); ?>">
+                </div>
+                <div class="hw-filter-group" data-date-input="range">
+                    <label for="adminTxDateTo" class="hw-filter-label">To</label>
+                    <input id="adminTxDateTo" type="date" name="date_to" class="hw-filter-input" value="<?php echo esc_attr($date_filter['to']); ?>">
+                </div>
+                <div class="hw-filter-actions">
+                    <button type="submit" class="btn btn-primary hw-filter-icon-btn hw-btn-filter" title="Apply filters" aria-label="Apply filters">
+                        <i class="fas fa-filter"></i>
+                    </button>
+                    <a href="./transactions.php" class="btn btn-outline-secondary hw-filter-icon-btn hw-btn-reset" title="Reset filters" aria-label="Reset filters">
+                        <i class="fas fa-rotate-left"></i>
+                    </a>
+                </div>
             </div>
-
-            <label class="inventory-search-filter">
-                <span>Search</span>
-                <span class="inventory-search-field">
-                    <i class="fas fa-search"></i>
-                    <input type="search" name="search" maxlength="100" data-text-format="first-letter" placeholder="Search item, brand, size, notes..." value="<?php echo esc_attr($search); ?>">
-                </span>
-            </label>
-            <button type="submit" class="inventory-search-btn inventory-transaction-filter-btn">
-                <i class="fas fa-search"></i>
-                <span>Search</span>
-            </button>
+            <div class="hw-search-cluster">
+                <div class="hw-filter-group hw-group-search flex-grow-1">
+                    <label for="adminTxSearch" class="hw-filter-label">Search</label>
+                    <div class="hw-search-wrapper">
+                        <input id="adminTxSearch" type="search" name="search" maxlength="100" data-text-format="first-letter" class="hw-search-input" placeholder="Search item, brand, size, notes..." value="<?php echo esc_attr($search); ?>">
+                    </div>
+                </div>
+                <div class="hw-filter-actions">
+                    <button type="submit" class="btn btn-primary hw-filter-icon-btn hw-btn-search" title="Search" aria-label="Search">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
         </form>
     </section>
     <?php record_date_filter_script(); ?>
