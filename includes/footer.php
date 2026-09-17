@@ -7,9 +7,12 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?php echo esc_url(APP_URL . '/assets/js/search-suggestions.js'); ?>"></script>
 <script>
+window.HWTIRES_APP_URL = <?php echo json_encode(APP_URL); ?>;
 window.HWTIRES_CUSTOM_VEHICLE_CATALOG = <?php echo json_encode(function_exists('app_get_custom_vehicle_catalog') ? app_get_custom_vehicle_catalog() : [], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+window.HWTIRES_ADDRESS_DATA_URL = <?php echo json_encode(APP_URL . '/assets/data/philippine-addresses.json'); ?>;
 </script>
 <script src="<?php echo esc_url(APP_URL . '/assets/js/vehicle-make-model.js'); ?>"></script>
+<script src="<?php echo esc_url(APP_URL . '/assets/js/philippine-address.js'); ?>"></script>
 
 <script>
     // Toggle sidebar on mobile

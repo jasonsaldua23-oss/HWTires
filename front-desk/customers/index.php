@@ -743,9 +743,48 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                             <label class="form-label required">Contact Number</label>
                             <input type="tel" class="form-control" name="phone_mobile" inputmode="numeric" minlength="11" maxlength="11" pattern="09[0-9]{9}" placeholder="e.g., 09171234567" autocomplete="tel" data-phone-input required>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Address</label>
-                            <textarea class="form-control" name="address" rows="2" maxlength="255" data-text-format="first-letter" placeholder="e.g., 852 Rosario Street, Bacolod City"></textarea>
+                        <div class="ph-address-component" data-address-scope="add">
+                            <div class="address-error-alert alert alert-danger py-2 px-3 mb-2" style="display: none; font-size: 0.85rem;"></div>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-2">
+                                        <label class="form-label required">Region</label>
+                                        <select class="form-select ph-region-select" name="address_region" required>
+                                            <option value="" selected disabled>-- Select Region --</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-2">
+                                        <label class="form-label required">Province</label>
+                                        <select class="form-select ph-province-select" name="address_province" required disabled>
+                                            <option value="" selected disabled>-- Select Province --</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-2">
+                                        <label class="form-label required">City / Municipality</label>
+                                        <select class="form-select ph-city-select" name="address_city" required disabled>
+                                            <option value="" selected disabled>-- Select City / Municipality --</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-2">
+                                        <label class="form-label required">Barangay</label>
+                                        <select class="form-select ph-barangay-select" name="address_barangay" required disabled>
+                                            <option value="" selected disabled>-- Select Barangay --</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-group mb-0">
+                                        <label class="form-label required">Street / House No. / Building / Subdivision</label>
+                                        <input type="text" class="form-control ph-street-input" name="street_address" maxlength="150" placeholder="e.g., 852 Rosario Street" required>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </section>
 
@@ -815,9 +854,68 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                         <label class="form-label required">Contact Number</label>
                         <input type="tel" class="form-control" name="contact" id="edit_customer_contact" inputmode="numeric" minlength="11" maxlength="11" pattern="09[0-9]{9}" placeholder="e.g., 09171234567" autocomplete="tel" data-phone-input required>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Address</label>
-                        <textarea class="form-control" name="address" id="edit_customer_address" rows="2" maxlength="255" data-text-format="first-letter" placeholder="e.g., 852 Rosario Street, Bacolod City"></textarea>
+                    <div class="form-group mb-3">
+                        <div id="edit_address_legacy_block">
+                            <label class="form-label mb-1" style="font-size: 0.85rem; color: #475569;">Current Recorded Address</label>
+                            <div id="edit_customer_current_address_display" class="p-2 mb-2 bg-light border rounded text-dark" style="font-size: 0.9rem; min-height: 38px; word-break: break-word;"></div>
+                            <input type="hidden" name="address" id="edit_customer_legacy_address">
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="btn_toggle_change_address">
+                                <i class="bi bi-geo-alt"></i> Change to Standard Philippine Address
+                            </button>
+                        </div>
+
+                        <div id="edit_address_structured_block" style="display: none;">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label required mb-0">Standard Philippine Address</label>
+                                <button type="button" class="btn btn-link btn-sm text-secondary p-0 text-decoration-none" id="btn_cancel_change_address">
+                                    Keep Recorded Address
+                                </button>
+                            </div>
+                            <input type="hidden" name="address_mode" id="edit_address_mode" value="legacy">
+                            <div class="ph-address-component" data-address-scope="edit">
+                                <div class="address-error-alert alert alert-danger py-2 px-3 mb-2" style="display: none; font-size: 0.85rem;"></div>
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-2">
+                                            <label class="form-label required">Region</label>
+                                            <select class="form-select ph-region-select" name="address_region">
+                                                <option value="" selected disabled>-- Select Region --</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-2">
+                                            <label class="form-label required">Province</label>
+                                            <select class="form-select ph-province-select" name="address_province" disabled>
+                                                <option value="" selected disabled>-- Select Province --</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-2">
+                                            <label class="form-label required">City / Municipality</label>
+                                            <select class="form-select ph-city-select" name="address_city" disabled>
+                                                <option value="" selected disabled>-- Select City / Municipality --</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-2">
+                                            <label class="form-label required">Barangay</label>
+                                            <select class="form-select ph-barangay-select" name="address_barangay" disabled>
+                                                <option value="" selected disabled>-- Select Barangay --</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-group mb-0">
+                                            <label class="form-label required">Street / House No. / Building / Subdivision</label>
+                                            <input type="text" class="form-control ph-street-input" name="street_address" maxlength="150" placeholder="e.g., 852 Rosario Street">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label required">Customer Type</label>
@@ -931,6 +1029,52 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const editModal = document.getElementById('editCustomerModal');
     if (editModal) {
+        const btnChangeAddress = document.getElementById('btn_toggle_change_address');
+        const btnCancelChangeAddress = document.getElementById('btn_cancel_change_address');
+        const legacyBlock = document.getElementById('edit_address_legacy_block');
+        const structuredBlock = document.getElementById('edit_address_structured_block');
+        const modeInput = document.getElementById('edit_address_mode');
+        const editComponent = editModal.querySelector('.ph-address-component[data-address-scope="edit"]');
+
+        function setEditStructuredMode(enabled) {
+            if (enabled) {
+                if (legacyBlock) legacyBlock.style.display = 'none';
+                if (structuredBlock) structuredBlock.style.display = 'block';
+                if (modeInput) modeInput.value = 'structured';
+                if (editComponent) {
+                    editComponent.querySelectorAll('select, input').forEach(function(el) {
+                        el.setAttribute('required', 'required');
+                    });
+                    if (window.HWTIRES_PH_ADDRESS && window.HWTIRES_PH_ADDRESS.initComponent) {
+                        window.HWTIRES_PH_ADDRESS.initComponent(editComponent);
+                    }
+                }
+            } else {
+                if (legacyBlock) legacyBlock.style.display = 'block';
+                if (structuredBlock) structuredBlock.style.display = 'none';
+                if (modeInput) modeInput.value = 'legacy';
+                if (editComponent) {
+                    editComponent.querySelectorAll('select, input').forEach(function(el) {
+                        el.removeAttribute('required');
+                    });
+                    if (window.HWTIRES_PH_ADDRESS && window.HWTIRES_PH_ADDRESS.resetComponent) {
+                        window.HWTIRES_PH_ADDRESS.resetComponent(editComponent);
+                    }
+                }
+            }
+        }
+
+        if (btnChangeAddress) {
+            btnChangeAddress.addEventListener('click', function() {
+                setEditStructuredMode(true);
+            });
+        }
+        if (btnCancelChangeAddress) {
+            btnCancelChangeAddress.addEventListener('click', function() {
+                setEditStructuredMode(false);
+            });
+        }
+
         editModal.addEventListener('show.bs.modal', function(event) {
             const button = event.relatedTarget;
             if (!button) return;
@@ -939,8 +1083,36 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('edit_customer_name').value = button.dataset.name || '';
             const phoneVal = button.dataset.contact || button.dataset.phoneMobile || '';
             document.getElementById('edit_customer_contact').value = normalizePhone(phoneVal);
-            document.getElementById('edit_customer_address').value = button.dataset.address || '';
             document.getElementById('edit_customer_type').value = button.dataset.customerType || 'individual';
+
+            const rawAddress = (button.dataset.address || '').trim();
+            const legacyDisplay = document.getElementById('edit_customer_current_address_display');
+            const legacyInput = document.getElementById('edit_customer_legacy_address');
+            if (legacyDisplay) {
+                legacyDisplay.textContent = rawAddress !== '' ? rawAddress : '(No address recorded)';
+            }
+            if (legacyInput) {
+                legacyInput.value = rawAddress;
+            }
+
+            // Always default to preserving existing address
+            setEditStructuredMode(false);
+        });
+    }
+
+    const addCustomerModal = document.getElementById('addCustomerModal');
+    if (addCustomerModal) {
+        addCustomerModal.addEventListener('show.bs.modal', function() {
+            const addComp = addCustomerModal.querySelector('.ph-address-component[data-address-scope="add"]');
+            if (addComp && window.HWTIRES_PH_ADDRESS && window.HWTIRES_PH_ADDRESS.initComponent) {
+                window.HWTIRES_PH_ADDRESS.initComponent(addComp);
+            }
+        });
+        addCustomerModal.addEventListener('hidden.bs.modal', function() {
+            const addComp = addCustomerModal.querySelector('.ph-address-component[data-address-scope="add"]');
+            if (addComp && window.HWTIRES_PH_ADDRESS && window.HWTIRES_PH_ADDRESS.resetComponent) {
+                window.HWTIRES_PH_ADDRESS.resetComponent(addComp);
+            }
         });
     }
 

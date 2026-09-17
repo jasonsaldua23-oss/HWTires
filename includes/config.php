@@ -1322,6 +1322,25 @@ if (!function_exists('app_persist_custom_vehicle_make_model')) {
     }
 }
 
+if (!function_exists('app_compose_philippine_address')) {
+    /**
+     * Compose standardized Philippine address string from components
+     * Format: {Street}, {Barangay}, {City/Municipality}, {Province}, {Region}
+     */
+    function app_compose_philippine_address(string $street, string $barangay, string $city, string $province, string $region): string {
+        $parts = array_filter([
+            trim($street),
+            trim($barangay),
+            trim($city),
+            trim($province),
+            trim($region)
+        ], function ($v) {
+            return $v !== '';
+        });
+        return implode(', ', $parts);
+    }
+}
+
 if (!function_exists('app_search_terms')) {
     function app_search_terms($search, $max_terms = 6) {
         $search = trim((string) $search);

@@ -71,7 +71,46 @@ if ($action === 'add') {
         if ($contact === '' && $phone_mobile !== '') {
             $contact = $phone_mobile;
         }
-        $address = trim($_POST['address'] ?? '');
+        $address_region = trim($_POST['address_region'] ?? '');
+        $address_province = trim($_POST['address_province'] ?? '');
+        $address_city = trim($_POST['address_city'] ?? '');
+        $address_barangay = trim($_POST['address_barangay'] ?? '');
+        $street_address = trim($_POST['street_address'] ?? '');
+        $city = null;
+
+        $has_structured_address = ($address_region !== '' || $address_province !== '' || $address_city !== '' || $address_barangay !== '' || $street_address !== '');
+
+        if ($has_structured_address) {
+            if ($address_region === '') {
+                throw new Exception('Region is required');
+            }
+            if ($address_province === '') {
+                throw new Exception('Province is required');
+            }
+            if ($address_city === '') {
+                throw new Exception('City / Municipality is required');
+            }
+            if ($address_barangay === '') {
+                throw new Exception('Barangay is required');
+            }
+            if ($street_address === '') {
+                throw new Exception('Street / House No. / Building is required');
+            }
+
+            $composed_address = app_compose_philippine_address($street_address, $address_barangay, $address_city, $address_province, $address_region);
+            if (mb_strlen($composed_address, 'UTF-8') > 255) {
+                throw new Exception('The full composed address exceeds the 255-character limit (' . mb_strlen($composed_address, 'UTF-8') . ' characters). Please shorten the street address.');
+            }
+            if (mb_strlen($address_city, 'UTF-8') > 100) {
+                throw new Exception('City name exceeds 100 characters');
+            }
+            $address = $composed_address;
+            $city = $address_city;
+        } else {
+            $address = trim($_POST['address'] ?? '');
+            $city = null;
+        }
+
         $customer_type = strtolower(trim((string) ($_POST['customer_type'] ?? 'individual')));
         if (!in_array($customer_type, ['individual', 'corporate'], true)) {
             $customer_type = 'individual';
@@ -162,8 +201,8 @@ if ($action === 'add') {
         $pdo->beginTransaction();
 
         // Insert customer
-        $stmt = $pdo->prepare("INSERT INTO customers (name, email, phone_mobile, contact, address, customer_type, branch_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'active')");
-        $stmt->execute([$name, $email, $phone_mobile, $contact, $address, $customer_type, $branch_id]);
+        $stmt = $pdo->prepare("INSERT INTO customers (name, email, phone_mobile, contact, address, city, customer_type, branch_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')");
+        $stmt->execute([$name, $email, $phone_mobile, $contact, $address, $city, $customer_type, $branch_id]);
 
         $customer_id = $pdo->lastInsertId();
         app_touch_customer_branch_record($customer_id, $branch_id, $user_id);
@@ -287,7 +326,46 @@ if ($action === 'update') {
         $incoming_phone = customers_normalize_phone($_POST['contact'] ?? $_POST['phone_mobile'] ?? ($old_customer['contact'] ?? $old_customer['phone_mobile'] ?? ''));
         $phone_mobile = $incoming_phone;
         $contact = $incoming_phone;
-        $address = trim($_POST['address'] ?? $old_customer['address']);
+        $address_mode = trim($_POST['address_mode'] ?? 'legacy');
+        $address = $old_customer['address'] ?? '';
+        $city = $old_customer['city'] ?? null;
+
+        if ($address_mode === 'structured') {
+            $address_region = trim($_POST['address_region'] ?? '');
+            $address_province = trim($_POST['address_province'] ?? '');
+            $address_city = trim($_POST['address_city'] ?? '');
+            $address_barangay = trim($_POST['address_barangay'] ?? '');
+            $street_address = trim($_POST['street_address'] ?? '');
+
+            if ($address_region === '') {
+                throw new Exception('Region is required');
+            }
+            if ($address_province === '') {
+                throw new Exception('Province is required');
+            }
+            if ($address_city === '') {
+                throw new Exception('City / Municipality is required');
+            }
+            if ($address_barangay === '') {
+                throw new Exception('Barangay is required');
+            }
+            if ($street_address === '') {
+                throw new Exception('Street / House No. / Building is required');
+            }
+
+            $composed_address = app_compose_philippine_address($street_address, $address_barangay, $address_city, $address_province, $address_region);
+            if (mb_strlen($composed_address, 'UTF-8') > 255) {
+                throw new Exception('The full composed address exceeds the 255-character limit (' . mb_strlen($composed_address, 'UTF-8') . ' characters). Please shorten the street address.');
+            }
+            if (mb_strlen($address_city, 'UTF-8') > 100) {
+                throw new Exception('City name exceeds 100 characters');
+            }
+            $address = $composed_address;
+            $city = $address_city;
+        } elseif (isset($_POST['address'])) {
+            $address = trim($_POST['address']);
+        }
+
         $customer_type = strtolower(trim((string) ($_POST['customer_type'] ?? ($old_customer['customer_type'] ?? 'individual'))));
         if (!in_array($customer_type, ['individual', 'corporate'], true)) {
             $customer_type = 'individual';
@@ -296,8 +374,8 @@ if ($action === 'update') {
             throw new Exception('Contact number must be an 11-digit Philippine mobile number, e.g. 09171234567');
         }
 
-        $stmt = $pdo->prepare("UPDATE customers SET name = ?, email = ?, phone_mobile = ?, contact = ?, address = ?, customer_type = ? WHERE id = ?");
-        $stmt->execute([$name, $email, $phone_mobile, $contact, $address, $customer_type, $customer_id]);
+        $stmt = $pdo->prepare("UPDATE customers SET name = ?, email = ?, phone_mobile = ?, contact = ?, address = ?, city = ?, customer_type = ? WHERE id = ?");
+        $stmt->execute([$name, $email, $phone_mobile, $contact, $address, $city, $customer_type, $customer_id]);
 
         // Log audit
         log_audit('customers', 'update', $customer_id, $old_customer, [
