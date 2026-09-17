@@ -85,6 +85,8 @@ if ($action === 'add') {
         if (strcasecmp($vehicle_model, 'Other') === 0 && !empty($_POST['vehicle_model_custom'] ?? $_POST['model_custom'] ?? '')) {
             $vehicle_model = trim($_POST['vehicle_model_custom'] ?? $_POST['model_custom'] ?? '');
         }
+        $vehicle_make = app_normalize_vehicle_catalog_text($vehicle_make);
+        $vehicle_model = app_normalize_vehicle_catalog_text($vehicle_model);
         $vehicle_year = intval($_POST['vehicle_year'] ?? $_POST['year'] ?? 0);
         $vehicle_last_mileage = intval($_POST['vehicle_last_mileage'] ?? $_POST['last_mileage'] ?? 0);
         $vehicle_color = trim($_POST['vehicle_color'] ?? $_POST['color'] ?? '');
@@ -205,6 +207,12 @@ if ($action === 'add') {
 
         $pdo->commit();
 
+        if ($created_vehicle_id && $vehicle_make !== '' && $vehicle_model !== '') {
+            $persisted_cat = app_persist_custom_vehicle_make_model($vehicle_make, $vehicle_model);
+            $vehicle_make = $persisted_cat['make'];
+            $vehicle_model = $persisted_cat['model'];
+        }
+
         // Log audit
         log_audit('customers', 'create', $customer_id, null, [
             'name' => $name,
@@ -227,7 +235,7 @@ if ($action === 'add') {
             redirect($_POST['redirect']);
         }
 
-        die(json_encode(['success' => true, 'message' => 'Customer added successfully', 'id' => $customer_id]));
+        die(json_encode(['success' => true, 'message' => 'Customer added successfully', 'id' => $customer_id, 'custom_catalog' => app_get_custom_vehicle_catalog()]));
 
     } catch (Exception $e) {
         if ($pdo instanceof PDO && $pdo->inTransaction()) {
@@ -358,6 +366,9 @@ if ($action === 'add_vehicle') {
         if (strcasecmp($model, 'Other') === 0 && !empty($_POST['model_custom'] ?? $_POST['vehicle_model_custom'] ?? '')) {
             $model = trim($_POST['model_custom'] ?? $_POST['vehicle_model_custom'] ?? '');
         }
+
+        $make = app_normalize_vehicle_catalog_text($make);
+        $model = app_normalize_vehicle_catalog_text($model);
         $year = intval($_POST['year'] ?? 0);
         $color = trim($_POST['color'] ?? '');
         $condition = trim($_POST['condition'] ?? 'good');
@@ -397,6 +408,10 @@ if ($action === 'add_vehicle') {
 
             $pdo->commit();
 
+            if ($make !== '' && $model !== '') {
+                app_persist_custom_vehicle_make_model($make, $model);
+            }
+
             log_audit('vehicles', 'restore', $vehicle_id, null, [
                 'plate_number' => $plate_number,
                 'make' => $make,
@@ -411,7 +426,7 @@ if ($action === 'add_vehicle') {
                 redirect($_POST['redirect']);
             }
 
-            die(json_encode(['success' => true, 'message' => 'Vehicle restored and added successfully', 'id' => $vehicle_id]));
+            die(json_encode(['success' => true, 'message' => 'Vehicle restored and added successfully', 'id' => $vehicle_id, 'custom_catalog' => app_get_custom_vehicle_catalog()]));
         }
 
         $vehicle_columns = ['customer_id', 'branch_id', 'plate_number', '`condition`', 'make', 'model', 'year', 'color', 'last_mileage', 'status'];
@@ -432,6 +447,10 @@ if ($action === 'add_vehicle') {
         $vehicle_id = $pdo->lastInsertId();
         app_touch_customer_branch_record($customer_id, $branch_id, $user_id);
 
+        if ($make !== '' && $model !== '') {
+            app_persist_custom_vehicle_make_model($make, $model);
+        }
+
         // Log audit with branch and user info
         log_audit('vehicles', 'create', $vehicle_id, null, [
             'plate_number' => $plate_number,
@@ -447,7 +466,7 @@ if ($action === 'add_vehicle') {
             redirect($_POST['redirect']);
         }
 
-        die(json_encode(['success' => true, 'message' => 'Vehicle added successfully', 'id' => $vehicle_id]));
+        die(json_encode(['success' => true, 'message' => 'Vehicle added successfully', 'id' => $vehicle_id, 'custom_catalog' => app_get_custom_vehicle_catalog()]));
 
     } catch (Exception $e) {
         if ($pdo instanceof PDO && $pdo->inTransaction()) {

@@ -658,14 +658,14 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                                     <select class="form-select vehicle-make-select" name="make" id="veh_idx_add_make" required>
                                         <option value="" selected disabled>-- Select Car Brand --</option>
                                     </select>
-                                    <input type="text" class="form-control vehicle-make-custom mt-2" name="make_custom" id="veh_idx_add_make_custom" maxlength="50" data-text-format="first-letter" placeholder="Type custom car brand..." style="display: none;">
+                                    <input type="text" class="form-control vehicle-make-custom mt-2" name="make_custom" id="veh_idx_add_make_custom" maxlength="50" data-text-format="first-letter" placeholder="New Vehicle Make * (e.g., Jetour)" style="display: none;">
                                 </div>
                                 <div class="form-group">
                                     <label class="form-label required">Vehicle Model</label>
                                     <select class="form-select vehicle-model-select" name="model" id="veh_idx_add_model" required disabled>
                                         <option value="" selected disabled>-- Select Brand First --</option>
                                     </select>
-                                    <input type="text" class="form-control vehicle-model-custom mt-2" name="model_custom" id="veh_idx_add_model_custom" maxlength="50" data-text-format="first-letter" placeholder="Type custom model..." style="display: none;">
+                                    <input type="text" class="form-control vehicle-model-custom mt-2" name="model_custom" id="veh_idx_add_model_custom" maxlength="50" data-text-format="first-letter" placeholder="New Vehicle Model * (e.g., X70)" style="display: none;">
                                 </div>
                                 <div class="form-group">
                                     <label class="form-label required">Plate Number</label>

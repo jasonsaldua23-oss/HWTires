@@ -1103,6 +1103,225 @@ if (!function_exists('app_restore_inactive_vehicle')) {
     }
 }
 
+if (!function_exists('app_get_builtin_vehicle_catalog')) {
+    /**
+     * Built-in Vehicle Make & Model Catalog (Baseline)
+     */
+    function app_get_builtin_vehicle_catalog(): array {
+        return [
+            "Audi" => ["A1", "A3", "A4", "A5", "A6", "A7", "A8", "Q2", "Q3", "Q5", "Q7", "Q8", "e-tron", "TT", "R8"],
+            "BMW" => ["1 Series", "2 Series", "3 Series", "4 Series", "5 Series", "6 Series", "7 Series", "8 Series", "X1", "X2", "X3", "X4", "X5", "X6", "X7", "Z4", "M2", "M3", "M4", "M5", "M8", "i4", "iX", "iX3", "i7"],
+            "BYD" => ["Atto 3", "Dolphin", "Seal", "Sealion 6", "Tang", "Han", "Song Plus", "Yuan Plus"],
+            "Changan" => ["Alsvin", "CS35 Plus", "CS55 Plus", "UNI-T", "UNI-K", "UNI-V", "X7 Plus"],
+            "Chery" => ["Tiggo 2", "Tiggo 2 Pro", "Tiggo 5X", "Tiggo 5X Pro", "Tiggo 7 Pro", "Tiggo 8 Pro", "Arrizo 5"],
+            "Chevrolet" => ["Captiva", "Colorado", "Corvette", "Cruze", "Optra", "Sail", "Spark", "Suburban", "Tahoe", "Tracker", "Trailblazer", "Trax"],
+            "Ford" => ["EcoSport", "Escape", "Everest", "Expedition", "Explorer", "F-150", "Fiesta", "Focus", "Lynx", "Mustang", "Ranger", "Ranger Raptor", "Territory", "Transit"],
+            "Foton" => ["Gratour", "Thunder", "Toplander", "Tornado", "Transvan", "Traveller", "View Transvan"],
+            "GAC" => ["Empow", "Emkoo", "GA4", "GN6", "GS3", "GS3 Emzoom", "GS4", "GS8", "M6 Pro", "M8"],
+            "Geely" => ["Azkarra", "Coolray", "Emgrand", "GX3 Pro", "Monjaro", "Okavango", "Tugella"],
+            "Hino" => ["300 Series", "500 Series", "700 Series", "Dutro"],
+            "Honda" => ["Accord", "BR-V", "Brio", "City", "City Hatchback", "Civic", "Civic Type R", "CR-V", "CR-Z", "HR-V", "Jazz", "Mobilio", "Odyssey", "Pilot"],
+            "Hyundai" => ["Accent", "Creta", "Custin", "Elantra", "Grand Starex", "H-100", "Ioniq 5", "Ioniq 6", "Kona", "Santa Fe", "Sonata", "Stargazer", "Staria", "Tucson", "Venue"],
+            "Isuzu" => ["Crosswind", "D-Max", "D-Max Boondock", "Highlander", "mu-X", "N-Series (Elf)", "Panther", "Traviz", "Trooper"],
+            "Jaguar" => ["E-Pace", "F-Pace", "F-Type", "I-Pace", "XE", "XF", "XJ"],
+            "Jeep" => ["Cherokee", "Compass", "Gladiator", "Grand Cherokee", "Renegade", "Wrangler", "Wrangler Rubicon"],
+            "Kia" => ["Carens", "Carnival", "EV6", "Forte", "K2500", "Picanto", "Rio", "Seltos", "Soluto", "Sonet", "Sorento", "Soul", "Sportage", "Stonic"],
+            "Land Rover" => ["Defender", "Discovery", "Discovery Sport", "Range Rover", "Range Rover Evoque", "Range Rover Sport", "Range Rover Velar"],
+            "Lexus" => ["ES", "GX", "IS", "LC", "LBX", "LM", "LS", "LX", "NX", "RC", "RX", "UX"],
+            "Mazda" => ["BT-50", "CX-3", "CX-30", "CX-5", "CX-60", "CX-8", "CX-9", "CX-90", "Mazda 2", "Mazda 3", "Mazda 6", "MX-5 Miata"],
+            "Mercedes-Benz" => ["A-Class", "AMG GT", "B-Class", "C-Class", "CLA", "CLE", "CLS", "E-Class", "G-Class", "GLA", "GLB", "GLC", "GLE", "GLS", "S-Class", "SLK / SLC", "Sprinter", "V-Class"],
+            "MG" => ["MG 3", "MG 4 EV", "MG 5", "MG Cyberster", "MG GT", "MG HS", "MG One", "MG ZS", "MG ZS EV", "RX5"],
+            "Mini" => ["Clubman", "Cooper", "Cooper S", "Countryman", "John Cooper Works"],
+            "Mitsubishi" => ["Adventure", "Eclipse Cross", "Grandis", "L200", "L300", "Mirage", "Mirage G4", "Montero Sport", "Outlander", "Pajero", "Strada", "Triton", "Xforce", "Xpander", "Xpander Cross"],
+            "Nissan" => ["Almera", "Cefiro", "GT-R", "Juke", "Kicks e-Power", "Livina", "Navara", "Patrol", "Patrol Royale", "Sentra", "Sylphy", "Terra", "Urvan / NV350", "X-Trail"],
+            "Peugeot" => ["2008", "3008", "5008", "508", "Traveller"],
+            "Porsche" => ["718 Boxster", "718 Cayman", "911", "Cayenne", "Macan", "Panamera", "Taycan"],
+            "Subaru" => ["BRZ", "Crosstrek", "Evoltis", "Forester", "Impreza", "Legacy", "Levorg", "Outback", "WRX", "XV"],
+            "Suzuki" => ["Alto", "APV", "Carry", "Celerio", "Ciaz", "Dzire", "Ertiga", "Ertiga Hybrid", "Grand Vitara", "Jimny", "S-Presso", "Swift", "SX4", "Vitara", "XL7"],
+            "Toyota" => ["86", "Alphard", "Avanza", "Camry", "Corolla Altis", "Corolla Cross", "Fortuner", "GR 86", "GR Yaris", "Hiace", "Hiace Commuter", "Hiace Super Grandia", "Hilux", "Hilux Conquest", "Hilux GR-S", "Innova", "Land Cruiser 300", "Land Cruiser Prado", "Prius", "Raize", "RAV4", "Revo", "Rush", "Supra", "Tamaraw FX", "Veloz", "Vios", "Wigo", "Yaris", "Yaris Cross"],
+            "Volkswagen" => ["Beetle", "Golf", "Lamando", "Lavida", "Passat", "Polo", "Santana", "T-Cross", "Teramont", "Tiguan", "Transporter"],
+            "Volvo" => ["C40 Recharge", "S60", "S90", "V60", "V90", "XC40", "XC60", "XC90"]
+        ];
+    }
+}
+
+if (!function_exists('app_get_custom_vehicle_catalog')) {
+    /**
+     * Retrieve custom vehicle makes and models from system_settings table
+     */
+    function app_get_custom_vehicle_catalog(): array {
+        global $pdo;
+        if (!($pdo instanceof PDO)) {
+            return [];
+        }
+        try {
+            $stmt = $pdo->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'custom_vehicle_catalog' ORDER BY updated_at DESC LIMIT 1");
+            $stmt->execute();
+            $raw = $stmt->fetchColumn();
+            if ($raw) {
+                $decoded = json_decode($raw, true);
+                if (is_array($decoded)) {
+                    return $decoded;
+                }
+            }
+        } catch (Exception $e) {
+            error_log('Error reading custom_vehicle_catalog: ' . $e->getMessage());
+        }
+        return [];
+    }
+}
+
+if (!function_exists('app_normalize_vehicle_catalog_text')) {
+    /**
+     * Normalize custom catalog make/model string
+     */
+    function app_normalize_vehicle_catalog_text(string $text): string {
+        $clean = trim($text);
+        $clean = preg_replace('/\s+/', ' ', $clean);
+        if (mb_strlen($clean, 'UTF-8') > 50) {
+            $clean = mb_substr($clean, 0, 50, 'UTF-8');
+        }
+        if ($clean !== '') {
+            $is_all_lower = ($clean === mb_strtolower($clean, 'UTF-8'));
+            $is_all_upper = ($clean === mb_strtoupper($clean, 'UTF-8'));
+            $len = mb_strlen($clean, 'UTF-8');
+
+            if ($is_all_lower) {
+                $clean = mb_convert_case($clean, MB_CASE_TITLE, 'UTF-8');
+            } elseif ($is_all_upper && $len > 3) {
+                $clean = mb_convert_case(mb_strtolower($clean, 'UTF-8'), MB_CASE_TITLE, 'UTF-8');
+            }
+        }
+        return $clean;
+    }
+}
+
+if (!function_exists('app_persist_custom_vehicle_make_model')) {
+    /**
+     * Persist new custom vehicle make and model into system_settings if not already present
+     */
+    function app_persist_custom_vehicle_make_model(string $make, string $model): array {
+        global $pdo;
+
+        $norm_make = app_normalize_vehicle_catalog_text($make);
+        $norm_model = app_normalize_vehicle_catalog_text($model);
+
+        if ($norm_make === '' || $norm_model === '') {
+            return [
+                'make' => $norm_make,
+                'model' => $norm_model,
+                'added_make' => false,
+                'added_model' => false
+            ];
+        }
+
+        $builtin_catalog = app_get_builtin_vehicle_catalog();
+        $custom_catalog = app_get_custom_vehicle_catalog();
+
+        // 1. Check if make exists in built-in (case-insensitive)
+        $canonical_make = null;
+        $is_builtin_make = false;
+        foreach ($builtin_catalog as $b_make => $b_models) {
+            if (strcasecmp($b_make, $norm_make) === 0) {
+                $canonical_make = $b_make;
+                $is_builtin_make = true;
+                break;
+            }
+        }
+
+        // 2. If not in built-in, check in custom catalog (case-insensitive)
+        if ($canonical_make === null) {
+            foreach ($custom_catalog as $c_make => $c_models) {
+                if (strcasecmp($c_make, $norm_make) === 0) {
+                    $canonical_make = $c_make;
+                    break;
+                }
+            }
+        }
+
+        $added_make = false;
+        if ($canonical_make === null) {
+            $canonical_make = $norm_make;
+            $custom_catalog[$canonical_make] = [];
+            $added_make = true;
+        }
+
+        // 3. Check if model exists under canonical_make
+        $canonical_model = null;
+        if ($is_builtin_make && isset($builtin_catalog[$canonical_make])) {
+            foreach ($builtin_catalog[$canonical_make] as $b_mod) {
+                if (strcasecmp($b_mod, $norm_model) === 0) {
+                    $canonical_model = $b_mod;
+                    break;
+                }
+            }
+        }
+
+        if ($canonical_model === null && isset($custom_catalog[$canonical_make]) && is_array($custom_catalog[$canonical_make])) {
+            foreach ($custom_catalog[$canonical_make] as $c_mod) {
+                if (strcasecmp($c_mod, $norm_model) === 0) {
+                    $canonical_model = $c_mod;
+                    break;
+                }
+            }
+        }
+
+        $added_model = false;
+        if ($canonical_model === null) {
+            $canonical_model = $norm_model;
+            if (!isset($custom_catalog[$canonical_make]) || !is_array($custom_catalog[$canonical_make])) {
+                $custom_catalog[$canonical_make] = [];
+            }
+            $custom_catalog[$canonical_make][] = $canonical_model;
+            $added_model = true;
+        }
+
+        // 4. Save to system_settings and log audit if any addition occurred
+        if ($added_make || $added_model) {
+            if ($pdo instanceof PDO) {
+                try {
+                    $json = json_encode($custom_catalog, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+
+                    $check_stmt = $pdo->prepare("SELECT 1 FROM system_settings WHERE setting_key = 'custom_vehicle_catalog' LIMIT 1");
+                    $check_stmt->execute();
+                    if ($check_stmt->fetchColumn()) {
+                        $update_stmt = $pdo->prepare("UPDATE system_settings SET setting_value = ?, updated_at = NOW() WHERE setting_key = 'custom_vehicle_catalog'");
+                        $update_stmt->execute([$json]);
+                    } else {
+                        $insert_stmt = $pdo->prepare("INSERT INTO system_settings (setting_key, setting_value, updated_at) VALUES ('custom_vehicle_catalog', ?, NOW())");
+                        $insert_stmt->execute([$json]);
+                    }
+
+                    if ($added_make) {
+                        log_audit('system_settings', 'create', 0, null, [
+                            'setting_key' => 'custom_vehicle_catalog',
+                            'action_description' => 'Added vehicle make: ' . $canonical_make,
+                            'make' => $canonical_make
+                        ]);
+                    }
+                    if ($added_model) {
+                        log_audit('system_settings', 'create', 0, null, [
+                            'setting_key' => 'custom_vehicle_catalog',
+                            'action_description' => 'Added vehicle model: ' . $canonical_make . ' ' . $canonical_model,
+                            'make' => $canonical_make,
+                            'model' => $canonical_model
+                        ]);
+                    }
+                } catch (Exception $e) {
+                    error_log('Error saving custom vehicle catalog: ' . $e->getMessage());
+                }
+            }
+        }
+
+        return [
+            'make' => $canonical_make,
+            'model' => $canonical_model,
+            'added_make' => $added_make,
+            'added_model' => $added_model
+        ];
+    }
+}
+
 if (!function_exists('app_search_terms')) {
     function app_search_terms($search, $max_terms = 6) {
         $search = trim((string) $search);

@@ -132,6 +132,59 @@
         ]
     };
 
+    let activeCatalog = null;
+
+    function buildMergedCatalog(customCatalog) {
+        const merged = {};
+        for (const make in VEHICLE_MAKE_MODEL_CATALOG) {
+            if (Object.prototype.hasOwnProperty.call(VEHICLE_MAKE_MODEL_CATALOG, make)) {
+                merged[make] = VEHICLE_MAKE_MODEL_CATALOG[make].slice();
+            }
+        }
+        if (customCatalog && typeof customCatalog === 'object') {
+            for (const customMake in customCatalog) {
+                if (!Object.prototype.hasOwnProperty.call(customCatalog, customMake)) continue;
+                const trimmedMake = String(customMake).trim();
+                if (!trimmedMake) continue;
+
+                let existingKey = Object.keys(merged).find(function (k) {
+                    return k.toLowerCase() === trimmedMake.toLowerCase();
+                });
+
+                if (!existingKey) {
+                    existingKey = trimmedMake;
+                    merged[existingKey] = [];
+                }
+
+                const customModels = Array.isArray(customCatalog[customMake])
+                    ? customCatalog[customMake]
+                    : [];
+
+                customModels.forEach(function (model) {
+                    const trimmedModel = String(model).trim();
+                    if (!trimmedModel) return;
+                    const exists = merged[existingKey].some(function (m) {
+                        return m.toLowerCase() === trimmedModel.toLowerCase();
+                    });
+                    if (!exists) {
+                        merged[existingKey].push(trimmedModel);
+                    }
+                });
+            }
+        }
+        return merged;
+    }
+
+    function getCatalog() {
+        if (!activeCatalog) {
+            const serverCustom = (typeof window !== 'undefined' && window.HWTIRES_CUSTOM_VEHICLE_CATALOG)
+                ? window.HWTIRES_CUSTOM_VEHICLE_CATALOG
+                : null;
+            activeCatalog = buildMergedCatalog(serverCustom);
+        }
+        return activeCatalog;
+    }
+
     function initVehicleMakeModelSelector(makeSelect) {
         if (!makeSelect || makeSelect.dataset.vehicleSelectorInit === '1') {
             return;
@@ -173,22 +226,25 @@
 
         function handleMakeChange() {
             const selectedMake = makeSelect.value;
+            const catalog = getCatalog();
 
             if (selectedMake === 'Other') {
                 if (makeCustomInput) {
                     makeCustomInput.style.display = 'block';
                     makeCustomInput.required = true;
+                    makeCustomInput.placeholder = 'New Vehicle Make * (e.g., Jetour)';
                 }
                 if (modelSelect) {
-                    modelSelect.innerHTML = '<option value="" selected disabled>-- Select Model --</option><option value="Other">Other Model...</option>';
+                    modelSelect.innerHTML = '<option value="" disabled>-- Select Model --</option><option value="Other" selected>+ Add New Model / Other...</option>';
                     modelSelect.disabled = false;
                     modelSelect.value = 'Other';
                 }
                 if (modelCustomInput) {
                     modelCustomInput.style.display = 'block';
                     modelCustomInput.required = true;
+                    modelCustomInput.placeholder = 'New Vehicle Model * (e.g., X70)';
                 }
-            } else if (selectedMake && VEHICLE_MAKE_MODEL_CATALOG[selectedMake]) {
+            } else if (selectedMake && (catalog[selectedMake] || Object.keys(catalog).some(function (k) { return k.toLowerCase() === selectedMake.toLowerCase(); }))) {
                 if (makeCustomInput) {
                     makeCustomInput.style.display = 'none';
                     makeCustomInput.required = false;
@@ -196,6 +252,11 @@
                 }
                 if (modelSelect) {
                     populateModelDropdown(modelSelect, selectedMake, initialModelValue);
+                }
+                if (modelCustomInput) {
+                    modelCustomInput.style.display = 'none';
+                    modelCustomInput.required = false;
+                    modelCustomInput.value = '';
                 }
             } else {
                 if (makeCustomInput) {
@@ -221,6 +282,7 @@
                     if (modelCustomInput) {
                         modelCustomInput.style.display = 'block';
                         modelCustomInput.required = true;
+                        modelCustomInput.placeholder = 'New Vehicle Model * (e.g., X70)';
                         modelCustomInput.focus();
                     }
                 } else {
@@ -240,8 +302,11 @@
     }
 
     function populateMakeDropdown(selectElement, initialValue) {
+        const catalog = getCatalog();
         const currentVal = (initialValue || selectElement.value || '').trim();
-        const makes = Object.keys(VEHICLE_MAKE_MODEL_CATALOG).sort();
+        const makes = Object.keys(catalog).sort(function (a, b) {
+            return a.localeCompare(b, undefined, { sensitivity: 'base' });
+        });
 
         let html = '<option value="" disabled ' + (!currentVal ? 'selected' : '') + '>-- Select Car Brand / Make --</option>';
 
@@ -252,7 +317,7 @@
             html += '<option value="' + make + '" ' + (isSelected ? 'selected' : '') + '>' + make + '</option>';
         });
 
-        html += '<option value="Other" ' + (currentVal && !found ? 'selected' : '') + '>Other / Custom Brand...</option>';
+        html += '<option value="Other" ' + (currentVal && !found ? 'selected' : '') + '>+ Add New Make / Other...</option>';
 
         selectElement.innerHTML = html;
 
@@ -262,10 +327,17 @@
     }
 
     function populateModelDropdown(selectElement, makeName, initialValue) {
-        const models = VEHICLE_MAKE_MODEL_CATALOG[makeName] || [];
+        const catalog = getCatalog();
+        const canonicalKey = Object.keys(catalog).find(function (k) {
+            return k.toLowerCase() === (makeName || '').trim().toLowerCase();
+        }) || makeName;
+
+        const models = (catalog[canonicalKey] || []).slice().sort(function (a, b) {
+            return a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true });
+        });
         const currentVal = (initialValue || selectElement.value || '').trim();
 
-        let html = '<option value="" disabled ' + (!currentVal ? 'selected' : '') + '>-- Select ' + makeName + ' Model --</option>';
+        let html = '<option value="" disabled ' + (!currentVal ? 'selected' : '') + '>-- Select ' + canonicalKey + ' Model --</option>';
 
         let found = false;
         models.forEach(function (model) {
@@ -274,7 +346,7 @@
             html += '<option value="' + model + '" ' + (isSelected ? 'selected' : '') + '>' + model + '</option>';
         });
 
-        html += '<option value="Other" ' + (currentVal && !found ? 'selected' : '') + '>Other ' + makeName + ' Model...</option>';
+        html += '<option value="Other" ' + (currentVal && !found ? 'selected' : '') + '>+ Add New Model / Other...</option>';
 
         selectElement.innerHTML = html;
         selectElement.disabled = false;
@@ -304,7 +376,18 @@
 
     // Export globally
     window.VehicleMakeModel = {
-        catalog: VEHICLE_MAKE_MODEL_CATALOG,
+        get catalog() {
+            return getCatalog();
+        },
+        builtinCatalog: VEHICLE_MAKE_MODEL_CATALOG,
+        getCatalog: getCatalog,
+        setCustomCatalog: function (customData) {
+            activeCatalog = buildMergedCatalog(customData);
+            document.querySelectorAll('select.vehicle-make-select').forEach(function (el) {
+                el.removeAttribute('data-vehicle-selector-init');
+                initVehicleMakeModelSelector(el);
+            });
+        },
         init: initVehicleMakeModelSelector,
         scan: scanAndInitAllSelectors
     };

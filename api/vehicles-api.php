@@ -15,6 +15,13 @@ if (!is_logged_in()) {
 $user = app_get_session_user();
 $action = $_POST['action'] ?? $_GET['action'] ?? null;
 
+// Handle Catalog Fetch
+if ($action === 'get_catalog') {
+    header('Content-Type: application/json');
+    $custom_catalog = app_get_custom_vehicle_catalog();
+    die(json_encode(['success' => true, 'catalog' => $custom_catalog]));
+}
+
 // Handle Add Vehicle
 if ($action === 'add') {
     try {
@@ -33,6 +40,9 @@ if ($action === 'add') {
         if (strcasecmp($model, 'Other') === 0 && !empty($_POST['model_custom'] ?? $_POST['vehicle_model_custom'] ?? '')) {
             $model = trim($_POST['model_custom'] ?? $_POST['vehicle_model_custom'] ?? '');
         }
+
+        $make = app_normalize_vehicle_catalog_text($make);
+        $model = app_normalize_vehicle_catalog_text($model);
         $year = intval($_POST['year'] ?? 0);
         $vin = trim($_POST['vin'] ?? '');
         $plate_number = app_normalize_plate_number($_POST['plate_number'] ?? $_POST['license_plate'] ?? '');
@@ -95,6 +105,10 @@ if ($action === 'add') {
             app_touch_customer_branch_record($customer_id, $branch_id, $user['id'] ?? null);
             $pdo->commit();
 
+            if ($make !== '' && $model !== '') {
+                app_persist_custom_vehicle_make_model($make, $model);
+            }
+
             log_audit('vehicles', 'restore', $vehicle_id, null, [
                 'customer_id' => $customer_id,
                 'plate_number' => $plate_number,
@@ -108,7 +122,7 @@ if ($action === 'add') {
                 redirect($_POST['redirect']);
             }
 
-            die(json_encode(['success' => true, 'message' => 'Vehicle restored and added successfully', 'id' => $vehicle_id]));
+            die(json_encode(['success' => true, 'message' => 'Vehicle restored and added successfully', 'id' => $vehicle_id, 'custom_catalog' => app_get_custom_vehicle_catalog()]));
         }
 
         $stmt = $pdo->prepare("
@@ -131,6 +145,10 @@ if ($action === 'add') {
         $vehicle_id = $pdo->lastInsertId();
         app_touch_customer_branch_record($customer_id, $branch_id, $user['id'] ?? null);
 
+        if ($make !== '' && $model !== '') {
+            app_persist_custom_vehicle_make_model($make, $model);
+        }
+
         log_audit('vehicles', 'create', $vehicle_id, null, [
             'customer_id' => $customer_id,
             'plate_number' => $plate_number,
@@ -144,7 +162,7 @@ if ($action === 'add') {
             redirect($_POST['redirect']);
         }
 
-        die(json_encode(['success' => true, 'message' => 'Vehicle added', 'id' => $vehicle_id]));
+        die(json_encode(['success' => true, 'message' => 'Vehicle added', 'id' => $vehicle_id, 'custom_catalog' => app_get_custom_vehicle_catalog()]));
 
     } catch (Exception $e) {
         if ($pdo instanceof PDO && $pdo->inTransaction()) {
