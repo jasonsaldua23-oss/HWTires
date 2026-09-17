@@ -204,6 +204,19 @@ if (!function_exists('inventory_transaction_vehicle_label')) {
         return $plate !== '' ? $plate : $details;
     }
 }
+
+if (!function_exists('inventory_transaction_direct_sale_vehicle_label')) {
+    function inventory_transaction_direct_sale_vehicle_label(array $transaction) {
+        $plate = trim((string) ($transaction['tagged_plate_number'] ?? ''));
+        $details = trim((string) ($transaction['tagged_vehicle_make'] ?? '') . ' ' . (string) ($transaction['tagged_vehicle_model'] ?? ''));
+
+        if ($details !== '' && $plate !== '') {
+            return $details . ' • ' . $plate;
+        }
+
+        return $details !== '' ? $details : $plate;
+    }
+}
 ?>
 
 <?php require_once '../../includes/header.php'; ?>
@@ -372,13 +385,15 @@ if (!function_exists('inventory_transaction_vehicle_label')) {
                     <?php else: ?>
                         <?php foreach ($transactions as $transaction): ?>
                             <?php
-                            $tagged_customer = trim((string) ($transaction['tagged_customer_name'] ?? ''));
+                            $tagged_customer_name = trim((string) ($transaction['tagged_customer_name'] ?? ''));
                             $tagged_phone = trim((string) ($transaction['tagged_customer_phone'] ?? ''));
+                            $tagged_customer = $tagged_customer_name;
                             if ($tagged_phone !== '') {
                                 $tagged_customer = $tagged_customer !== '' ? $tagged_customer . ' (' . $tagged_phone . ')' : $tagged_phone;
                             }
 
                             $tagged_vehicle = inventory_transaction_vehicle_label($transaction);
+                            $direct_sale_vehicle = inventory_transaction_direct_sale_vehicle_label($transaction);
                             $tagged_refs = [];
                             if (!empty($transaction['tagged_job_number'])) {
                                 $tagged_refs[] = $transaction['tagged_job_number'];
@@ -387,6 +402,9 @@ if (!function_exists('inventory_transaction_vehicle_label')) {
                                 $tagged_refs[] = $transaction['tagged_quotation_number'];
                             }
                             $source_display_label = app_inventory_transaction_source_display($transaction);
+                            $ref_type = strtolower(trim((string) ($transaction['reference_type'] ?? '')));
+                            $is_direct_sale = in_array($ref_type, ['direct_sale', 'counter_sale', 'walk_in'], true)
+                                || stripos((string) ($transaction['notes'] ?? ''), 'Reason: Direct Sale') !== false;
                             ?>
                             <tr>
                                 <td><?php echo esc_html(app_format_datetime_pht($transaction['created_at'])); ?></td>
@@ -399,7 +417,6 @@ if (!function_exists('inventory_transaction_vehicle_label')) {
                                 </td>
                                 <td>
                                     <?php
-                                    $ref_type = strtolower((string) ($transaction['reference_type'] ?? ''));
                                     $is_transfer = $ref_type === 'inter_branch_transfer' || $ref_type === 'transfer' || stripos((string) ($transaction['notes'] ?? ''), 'received from') !== false;
                                     $transfer_donor = '';
                                     if (preg_match('/received from\s+([^,;\.]+)/i', (string) ($transaction['notes'] ?? ''), $tm)) {
@@ -423,6 +440,22 @@ if (!function_exists('inventory_transaction_vehicle_label')) {
                                         <div class="inventory-tag-cell">
                                             <strong><i class="fas fa-truck-ramp-box" style="margin-right: 4px; color: #0284c7;"></i><?php echo esc_html($source_display_label); ?></strong>
                                         </div>
+                                    <?php elseif ($is_direct_sale): ?>
+                                        <?php if (!empty($transaction['customer_id'])): ?>
+                                            <div class="inventory-tag-cell">
+                                                <strong>Walk-In / Counter Sale</strong>
+                                                <?php if ($tagged_customer_name !== ''): ?>
+                                                    <small><i class="fas fa-user"></i>Customer: <?php echo esc_html($tagged_customer); ?></small>
+                                                <?php else: ?>
+                                                    <small><i class="fas fa-user"></i>Customer: Registered customer unavailable</small>
+                                                <?php endif; ?>
+                                                <?php if (!empty($transaction['vehicle_id']) && $direct_sale_vehicle !== ''): ?>
+                                                    <small><i class="fas fa-car"></i>Vehicle: <?php echo esc_html($direct_sale_vehicle); ?></small>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php else: ?>
+                                            <span class="inventory-tag-empty"><?php echo esc_html($source_display_label); ?></span>
+                                        <?php endif; ?>
                                     <?php elseif ($tagged_customer !== '' || $tagged_vehicle !== '' || !empty($tagged_refs)): ?>
                                         <div class="inventory-tag-cell">
                                             <?php if ($tagged_customer !== ''): ?>

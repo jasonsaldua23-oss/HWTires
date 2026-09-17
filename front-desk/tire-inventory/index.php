@@ -114,6 +114,19 @@ if (!function_exists('inventory_transaction_vehicle_label')) {
     }
 }
 
+if (!function_exists('inventory_transaction_direct_sale_vehicle_label')) {
+    function inventory_transaction_direct_sale_vehicle_label(array $transaction) {
+        $plate = trim((string) ($transaction['tagged_plate_number'] ?? ''));
+        $details = trim((string) ($transaction['tagged_vehicle_make'] ?? '') . ' ' . (string) ($transaction['tagged_vehicle_model'] ?? ''));
+
+        if ($details !== '' && $plate !== '') {
+            return $details . ' • ' . $plate;
+        }
+
+        return $details !== '' ? $details : $plate;
+    }
+}
+
 if (!function_exists('front_inventory_transaction_source_links')) {
     function front_inventory_transaction_source_links(array $transaction) {
         $links = [];
@@ -2083,11 +2096,20 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                         <?php else: ?>
                             <?php foreach ($transactions as $transaction): ?>
                                 <?php
-                                $tagged_customer = trim((string) ($transaction['tagged_customer_name'] ?? ''));
+                                $tagged_customer_name = trim((string) ($transaction['tagged_customer_name'] ?? ''));
+                                $tagged_phone = trim((string) ($transaction['tagged_customer_phone'] ?? ''));
+                                $tagged_customer = $tagged_customer_name;
+                                if ($tagged_phone !== '') {
+                                    $tagged_customer = $tagged_customer !== '' ? $tagged_customer . ' (' . $tagged_phone . ')' : $tagged_phone;
+                                }
                                 $tagged_vehicle = inventory_transaction_vehicle_label($transaction);
+                                $direct_sale_vehicle = inventory_transaction_direct_sale_vehicle_label($transaction);
                                 $source_links = front_inventory_transaction_source_links($transaction);
                                 $empty_tag_label = app_inventory_transaction_tag_empty_label($transaction['reference_type'] ?? '', $transaction['transaction_type'] ?? '');
                                 $transaction_value = (float) ($transaction['unit_price'] ?? 0) * (int) ($transaction['quantity'] ?? 0);
+                                $ref_type = strtolower(trim((string) ($transaction['reference_type'] ?? '')));
+                                $is_direct_sale = in_array($ref_type, ['direct_sale', 'counter_sale', 'walk_in'], true)
+                                    || stripos((string) ($transaction['notes'] ?? ''), 'Reason: Direct Sale') !== false;
                                 ?>
                                 <tr>
                                     <td><span class="inventory-transaction-date"><?php echo esc_html(app_format_datetime_pht($transaction['created_at'])); ?></span></td>
@@ -2107,10 +2129,26 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                     </td>
                                     <td><strong class="inventory-quantity"><?php echo (int) $transaction['quantity']; ?></strong></td>
                                     <td>
-                                        <?php if ($tagged_customer !== '' || $tagged_vehicle !== '' || !empty($source_links)): ?>
+                                        <?php if ($is_direct_sale): ?>
+                                            <?php if (!empty($transaction['customer_id'])): ?>
+                                                <div class="inventory-tag-cell">
+                                                    <strong>Walk-In / Counter Sale</strong>
+                                                    <?php if ($tagged_customer_name !== ''): ?>
+                                                        <small><i class="fas fa-user"></i>Customer: <?php echo esc_html($tagged_customer); ?></small>
+                                                    <?php else: ?>
+                                                        <small><i class="fas fa-user"></i>Customer: Registered customer unavailable</small>
+                                                    <?php endif; ?>
+                                                    <?php if (!empty($transaction['vehicle_id']) && $direct_sale_vehicle !== ''): ?>
+                                                        <small><i class="fas fa-car"></i>Vehicle: <?php echo esc_html($direct_sale_vehicle); ?></small>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php else: ?>
+                                                <span class="inventory-tag-empty"><?php echo esc_html($empty_tag_label); ?></span>
+                                            <?php endif; ?>
+                                        <?php elseif ($tagged_customer_name !== '' || $tagged_vehicle !== '' || !empty($source_links)): ?>
                                             <div class="inventory-tag-cell">
-                                                <?php if ($tagged_customer !== ''): ?>
-                                                    <strong><?php echo esc_html($tagged_customer); ?></strong>
+                                                <?php if ($tagged_customer_name !== ''): ?>
+                                                    <strong><?php echo esc_html($tagged_customer_name); ?></strong>
                                                 <?php endif; ?>
                                                 <?php if ($tagged_vehicle !== ''): ?>
                                                     <small><i class="fas fa-car"></i><?php echo esc_html($tagged_vehicle); ?></small>
