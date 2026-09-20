@@ -244,6 +244,46 @@ if (!function_exists('app_generate_temporary_password')) {
 }
 
 /**
+ * Validate password strength against system complexity requirements.
+ * Requirements:
+ * - Minimum 8 characters
+ * - At least 1 uppercase letter (A-Z)
+ * - At least 1 lowercase letter (a-z)
+ * - At least 1 digit (0-9)
+ * - At least 1 special character (non-alphanumeric, non-whitespace)
+ *
+ * @param string $password
+ * @return array List of error messages, or empty array if valid.
+ */
+if (!function_exists('app_validate_password_strength')) {
+    function app_validate_password_strength(string $password): array {
+        $errors = [];
+
+        if (strlen($password) < 8) {
+            $errors[] = 'Password must be at least 8 characters.';
+        }
+
+        if (!preg_match('/[A-Z]/', $password)) {
+            $errors[] = 'Password must include at least one uppercase letter.';
+        }
+
+        if (!preg_match('/[a-z]/', $password)) {
+            $errors[] = 'Password must include at least one lowercase letter.';
+        }
+
+        if (!preg_match('/[0-9]/', $password)) {
+            $errors[] = 'Password must include at least one number.';
+        }
+
+        if (!preg_match('/[^A-Za-z0-9\s]/', $password)) {
+            $errors[] = 'Password must include at least one special character.';
+        }
+
+        return $errors;
+    }
+}
+
+/**
  * Check login attempt lockout (rate limiting)
  */
 if (!function_exists('app_check_login_lockout')) {

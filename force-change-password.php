@@ -43,8 +43,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception('Please enter your current temporary password.');
         }
 
-        if (strlen($new_password) < 8) {
-            throw new Exception('New password must be at least 8 characters long.');
+        $strength_errors = app_validate_password_strength($new_password);
+        if (!empty($strength_errors)) {
+            throw new Exception(implode(' ', $strength_errors));
         }
 
         if ($new_password !== $confirm_password) {
@@ -229,6 +230,8 @@ $login_logo = APP_URL . '/' . ltrim($login_brand['company_logo'], '/');
 
         .input-icon-wrapper {
             position: relative;
+            display: flex;
+            align-items: center;
         }
 
         .input-icon {
@@ -238,17 +241,20 @@ $login_logo = APP_URL . '/' . ltrim($login_brand['company_logo'], '/');
             transform: translateY(-50%);
             color: #64748b;
             font-size: 15px;
+            pointer-events: none;
+            z-index: 3;
         }
 
         .form-control {
             width: 100%;
+            display: block;
             background: rgba(255, 255, 255, 0.06);
             border: 1px solid rgba(255, 255, 255, 0.16);
             border-radius: 12px;
-            padding: 11px 42px 11px 40px;
+            padding: 11px 44px 11px 40px;
             color: #ffffff;
             font-size: 14px;
-            transition: all 0.2s;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
         }
 
         .form-control:focus {
@@ -259,20 +265,88 @@ $login_logo = APP_URL . '/' . ltrim($login_brand['company_logo'], '/');
             outline: none;
         }
 
-        .btn-password-toggle {
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: transparent;
-            border: none;
-            color: #94a3b8;
+        .form-control::-ms-reveal,
+        .form-control::-ms-clear {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+        }
+
+        /* Strict geometry lock for password toggle button in ALL states */
+        .btn-password-toggle,
+        .btn-password-toggle:hover,
+        .btn-password-toggle:focus,
+        .btn-password-toggle:focus-visible,
+        .btn-password-toggle:active {
+            position: absolute !important;
+            right: 6px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            width: 36px !important;
+            height: 36px !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            border: 0 !important;
+            box-shadow: none !important;
+            outline: none !important;
+            background: transparent !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            box-sizing: border-box !important;
+            line-height: 1 !important;
             cursor: pointer;
-            padding: 4px;
+            z-index: 5;
+            transition: color 0.2s ease;
         }
 
         .btn-password-toggle:hover {
             color: #ffffff;
+        }
+
+        .btn-password-toggle:focus,
+        .btn-password-toggle:focus-visible {
+            color: #06b6d4;
+        }
+
+        .btn-password-toggle:active {
+            color: #ffffff;
+        }
+
+        /* Strict geometry lock for the icon in ALL states */
+        .btn-password-toggle i,
+        .btn-password-toggle:hover i,
+        .btn-password-toggle:focus i,
+        .btn-password-toggle:focus-visible i,
+        .btn-password-toggle:active i {
+            width: 20px !important;
+            height: 20px !important;
+            line-height: 20px !important;
+            font-size: 15px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            text-align: center !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: 0 !important;
+            transform: none !important;
+            transition: none !important;
+        }
+
+        /* Strict geometry lock for the slash overlay */
+        .btn-password-toggle.is-password-visible::after {
+            content: "";
+            position: absolute;
+            width: 18px;
+            height: 1.5px;
+            background: currentColor;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg) !important;
+            transform-origin: center;
+            pointer-events: none;
+            transition: none !important;
         }
 
         .pwd-rules {
@@ -285,13 +359,35 @@ $login_logo = APP_URL . '/' . ltrim($login_brand['company_logo'], '/');
             color: #cbd5e1;
         }
 
-        .pwd-rules ul {
-            margin: 6px 0 0;
-            padding-left: 18px;
+        .pwd-checklist {
+            list-style: none;
+            padding-left: 0;
+            margin: 8px 0 0;
         }
 
-        .pwd-rules li {
-            margin-bottom: 3px;
+        .pwd-checklist li {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 5px;
+            color: #94a3b8;
+            font-size: 12.5px;
+            transition: color 0.2s ease;
+        }
+
+        .pwd-checklist li.valid {
+            color: #34d399;
+            font-weight: 600;
+        }
+
+        .pwd-checklist li .rule-icon {
+            font-size: 12px;
+            color: #94a3b8;
+            transition: color 0.2s ease;
+        }
+
+        .pwd-checklist li.valid .rule-icon {
+            color: #34d399;
         }
 
         .btn-submit {
@@ -363,8 +459,8 @@ $login_logo = APP_URL . '/' . ltrim($login_brand['company_logo'], '/');
                 <div class="input-icon-wrapper">
                     <i class="fas fa-key input-icon"></i>
                     <input type="password" id="current_password" name="current_password" class="form-control" placeholder="Enter the temporary password" required>
-                    <button type="button" class="btn-password-toggle" data-target="current_password" aria-label="Toggle password">
-                        <i class="far fa-eye"></i>
+                    <button type="button" class="btn-password-toggle" data-target="current_password" aria-label="Show password">
+                        <i class="far fa-eye fa-fw" aria-hidden="true"></i>
                     </button>
                 </div>
             </div>
@@ -374,8 +470,8 @@ $login_logo = APP_URL . '/' . ltrim($login_brand['company_logo'], '/');
                 <div class="input-icon-wrapper">
                     <i class="fas fa-lock input-icon"></i>
                     <input type="password" id="new_password" name="new_password" class="form-control" placeholder="Minimum 8 characters" minlength="8" required>
-                    <button type="button" class="btn-password-toggle" data-target="new_password" aria-label="Toggle password">
-                        <i class="far fa-eye"></i>
+                    <button type="button" class="btn-password-toggle" data-target="new_password" aria-label="Show password">
+                        <i class="far fa-eye fa-fw" aria-hidden="true"></i>
                     </button>
                 </div>
             </div>
@@ -385,18 +481,20 @@ $login_logo = APP_URL . '/' . ltrim($login_brand['company_logo'], '/');
                 <div class="input-icon-wrapper">
                     <i class="fas fa-lock-open input-icon"></i>
                     <input type="password" id="confirm_password" name="confirm_password" class="form-control" placeholder="Re-type new password" minlength="8" required>
-                    <button type="button" class="btn-password-toggle" data-target="confirm_password" aria-label="Toggle password">
-                        <i class="far fa-eye"></i>
+                    <button type="button" class="btn-password-toggle" data-target="confirm_password" aria-label="Show password">
+                        <i class="far fa-eye fa-fw" aria-hidden="true"></i>
                     </button>
                 </div>
             </div>
 
-            <div class="pwd-rules">
-                <strong><i class="fas fa-info-circle me-1"></i> Password Requirements:</strong>
-                <ul>
-                    <li>Must be at least 8 characters long</li>
-                    <li>Must be different from your temporary password</li>
-                    <li>Keep your new password private and confidential</li>
+            <div class="pwd-rules" id="pwdRulesBox">
+                <strong><i class="fas fa-shield-halved me-1"></i> Password Requirements:</strong>
+                <ul class="pwd-checklist">
+                    <li id="rule-length"><i class="far fa-circle rule-icon"></i> At least 8 characters</li>
+                    <li id="rule-upper"><i class="far fa-circle rule-icon"></i> One uppercase letter (A-Z)</li>
+                    <li id="rule-lower"><i class="far fa-circle rule-icon"></i> One lowercase letter (a-z)</li>
+                    <li id="rule-number"><i class="far fa-circle rule-icon"></i> One number (0-9)</li>
+                    <li id="rule-special"><i class="far fa-circle rule-icon"></i> One special character</li>
                 </ul>
             </div>
 
@@ -418,15 +516,47 @@ $login_logo = APP_URL . '/' . ltrim($login_brand['company_logo'], '/');
             btn.addEventListener('click', function() {
                 const targetId = this.getAttribute('data-target');
                 const input = document.getElementById(targetId);
-                const icon = this.querySelector('i');
-                if (input && icon) {
+                if (input) {
                     const isPwd = input.getAttribute('type') === 'password';
                     input.setAttribute('type', isPwd ? 'text' : 'password');
-                    icon.classList.toggle('fa-eye', !isPwd);
-                    icon.classList.toggle('fa-eye-slash', isPwd);
+                    if (isPwd) {
+                        this.classList.add('is-password-visible');
+                        this.setAttribute('aria-label', 'Hide password');
+                    } else {
+                        this.classList.remove('is-password-visible');
+                        this.setAttribute('aria-label', 'Show password');
+                    }
                 }
             });
         });
+
+        const newPwdInput = document.getElementById('new_password');
+        if (newPwdInput) {
+            const rules = {
+                length: { el: document.getElementById('rule-length'), test: function(p) { return p.length >= 8; } },
+                upper: { el: document.getElementById('rule-upper'), test: function(p) { return /[A-Z]/.test(p); } },
+                lower: { el: document.getElementById('rule-lower'), test: function(p) { return /[a-z]/.test(p); } },
+                number: { el: document.getElementById('rule-number'), test: function(p) { return /[0-9]/.test(p); } },
+                special: { el: document.getElementById('rule-special'), test: function(p) { return /[^A-Za-z0-9\s]/.test(p); } }
+            };
+
+            function updateChecklist() {
+                const val = newPwdInput.value || '';
+                for (const key in rules) {
+                    const rule = rules[key];
+                    if (!rule.el) continue;
+                    const passed = rule.test(val);
+                    rule.el.classList.toggle('valid', passed);
+                    const icon = rule.el.querySelector('.rule-icon');
+                    if (icon) {
+                        icon.className = passed ? 'fas fa-check-circle rule-icon' : 'far fa-circle rule-icon';
+                    }
+                }
+            }
+
+            newPwdInput.addEventListener('input', updateChecklist);
+            updateChecklist();
+        }
     </script>
 </body>
 </html>

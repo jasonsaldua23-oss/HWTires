@@ -97,8 +97,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $params = [$name, $login_id];
 
         if ($password_requested) {
-            if (strlen($new_password) < 8) {
-                throw new Exception('New password must be at least 8 characters.');
+            $strength_errors = app_validate_password_strength($new_password);
+            if (!empty($strength_errors)) {
+                throw new Exception(implode(' ', $strength_errors));
             }
 
             if ($new_password !== $confirm_password) {
@@ -218,16 +219,42 @@ $dashboard_url = ($account['role'] ?? '') === 'admin' ? (APP_URL . '/admin/') : 
                 <div class="account-profile-form-grid">
                     <label>
                         <span>Current Password</span>
-                        <input type="password" name="current_password" autocomplete="current-password">
+                        <div class="profile-pwd-input-wrap">
+                            <input type="password" id="profile_current_password" name="current_password" autocomplete="current-password">
+                            <button type="button" class="btn-password-toggle" data-target="profile_current_password" aria-label="Show password">
+                                <i class="far fa-eye fa-fw" aria-hidden="true"></i>
+                            </button>
+                        </div>
                     </label>
                     <label>
                         <span>New Password</span>
-                        <input type="password" name="new_password" autocomplete="new-password">
+                        <div class="profile-pwd-input-wrap">
+                            <input type="password" id="profile_new_password" name="new_password" autocomplete="new-password">
+                            <button type="button" class="btn-password-toggle" data-target="profile_new_password" aria-label="Show password">
+                                <i class="far fa-eye fa-fw" aria-hidden="true"></i>
+                            </button>
+                        </div>
                     </label>
                     <label>
                         <span>Confirm New Password</span>
-                        <input type="password" name="confirm_password" autocomplete="new-password">
+                        <div class="profile-pwd-input-wrap">
+                            <input type="password" id="profile_confirm_password" name="confirm_password" autocomplete="new-password">
+                            <button type="button" class="btn-password-toggle" data-target="profile_confirm_password" aria-label="Show password">
+                                <i class="far fa-eye fa-fw" aria-hidden="true"></i>
+                            </button>
+                        </div>
                     </label>
+                </div>
+
+                <div class="profile-pwd-rules" id="profilePwdRulesBox">
+                    <strong><i class="fas fa-shield-halved me-1"></i> Password Requirements:</strong>
+                    <ul class="profile-pwd-checklist">
+                        <li id="prof-rule-length"><i class="far fa-circle rule-icon"></i> At least 8 characters</li>
+                        <li id="prof-rule-upper"><i class="far fa-circle rule-icon"></i> One uppercase letter (A-Z)</li>
+                        <li id="prof-rule-lower"><i class="far fa-circle rule-icon"></i> One lowercase letter (a-z)</li>
+                        <li id="prof-rule-number"><i class="far fa-circle rule-icon"></i> One number (0-9)</li>
+                        <li id="prof-rule-special"><i class="far fa-circle rule-icon"></i> One special character</li>
+                    </ul>
                 </div>
             </div>
 
@@ -241,5 +268,196 @@ $dashboard_url = ($account['role'] ?? '') === 'admin' ? (APP_URL . '/admin/') : 
         </form>
     </section>
 </main>
+
+<style>
+.profile-pwd-input-wrap {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+}
+.profile-pwd-input-wrap input {
+    width: 100%;
+    display: block;
+    padding-right: 44px !important;
+}
+.profile-pwd-input-wrap input::-ms-reveal,
+.profile-pwd-input-wrap input::-ms-clear {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+/* Strict geometry lock for password toggle button in ALL states */
+.profile-pwd-input-wrap .btn-password-toggle,
+.profile-pwd-input-wrap .btn-password-toggle:hover,
+.profile-pwd-input-wrap .btn-password-toggle:focus,
+.profile-pwd-input-wrap .btn-password-toggle:focus-visible,
+.profile-pwd-input-wrap .btn-password-toggle:active,
+.main-content .content .profile-pwd-input-wrap .btn-password-toggle,
+.main-content .content .profile-pwd-input-wrap .btn-password-toggle:hover,
+.main-content .content .profile-pwd-input-wrap .btn-password-toggle:focus,
+.main-content .content .profile-pwd-input-wrap .btn-password-toggle:focus-visible,
+.main-content .content .profile-pwd-input-wrap .btn-password-toggle:active {
+    position: absolute !important;
+    right: 6px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
+    background: transparent !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+    line-height: 1 !important;
+    cursor: pointer;
+    z-index: 5;
+    transition: color 0.2s ease;
+}
+
+.profile-pwd-input-wrap .btn-password-toggle:hover {
+    color: #00183a;
+}
+
+.profile-pwd-input-wrap .btn-password-toggle:focus,
+.profile-pwd-input-wrap .btn-password-toggle:focus-visible {
+    color: #06b6d4;
+}
+
+.profile-pwd-input-wrap .btn-password-toggle:active {
+    color: #00183a;
+}
+
+/* Strict geometry lock for the icon in ALL states */
+.profile-pwd-input-wrap .btn-password-toggle i,
+.profile-pwd-input-wrap .btn-password-toggle:hover i,
+.profile-pwd-input-wrap .btn-password-toggle:focus i,
+.profile-pwd-input-wrap .btn-password-toggle:focus-visible i,
+.profile-pwd-input-wrap .btn-password-toggle:active i {
+    width: 20px !important;
+    height: 20px !important;
+    line-height: 20px !important;
+    font-size: 15px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    transform: none !important;
+    transition: none !important;
+}
+
+/* Strict geometry lock for the slash overlay */
+.profile-pwd-input-wrap .btn-password-toggle.is-password-visible::after {
+    content: "";
+    position: absolute;
+    width: 18px;
+    height: 1.5px;
+    background: currentColor;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(-45deg) !important;
+    transform-origin: center;
+    pointer-events: none;
+    transition: none !important;
+}
+.profile-pwd-rules {
+    margin-top: 18px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    max-width: 520px;
+}
+.profile-pwd-rules strong {
+    font-size: 13px;
+    color: #00183a;
+    display: block;
+    margin-bottom: 8px;
+}
+.profile-pwd-checklist {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+}
+.profile-pwd-checklist li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+    color: #64748b;
+    font-size: 12.5px;
+    transition: color 0.2s ease;
+}
+.profile-pwd-checklist li.valid {
+    color: #059669;
+    font-weight: 600;
+}
+.profile-pwd-checklist li .rule-icon {
+    font-size: 12px;
+    color: #94a3b8;
+    transition: color 0.2s ease;
+}
+.profile-pwd-checklist li.valid .rule-icon {
+    color: #059669;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.btn-password-toggle').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const targetId = this.getAttribute('data-target');
+            const input = document.getElementById(targetId);
+            if (input) {
+                const isPwd = input.getAttribute('type') === 'password';
+                input.setAttribute('type', isPwd ? 'text' : 'password');
+                if (isPwd) {
+                    this.classList.add('is-password-visible');
+                    this.setAttribute('aria-label', 'Hide password');
+                } else {
+                    this.classList.remove('is-password-visible');
+                    this.setAttribute('aria-label', 'Show password');
+                }
+            }
+        });
+    });
+
+    const newPwdInput = document.getElementById('profile_new_password');
+    if (newPwdInput) {
+        const rules = {
+            length: { el: document.getElementById('prof-rule-length'), test: function(p) { return p.length >= 8; } },
+            upper: { el: document.getElementById('prof-rule-upper'), test: function(p) { return /[A-Z]/.test(p); } },
+            lower: { el: document.getElementById('prof-rule-lower'), test: function(p) { return /[a-z]/.test(p); } },
+            number: { el: document.getElementById('prof-rule-number'), test: function(p) { return /[0-9]/.test(p); } },
+            special: { el: document.getElementById('prof-rule-special'), test: function(p) { return /[^A-Za-z0-9\s]/.test(p); } }
+        };
+
+        function updateChecklist() {
+            const val = newPwdInput.value || '';
+            for (const key in rules) {
+                const rule = rules[key];
+                if (!rule.el) continue;
+                const passed = rule.test(val);
+                rule.el.classList.toggle('valid', passed);
+                const icon = rule.el.querySelector('.rule-icon');
+                if (icon) {
+                    icon.className = passed ? 'fas fa-check-circle rule-icon' : 'far fa-circle rule-icon';
+                }
+            }
+        }
+
+        newPwdInput.addEventListener('input', updateChecklist);
+        updateChecklist();
+    }
+});
+</script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
