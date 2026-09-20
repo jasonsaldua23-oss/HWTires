@@ -1109,6 +1109,22 @@ $archive_status_options = [
     'job_orders' => 'Job Orders',
     'inventory_items' => 'Inventory Items',
 ];
+$report_status_options_map = [
+    'services' => $service_status_options,
+    'items' => $item_status_options,
+    'vehicles' => $vehicle_status_options,
+    'vehicle_history' => $vehicle_history_status_options,
+    'stock_movement' => $stock_movement_status_options,
+    'archives' => $archive_status_options,
+];
+$report_status_label_map = [
+    'services' => 'Report Status',
+    'items' => 'Sales Filter',
+    'vehicles' => 'Vehicle Filter',
+    'vehicle_history' => 'History Filter',
+    'stock_movement' => 'Movement Filter',
+    'archives' => 'Archive Type',
+];
 switch ($report_tab) {
     case 'items':
         $active_status_options = $item_status_options;
@@ -2280,7 +2296,7 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
             <div class="hw-filter-cluster">
                 <div class="hw-filter-group hw-group-md">
                     <label for="reportsTypeFilter" class="hw-filter-label">Report</label>
-                    <select id="reportsTypeFilter" name="report" class="hw-filter-select" onchange="this.form.submit()">
+                    <select id="reportsTypeFilter" name="report" class="hw-filter-select" onchange="reportsSyncStatusFilter(this)">
                         <?php foreach ($report_tab_options as $tab_value => $tab_option): ?>
                             <option value="<?php echo esc_attr($tab_value); ?>" <?php echo $report_tab === $tab_value ? 'selected' : ''; ?>>
                                 <?php echo esc_html($tab_option['label']); ?>
@@ -2290,7 +2306,7 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
                 </div>
                 <div class="hw-filter-group hw-group-branch">
                     <label for="reportsBranchFilter" class="hw-filter-label">Branch</label>
-                    <select id="reportsBranchFilter" name="branch" class="hw-filter-select" onchange="this.form.submit()">
+                    <select id="reportsBranchFilter" name="branch" class="hw-filter-select">
                         <option value="">All Branches</option>
                         <?php foreach ($branches as $branch): ?>
                             <?php $option_label = reports_branch_label($branch['name']); ?>
@@ -2301,8 +2317,8 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
                     </select>
                 </div>
                 <div class="hw-filter-group hw-group-status">
-                    <label for="reportsStatusFilter" class="hw-filter-label"><?php echo $report_tab === 'services' ? 'Report Status' : 'Status'; ?></label>
-                    <select id="reportsStatusFilter" name="status" class="hw-filter-select" onchange="this.form.submit()">
+                    <label id="reportsStatusLabel" for="reportsStatusFilter" class="hw-filter-label"><?php echo esc_html($report_status_label_map[$report_tab] ?? 'Status'); ?></label>
+                    <select id="reportsStatusFilter" name="status" class="hw-filter-select">
                         <?php foreach ($active_status_options as $status_value => $status_label): ?>
                             <option value="<?php echo esc_attr($status_value); ?>" <?php echo $status_filter === $status_value ? 'selected' : ''; ?>>
                                 <?php echo esc_html($status_label); ?>
@@ -2316,9 +2332,9 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
                         <option value="custom" data-from="<?php echo esc_attr($date_from); ?>" data-to="<?php echo esc_attr($date_to); ?>" <?php echo $quick_report_range_value === 'custom' ? 'selected' : ''; ?>>Custom Range</option>
                         <?php foreach ($quick_report_ranges as $range_key => $range): ?>
                             <option value="<?php echo esc_attr((string) $range_key); ?>"
-                                    data-from="<?php echo esc_attr($range['date_from']); ?>"
-                                    data-to="<?php echo esc_attr($range['date_to']); ?>"
-                                    <?php echo $quick_report_range_value === (string) $range_key ? 'selected' : ''; ?>>
+                                     data-from="<?php echo esc_attr($range['date_from']); ?>"
+                                     data-to="<?php echo esc_attr($range['date_to']); ?>"
+                                     <?php echo $quick_report_range_value === (string) $range_key ? 'selected' : ''; ?>>
                                 <?php echo esc_html($range['label']); ?>
                             </option>
                         <?php endforeach; ?>
@@ -2364,6 +2380,34 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
             <input type="hidden" name="per_page" value="<?php echo (int) $detail_per_page; ?>">
         </form>
         <script>
+        const reportStatusOptions = <?php echo json_encode($report_status_options_map, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+        const reportStatusLabels = <?php echo json_encode($report_status_label_map, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+
+        function reportsSyncStatusFilter(reportSelect) {
+            const form = reportSelect.form;
+            if (!form) return;
+            const statusSelect = form.querySelector('#reportsStatusFilter');
+            const statusLabel = form.querySelector('#reportsStatusLabel');
+            const selectedReport = reportSelect.value;
+            const options = reportStatusOptions[selectedReport] || {};
+            const labelText = reportStatusLabels[selectedReport] || 'Status';
+
+            if (statusLabel) {
+                statusLabel.textContent = labelText;
+            }
+
+            if (statusSelect) {
+                statusSelect.innerHTML = '';
+                for (const [val, label] of Object.entries(options)) {
+                    const opt = document.createElement('option');
+                    opt.value = val;
+                    opt.textContent = label;
+                    statusSelect.appendChild(opt);
+                }
+                statusSelect.value = 'all';
+            }
+        }
+
         function reportsSyncQuickRange(select) {
             const form = select.form;
             const option = select.options[select.selectedIndex];
@@ -2385,7 +2429,6 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
                     const toInput = form.querySelector('[name=date_to]');
                     if (fromInput) fromInput.value = option.dataset.from;
                     if (toInput) toInput.value = option.dataset.to;
-                    form.submit();
                 }
             }
         }

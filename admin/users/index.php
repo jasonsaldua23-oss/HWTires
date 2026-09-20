@@ -535,7 +535,7 @@ $current_view_url = $_SERVER['REQUEST_URI'] ?? '/hwtires/admin/users/';
             <div class="hw-filter-cluster">
                 <div class="hw-filter-group hw-group-branch">
                     <label for="branchFilter" class="hw-filter-label">Branch</label>
-                    <select id="branchFilter" name="branch_id" class="hw-filter-select" onchange="this.form.submit()">
+                    <select id="branchFilter" name="branch_id" class="hw-filter-select">
                         <option value="all">All Branches</option>
                         <?php foreach ($branches as $branch): ?>
                             <option value="<?php echo (int) $branch['id']; ?>" <?php echo $branch_filter !== '' && (int) $branch_filter === (int) $branch['id'] ? 'selected' : ''; ?>>
@@ -547,7 +547,7 @@ $current_view_url = $_SERVER['REQUEST_URI'] ?? '/hwtires/admin/users/';
 
                 <div class="hw-filter-group hw-group-md">
                     <label for="roleFilter" class="hw-filter-label">Role</label>
-                    <select id="roleFilter" name="role" class="hw-filter-select" onchange="this.form.submit()">
+                    <select id="roleFilter" name="role" class="hw-filter-select">
                         <option value="all">All Roles</option>
                         <option value="admin" <?php echo $role_filter === 'admin' ? 'selected' : ''; ?>>Admin/Owner</option>
                         <option value="front-desk" <?php echo $role_filter === 'front-desk' ? 'selected' : ''; ?>>Front Desk</option>
@@ -556,7 +556,7 @@ $current_view_url = $_SERVER['REQUEST_URI'] ?? '/hwtires/admin/users/';
 
                 <div class="hw-filter-group hw-group-status">
                     <label for="statusFilter" class="hw-filter-label">Status</label>
-                    <select id="statusFilter" name="status" class="hw-filter-select" onchange="this.form.submit()">
+                    <select id="statusFilter" name="status" class="hw-filter-select">
                         <option value="all">All Statuses</option>
                         <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active</option>
                         <option value="inactive" <?php echo $status_filter === 'inactive' ? 'selected' : ''; ?>>Inactive</option>

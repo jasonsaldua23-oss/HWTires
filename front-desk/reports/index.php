@@ -863,6 +863,37 @@ if (!$has_inventory_access) {
     unset($archive_status_options['inventory_items']);
 }
 
+$front_report_status_options_map = [
+    'services' => $service_status_options,
+    'vehicles' => $vehicle_status_options,
+    'vehicle_history' => $vehicle_history_status_options,
+    'archives' => $archive_status_options,
+];
+$front_report_status_label_map = [
+    'services' => 'Report Status',
+    'vehicles' => 'Vehicle Filter',
+    'vehicle_history' => 'History Filter',
+    'archives' => 'Archive Type',
+];
+if ($has_inventory_access) {
+    $front_report_status_options_map = [
+        'services' => $service_status_options,
+        'items' => $item_status_options,
+        'vehicles' => $vehicle_status_options,
+        'vehicle_history' => $vehicle_history_status_options,
+        'stock_movement' => $stock_movement_status_options,
+        'archives' => $archive_status_options,
+    ];
+    $front_report_status_label_map = [
+        'services' => 'Report Status',
+        'items' => 'Sales Filter',
+        'vehicles' => 'Vehicle Filter',
+        'vehicle_history' => 'History Filter',
+        'stock_movement' => 'Movement Filter',
+        'archives' => 'Archive Type',
+    ];
+}
+
 switch ($report_tab) {
     case 'items':
         $active_status_options = $item_status_options;
@@ -1968,7 +1999,7 @@ if (!function_exists('front_reports_format_tat_minutes')) {
             <div class="hw-filter-cluster">
                 <div class="hw-filter-group hw-group-md">
                     <label for="frontReportsTypeFilter" class="hw-filter-label">Report</label>
-                    <select id="frontReportsTypeFilter" name="report" class="hw-filter-select" onchange="this.form.submit()">
+                    <select id="frontReportsTypeFilter" name="report" class="hw-filter-select" onchange="frontReportsSyncStatusFilter(this)">
                         <?php foreach ($report_tab_options as $tab_value => $tab_option): ?>
                             <option value="<?php echo esc_attr($tab_value); ?>" <?php echo $report_tab === $tab_value ? 'selected' : ''; ?>>
                                 <?php echo esc_html($tab_option['label']); ?>
@@ -1977,8 +2008,8 @@ if (!function_exists('front_reports_format_tat_minutes')) {
                     </select>
                 </div>
                 <div class="hw-filter-group hw-group-status">
-                    <label for="frontReportsStatusFilter" class="hw-filter-label"><?php echo $report_tab === 'services' ? 'Report Status' : 'Status'; ?></label>
-                    <select id="frontReportsStatusFilter" name="status" class="hw-filter-select" onchange="this.form.submit()">
+                    <label id="frontReportsStatusLabel" for="frontReportsStatusFilter" class="hw-filter-label"><?php echo esc_html($front_report_status_label_map[$report_tab] ?? 'Status'); ?></label>
+                    <select id="frontReportsStatusFilter" name="status" class="hw-filter-select">
                         <?php foreach ($active_status_options as $status_value => $status_label): ?>
                             <option value="<?php echo esc_attr($status_value); ?>" <?php echo $status_filter === $status_value ? 'selected' : ''; ?>>
                                 <?php echo esc_html($status_label); ?>
@@ -2041,6 +2072,34 @@ if (!function_exists('front_reports_format_tat_minutes')) {
             <input type="hidden" name="per_page" value="<?php echo (int) $detail_per_page; ?>">
         </form>
         <script>
+        const frontReportStatusOptions = <?php echo json_encode($front_report_status_options_map, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+        const frontReportStatusLabels = <?php echo json_encode($front_report_status_label_map, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+
+        function frontReportsSyncStatusFilter(reportSelect) {
+            const form = reportSelect.form;
+            if (!form) return;
+            const statusSelect = form.querySelector('#frontReportsStatusFilter');
+            const statusLabel = form.querySelector('#frontReportsStatusLabel');
+            const selectedReport = reportSelect.value;
+            const options = frontReportStatusOptions[selectedReport] || {};
+            const labelText = frontReportStatusLabels[selectedReport] || 'Status';
+
+            if (statusLabel) {
+                statusLabel.textContent = labelText;
+            }
+
+            if (statusSelect) {
+                statusSelect.innerHTML = '';
+                for (const [val, label] of Object.entries(options)) {
+                    const opt = document.createElement('option');
+                    opt.value = val;
+                    opt.textContent = label;
+                    statusSelect.appendChild(opt);
+                }
+                statusSelect.value = 'all';
+            }
+        }
+
         function reportsSyncQuickRange(select) {
             const form = select.form;
             const option = select.options[select.selectedIndex];
@@ -2062,7 +2121,6 @@ if (!function_exists('front_reports_format_tat_minutes')) {
                     const toInput = form.querySelector('[name=date_to]');
                     if (fromInput) fromInput.value = option.dataset.from;
                     if (toInput) toInput.value = option.dataset.to;
-                    form.submit();
                 }
             }
         }

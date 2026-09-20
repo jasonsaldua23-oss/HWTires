@@ -405,35 +405,80 @@ $progress_csrf_token = generate_csrf_token();
 
     <section class="service-branch-filter-card hw-filter-card">
         <div class="hw-filter-toolbar">
-            <div class="hw-filter-cluster">
-                <form method="GET" action="./#service-records" class="hw-filter-group hw-group-lg">
-                    <?php if ($focus_job_id > 0): ?>
-                        <input type="hidden" name="job_id" value="<?php echo (int) $focus_job_id; ?>">
-                    <?php endif; ?>
-                    <?php if ($search_filter !== ''): ?>
-                        <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
-                    <?php endif; ?>
-                    <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
+            <form method="GET" action="./#service-records" class="hw-filter-cluster" data-record-date-filter>
+                <?php if ($focus_job_id > 0): ?>
+                    <input type="hidden" name="job_id" value="<?php echo (int) $focus_job_id; ?>">
+                <?php endif; ?>
+                <?php if ($search_filter !== ''): ?>
+                    <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
+                <?php endif; ?>
+                <div class="hw-filter-group hw-group-lg">
                     <label for="frontServiceStatusSelect" class="hw-filter-label">Service Status</label>
-                    <select id="frontServiceStatusSelect" name="status" class="hw-filter-select" onchange="this.form.submit()" aria-label="Filter service status records">
+                    <select id="frontServiceStatusSelect" name="status" class="hw-filter-select" aria-label="Filter service status records">
                         <option value="all" <?php echo $status_filter === 'all' ? 'selected' : ''; ?>>All Service Statuses</option>
                         <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active Records</option>
                         <option value="waiting" <?php echo $status_filter === 'waiting' ? 'selected' : ''; ?>>Waiting</option>
                         <option value="in-progress" <?php echo $status_filter === 'in-progress' ? 'selected' : ''; ?>>In Progress</option>
                         <option value="completed" <?php echo $status_filter === 'completed' ? 'selected' : ''; ?>>Completed</option>
                     </select>
-                    <button type="submit" class="visually-hidden">Apply</button>
-                </form>
-                <div class="hw-date-actions-wrapper">
-                    <?php
-                    record_date_filter_controls($date_filter, [
-                        'status' => $status_filter !== 'all' ? $status_filter : '',
-                        'search' => $search_filter,
-                        'job_id' => $focus_job_id > 0 ? $focus_job_id : '',
-                    ], 'service-records', './#service-records');
-                    ?>
                 </div>
-            </div>
+
+                <div class="hw-date-actions-wrapper">
+                    <div class="records-date-filter">
+                        <label>
+                            <span>Records</span>
+                            <select name="date_scope" class="records-date-scope" aria-label="Select record period">
+                                <option value="all" <?php echo ($date_filter['scope'] ?? '') === 'all' ? 'selected' : ''; ?>>All Records</option>
+                                <option value="recent" <?php echo ($date_filter['scope'] ?? '') === 'recent' ? 'selected' : ''; ?>>Current Week</option>
+                                <option value="day" <?php echo ($date_filter['scope'] ?? '') === 'day' ? 'selected' : ''; ?>>Day</option>
+                                <option value="week" <?php echo ($date_filter['scope'] ?? '') === 'week' ? 'selected' : ''; ?>>Week</option>
+                                <option value="month" <?php echo ($date_filter['scope'] ?? '') === 'month' ? 'selected' : ''; ?>>Month</option>
+                                <option value="year" <?php echo ($date_filter['scope'] ?? '') === 'year' ? 'selected' : ''; ?>>Year</option>
+                                <option value="range" <?php echo ($date_filter['scope'] ?? '') === 'range' ? 'selected' : ''; ?>>Date Range</option>
+                            </select>
+                        </label>
+                        <label data-date-input="day" <?php echo ($date_filter['scope'] ?? '') !== 'day' ? 'hidden' : ''; ?>>
+                            <span>Day</span>
+                            <input type="date" name="date_day" value="<?php echo esc_attr($date_filter['day'] ?? ''); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'day' ? 'disabled' : ''; ?>>
+                        </label>
+                        <label data-date-input="week" <?php echo ($date_filter['scope'] ?? '') !== 'week' ? 'hidden' : ''; ?>>
+                            <span>Week</span>
+                            <input type="week" name="date_week" value="<?php echo esc_attr($date_filter['week'] ?? ''); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'week' ? 'disabled' : ''; ?>>
+                        </label>
+                        <label data-date-input="month" <?php echo ($date_filter['scope'] ?? '') !== 'month' ? 'hidden' : ''; ?>>
+                            <span>Month</span>
+                            <input type="month" name="date_month" value="<?php echo esc_attr($date_filter['month'] ?? ''); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'month' ? 'disabled' : ''; ?>>
+                        </label>
+                        <label data-date-input="year" <?php echo ($date_filter['scope'] ?? '') !== 'year' ? 'hidden' : ''; ?>>
+                            <span>Year</span>
+                            <input type="number" name="date_year" min="2020" max="2100" value="<?php echo (int) ($date_filter['year'] ?? date('Y')); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'year' ? 'disabled' : ''; ?>>
+                        </label>
+                        <label data-date-input="range" <?php echo ($date_filter['scope'] ?? '') !== 'range' ? 'hidden' : ''; ?>>
+                            <span>From</span>
+                            <input type="date" name="date_from" value="<?php echo esc_attr($date_filter['from'] ?? ''); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'range' ? 'disabled' : ''; ?>>
+                        </label>
+                        <label data-date-input="range" <?php echo ($date_filter['scope'] ?? '') !== 'range' ? 'hidden' : ''; ?>>
+                            <span>To</span>
+                            <input type="date" name="date_to" value="<?php echo esc_attr($date_filter['to'] ?? ''); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'range' ? 'disabled' : ''; ?>>
+                        </label>
+                        <div class="hw-date-action-pair">
+                            <button type="submit"
+                                    class="hw-filter-icon-btn hw-btn-filter"
+                                    title="Apply filters"
+                                    aria-label="Apply filters">
+                                <i class="fas fa-filter"></i>
+                            </button>
+                            <a href="./#service-records"
+                               class="hw-filter-icon-btn hw-btn-reset"
+                               title="Reset filters"
+                               aria-label="Reset filters">
+                                <i class="fas fa-rotate-left"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+            <?php record_date_filter_script(); ?>
             <form method="GET" action="./#service-records" class="hw-search-cluster">
                 <?php if ($focus_job_id > 0): ?>
                     <input type="hidden" name="job_id" value="<?php echo (int) $focus_job_id; ?>">

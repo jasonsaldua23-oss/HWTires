@@ -418,20 +418,13 @@ $hidden_for_date = [
 
     <section class="service-branch-filter-card admin-job-order-filter-card hw-filter-card">
         <div class="hw-filter-toolbar">
-            <div class="hw-filter-cluster">
-                <form method="GET" action="./#job-order-records" class="hw-filter-group hw-group-branch">
-                    <?php if ($status_filter !== 'all'): ?>
-                        <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
-                    <?php endif; ?>
-                    <?php if ($record_filter !== 'active'): ?>
-                        <input type="hidden" name="records" value="<?php echo esc_attr($record_filter); ?>">
-                    <?php endif; ?>
-                    <?php if ($search_filter !== ''): ?>
-                        <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
-                    <?php endif; ?>
-                    <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
+            <form method="GET" action="./#job-order-records" class="hw-filter-cluster" data-record-date-filter>
+                <?php if ($search_filter !== ''): ?>
+                    <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
+                <?php endif; ?>
+                <div class="hw-filter-group hw-group-branch">
                     <label for="branchFilter" class="hw-filter-label">Branch</label>
-                    <select id="branchFilter" name="branch_id" class="hw-filter-select" onchange="this.form.submit()">
+                    <select id="branchFilter" name="branch_id" class="hw-filter-select">
                         <option value="0">All Branches</option>
                         <?php foreach ($branches as $branch): ?>
                             <option value="<?php echo (int) $branch['id']; ?>" <?php echo $branch_filter === (int) $branch['id'] ? 'selected' : ''; ?>>
@@ -439,57 +432,86 @@ $hidden_for_date = [
                             </option>
                         <?php endforeach; ?>
                     </select>
-                    <button type="submit" class="visually-hidden">Apply</button>
-                </form>
+                </div>
 
-                <form method="GET" action="./#job-order-records" class="hw-filter-group hw-group-status">
-                    <?php if ($branch_filter > 0): ?>
-                        <input type="hidden" name="branch_id" value="<?php echo (int) $branch_filter; ?>">
-                    <?php endif; ?>
-                    <?php if ($record_filter !== 'active'): ?>
-                        <input type="hidden" name="records" value="<?php echo esc_attr($record_filter); ?>">
-                    <?php endif; ?>
-                    <?php if ($search_filter !== ''): ?>
-                        <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
-                    <?php endif; ?>
-                    <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
+                <div class="hw-filter-group hw-group-status">
                     <label for="jobStatusFilter" class="hw-filter-label">Status</label>
-                    <select id="jobStatusFilter" name="status" class="hw-filter-select" onchange="this.form.submit()">
+                    <select id="jobStatusFilter" name="status" class="hw-filter-select">
                         <?php foreach ($tracked_statuses as $status_value => $status_label): ?>
                             <option value="<?php echo esc_attr($status_value); ?>" <?php echo $status_filter === $status_value ? 'selected' : ''; ?>>
                                 <?php echo esc_html($status_label); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
-                    <button type="submit" class="visually-hidden">Apply</button>
-                </form>
+                </div>
 
-                <form method="GET" action="./#job-order-records" class="hw-filter-group hw-group-status">
-                    <?php if ($status_filter !== 'all'): ?>
-                        <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
-                    <?php endif; ?>
-                    <?php if ($branch_filter > 0): ?>
-                        <input type="hidden" name="branch_id" value="<?php echo (int) $branch_filter; ?>">
-                    <?php endif; ?>
-                    <?php if ($search_filter !== ''): ?>
-                        <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
-                    <?php endif; ?>
-                    <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
+                <div class="hw-filter-group hw-group-status">
                     <label for="jobRecordFilter" class="hw-filter-label">Archive Status</label>
-                    <select id="jobRecordFilter" name="records" class="hw-filter-select" onchange="this.form.submit()">
+                    <select id="jobRecordFilter" name="records" class="hw-filter-select">
                         <?php foreach (record_archive_filter_options() as $record_value => $record_label): ?>
                             <option value="<?php echo esc_attr($record_value); ?>" <?php echo $record_filter === $record_value ? 'selected' : ''; ?>>
                                 <?php echo esc_html($record_label); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
-                    <button type="submit" class="visually-hidden">Apply</button>
-                </form>
+                </div>
 
                 <div class="hw-date-actions-wrapper">
-                    <?php record_date_filter_controls($date_filter, $hidden_for_date, 'job-order-records', './#job-order-records'); ?>
+                    <div class="records-date-filter">
+                        <label>
+                            <span>Records</span>
+                            <select name="date_scope" class="records-date-scope" aria-label="Select record period">
+                                <option value="all" <?php echo ($date_filter['scope'] ?? '') === 'all' ? 'selected' : ''; ?>>All Records</option>
+                                <option value="recent" <?php echo ($date_filter['scope'] ?? '') === 'recent' ? 'selected' : ''; ?>>Current Week</option>
+                                <option value="day" <?php echo ($date_filter['scope'] ?? '') === 'day' ? 'selected' : ''; ?>>Day</option>
+                                <option value="week" <?php echo ($date_filter['scope'] ?? '') === 'week' ? 'selected' : ''; ?>>Week</option>
+                                <option value="month" <?php echo ($date_filter['scope'] ?? '') === 'month' ? 'selected' : ''; ?>>Month</option>
+                                <option value="year" <?php echo ($date_filter['scope'] ?? '') === 'year' ? 'selected' : ''; ?>>Year</option>
+                                <option value="range" <?php echo ($date_filter['scope'] ?? '') === 'range' ? 'selected' : ''; ?>>Date Range</option>
+                            </select>
+                        </label>
+                        <label data-date-input="day" <?php echo ($date_filter['scope'] ?? '') !== 'day' ? 'hidden' : ''; ?>>
+                            <span>Day</span>
+                            <input type="date" name="date_day" value="<?php echo esc_attr($date_filter['day'] ?? ''); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'day' ? 'disabled' : ''; ?>>
+                        </label>
+                        <label data-date-input="week" <?php echo ($date_filter['scope'] ?? '') !== 'week' ? 'hidden' : ''; ?>>
+                            <span>Week</span>
+                            <input type="week" name="date_week" value="<?php echo esc_attr($date_filter['week'] ?? ''); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'week' ? 'disabled' : ''; ?>>
+                        </label>
+                        <label data-date-input="month" <?php echo ($date_filter['scope'] ?? '') !== 'month' ? 'hidden' : ''; ?>>
+                            <span>Month</span>
+                            <input type="month" name="date_month" value="<?php echo esc_attr($date_filter['month'] ?? ''); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'month' ? 'disabled' : ''; ?>>
+                        </label>
+                        <label data-date-input="year" <?php echo ($date_filter['scope'] ?? '') !== 'year' ? 'hidden' : ''; ?>>
+                            <span>Year</span>
+                            <input type="number" name="date_year" min="2020" max="2100" value="<?php echo (int) ($date_filter['year'] ?? date('Y')); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'year' ? 'disabled' : ''; ?>>
+                        </label>
+                        <label data-date-input="range" <?php echo ($date_filter['scope'] ?? '') !== 'range' ? 'hidden' : ''; ?>>
+                            <span>From</span>
+                            <input type="date" name="date_from" value="<?php echo esc_attr($date_filter['from'] ?? ''); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'range' ? 'disabled' : ''; ?>>
+                        </label>
+                        <label data-date-input="range" <?php echo ($date_filter['scope'] ?? '') !== 'range' ? 'hidden' : ''; ?>>
+                            <span>To</span>
+                            <input type="date" name="date_to" value="<?php echo esc_attr($date_filter['to'] ?? ''); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'range' ? 'disabled' : ''; ?>>
+                        </label>
+                        <div class="hw-date-action-pair">
+                            <button type="submit"
+                                    class="hw-filter-icon-btn hw-btn-filter"
+                                    title="Apply filters"
+                                    aria-label="Apply filters">
+                                <i class="fas fa-filter"></i>
+                            </button>
+                            <a href="./#job-order-records"
+                               class="hw-filter-icon-btn hw-btn-reset"
+                               title="Reset filters"
+                               aria-label="Reset filters">
+                                <i class="fas fa-rotate-left"></i>
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </form>
+            <?php record_date_filter_script(); ?>
 
             <form method="GET" action="./#job-order-records" class="hw-search-cluster">
                 <?php record_date_filter_hidden_inputs($hidden_for_search); ?>

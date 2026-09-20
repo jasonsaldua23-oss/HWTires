@@ -311,20 +311,13 @@ $pagination_params .= record_date_filter_query_string($date_filter);
 
     <section class="quotation-records-filter-card hw-filter-card">
         <div class="hw-filter-toolbar">
-            <div class="hw-filter-cluster">
-                <form method="GET" action="./#quotation-records" class="hw-filter-group hw-group-branch">
-                    <?php if ($status_filter !== 'all'): ?>
-                        <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
-                    <?php endif; ?>
-                    <?php if ($record_filter !== 'active'): ?>
-                        <input type="hidden" name="records" value="<?php echo esc_attr($record_filter); ?>">
-                    <?php endif; ?>
-                    <?php if ($search_filter !== ''): ?>
-                        <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
-                    <?php endif; ?>
-                    <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
+            <form method="GET" action="./#quotation-records" class="hw-filter-cluster" data-record-date-filter>
+                <?php if ($search_filter !== ''): ?>
+                    <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
+                <?php endif; ?>
+                <div class="hw-filter-group hw-group-branch">
                     <label for="adminQuoteBranch" class="hw-filter-label">Branch</label>
-                    <select id="adminQuoteBranch" name="branch" class="hw-filter-select" onchange="this.form.submit()" aria-label="Filter quotations by branch">
+                    <select id="adminQuoteBranch" name="branch" class="hw-filter-select" aria-label="Filter quotations by branch">
                         <option value="">All Branches</option>
                         <?php foreach ($branches as $branch): ?>
                             <?php $branch_label = quotation_branch_label($branch['name']); ?>
@@ -333,44 +326,22 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                             </option>
                         <?php endforeach; ?>
                     </select>
-                    <button type="submit" class="visually-hidden">Apply</button>
-                </form>
+                </div>
 
-                <form method="GET" action="./#quotation-records" class="hw-filter-group hw-group-status">
-                    <?php if ($status_filter !== 'all'): ?>
-                        <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
-                    <?php endif; ?>
-                    <?php if ($branch_filter !== ''): ?>
-                        <input type="hidden" name="branch" value="<?php echo esc_attr((string) $branch_filter); ?>">
-                    <?php endif; ?>
-                    <?php if ($search_filter !== ''): ?>
-                        <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
-                    <?php endif; ?>
-                    <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
+                <div class="hw-filter-group hw-group-status">
                     <label for="adminQuoteRecords" class="hw-filter-label">Archive Status</label>
-                    <select id="adminQuoteRecords" name="records" class="hw-filter-select" onchange="this.form.submit()" aria-label="Filter service operations by record state">
+                    <select id="adminQuoteRecords" name="records" class="hw-filter-select" aria-label="Filter service operations by record state">
                         <?php foreach (record_archive_filter_options() as $record_value => $record_label): ?>
                             <option value="<?php echo esc_attr($record_value); ?>" <?php echo $record_filter === $record_value ? 'selected' : ''; ?>>
                                 <?php echo esc_html($record_label); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
-                    <button type="submit" class="visually-hidden">Apply</button>
-                </form>
+                </div>
 
-                <form method="GET" action="./#quotation-records" class="hw-filter-group hw-group-status">
-                    <?php if ($record_filter !== 'active'): ?>
-                        <input type="hidden" name="records" value="<?php echo esc_attr($record_filter); ?>">
-                    <?php endif; ?>
-                    <?php if ($branch_filter !== ''): ?>
-                        <input type="hidden" name="branch" value="<?php echo esc_attr((string) $branch_filter); ?>">
-                    <?php endif; ?>
-                    <?php if ($search_filter !== ''): ?>
-                        <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
-                    <?php endif; ?>
-                    <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
+                <div class="hw-filter-group hw-group-status">
                     <label for="adminQuoteStatus" class="hw-filter-label">Status</label>
-                    <select id="adminQuoteStatus" name="status" class="hw-filter-select" onchange="this.form.submit()" aria-label="Filter service operations by status">
+                    <select id="adminQuoteStatus" name="status" class="hw-filter-select" aria-label="Filter service operations by status">
                         <?php foreach ($allowed_statuses as $status): ?>
                         <?php $label = $status === 'all' ? 'All' : ucfirst($status); ?>
                             <option value="<?php echo esc_attr($status); ?>" <?php echo $status_filter === $status ? 'selected' : ''; ?>>
@@ -378,20 +349,64 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                             </option>
                         <?php endforeach; ?>
                     </select>
-                    <button type="submit" class="visually-hidden">Apply</button>
-                </form>
+                </div>
 
                 <div class="hw-date-actions-wrapper">
-                    <?php
-                    record_date_filter_controls($date_filter, [
-                        'status' => $status_filter !== 'all' ? $status_filter : '',
-                        'branch' => $branch_filter !== '' ? $branch_filter : '',
-                        'search' => $search_filter,
-                        'records' => $record_filter !== 'active' ? $record_filter : '',
-                    ], 'quotation-records', './#quotation-records');
-                    ?>
+                    <div class="records-date-filter">
+                        <label>
+                            <span>Records</span>
+                            <select name="date_scope" class="records-date-scope" aria-label="Select record period">
+                                <option value="all" <?php echo ($date_filter['scope'] ?? '') === 'all' ? 'selected' : ''; ?>>All Records</option>
+                                <option value="recent" <?php echo ($date_filter['scope'] ?? '') === 'recent' ? 'selected' : ''; ?>>Current Week</option>
+                                <option value="day" <?php echo ($date_filter['scope'] ?? '') === 'day' ? 'selected' : ''; ?>>Day</option>
+                                <option value="week" <?php echo ($date_filter['scope'] ?? '') === 'week' ? 'selected' : ''; ?>>Week</option>
+                                <option value="month" <?php echo ($date_filter['scope'] ?? '') === 'month' ? 'selected' : ''; ?>>Month</option>
+                                <option value="year" <?php echo ($date_filter['scope'] ?? '') === 'year' ? 'selected' : ''; ?>>Year</option>
+                                <option value="range" <?php echo ($date_filter['scope'] ?? '') === 'range' ? 'selected' : ''; ?>>Date Range</option>
+                            </select>
+                        </label>
+                        <label data-date-input="day" <?php echo ($date_filter['scope'] ?? '') !== 'day' ? 'hidden' : ''; ?>>
+                            <span>Day</span>
+                            <input type="date" name="date_day" value="<?php echo esc_attr($date_filter['day'] ?? ''); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'day' ? 'disabled' : ''; ?>>
+                        </label>
+                        <label data-date-input="week" <?php echo ($date_filter['scope'] ?? '') !== 'week' ? 'hidden' : ''; ?>>
+                            <span>Week</span>
+                            <input type="week" name="date_week" value="<?php echo esc_attr($date_filter['week'] ?? ''); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'week' ? 'disabled' : ''; ?>>
+                        </label>
+                        <label data-date-input="month" <?php echo ($date_filter['scope'] ?? '') !== 'month' ? 'hidden' : ''; ?>>
+                            <span>Month</span>
+                            <input type="month" name="date_month" value="<?php echo esc_attr($date_filter['month'] ?? ''); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'month' ? 'disabled' : ''; ?>>
+                        </label>
+                        <label data-date-input="year" <?php echo ($date_filter['scope'] ?? '') !== 'year' ? 'hidden' : ''; ?>>
+                            <span>Year</span>
+                            <input type="number" name="date_year" min="2020" max="2100" value="<?php echo (int) ($date_filter['year'] ?? date('Y')); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'year' ? 'disabled' : ''; ?>>
+                        </label>
+                        <label data-date-input="range" <?php echo ($date_filter['scope'] ?? '') !== 'range' ? 'hidden' : ''; ?>>
+                            <span>From</span>
+                            <input type="date" name="date_from" value="<?php echo esc_attr($date_filter['from'] ?? ''); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'range' ? 'disabled' : ''; ?>>
+                        </label>
+                        <label data-date-input="range" <?php echo ($date_filter['scope'] ?? '') !== 'range' ? 'hidden' : ''; ?>>
+                            <span>To</span>
+                            <input type="date" name="date_to" value="<?php echo esc_attr($date_filter['to'] ?? ''); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'range' ? 'disabled' : ''; ?>>
+                        </label>
+                        <div class="hw-date-action-pair">
+                            <button type="submit"
+                                    class="hw-filter-icon-btn hw-btn-filter"
+                                    title="Apply filters"
+                                    aria-label="Apply filters">
+                                <i class="fas fa-filter"></i>
+                            </button>
+                            <a href="./#quotation-records"
+                               class="hw-filter-icon-btn hw-btn-reset"
+                               title="Reset filters"
+                               aria-label="Reset filters">
+                                <i class="fas fa-rotate-left"></i>
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </form>
+            <?php record_date_filter_script(); ?>
 
             <form method="GET" action="./#quotation-records" class="hw-search-cluster">
                 <?php if ($status_filter !== 'all'): ?>
