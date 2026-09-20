@@ -5,6 +5,7 @@
  */
 
 require_once __DIR__ . '/../../includes/config.php';
+require_once __DIR__ . '/../../includes/record-filters.php';
 global $pdo;
 if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
     session_name(SESSION_NAME);
@@ -34,6 +35,7 @@ $filter_branch = (int) ($_GET['branch'] ?? 0);
 $filter_priority = $_GET['priority'] ?? '';
 $filter_request_id = (int) ($_GET['request'] ?? 0);
 $search = trim($_GET['search'] ?? '');
+$date_filter = record_date_filter_current('all');
 
 // Build query
 $where = ['1=1'];
@@ -58,6 +60,11 @@ if ($filter_branch) {
 if ($filter_priority) {
     $where[] = "t.priority = ?";
     $params[] = $filter_priority;
+}
+
+$date_condition = record_date_filter_condition('t.created_at', $date_filter, $params);
+if ($date_condition !== '') {
+    $where[] = $date_condition;
 }
 
 if ($search) {
@@ -136,45 +143,86 @@ include __DIR__ . '/../../includes/sidebar.php';
         <!-- Filters -->
         <div class="card border-0 shadow-sm rounded-3 mb-4 transfers-filter-card hw-filter-card">
             <div class="card-body p-3">
-                <form method="GET" action="/hwtires/admin/transfers/" class="transfers-unified-filter-form hw-filter-toolbar">
-                    <div class="hw-filter-group hw-group-status">
-                        <label for="transferStatus" class="hw-filter-label">Status</label>
-                        <select id="transferStatus" name="status" class="hw-filter-select">
-                            <option value="">All Statuses</option>
-                            <option value="pending" <?= $filter_status === 'pending' ? 'selected' : '' ?>>Pending</option>
-                            <option value="approved" <?= $filter_status === 'approved' ? 'selected' : '' ?>>Approved</option>
-                            <option value="shipped" <?= $filter_status === 'shipped' ? 'selected' : '' ?>>Shipped</option>
-                            <option value="received" <?= $filter_status === 'received' ? 'selected' : '' ?>>Received</option>
-                            <option value="cancelled" <?= $filter_status === 'cancelled' ? 'selected' : '' ?>>Cancelled</option>
-                        </select>
-                    </div>
-                    <div class="hw-filter-group hw-group-priority">
-                        <label for="transferPriority" class="hw-filter-label">Priority</label>
-                        <select id="transferPriority" name="priority" class="hw-filter-select">
-                            <option value="">All Priorities</option>
-                            <option value="high" <?= $filter_priority === 'high' ? 'selected' : '' ?>>High</option>
-                            <option value="medium" <?= $filter_priority === 'medium' ? 'selected' : '' ?>>Medium</option>
-                            <option value="low" <?= $filter_priority === 'low' ? 'selected' : '' ?>>Low</option>
-                        </select>
-                    </div>
-                    <div class="hw-filter-group hw-group-branch">
-                        <label for="transferBranch" class="hw-filter-label">Branch</label>
-                        <select id="transferBranch" name="branch" class="hw-filter-select">
-                            <option value="">All Branches</option>
-                            <?php foreach ($branches as $b): ?>
-                                <option value="<?= (int)$b['id'] ?>" <?= $filter_branch === (int) $b['id'] ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($b['name']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="hw-filter-actions">
-                        <button type="submit" class="btn btn-primary hw-filter-icon-btn" title="Apply filters" aria-label="Apply filters">
-                            <i class="fas fa-filter"></i>
-                        </button>
-                        <a href="/hwtires/admin/transfers/" class="btn btn-outline-secondary hw-filter-icon-btn hw-btn-reset" title="Reset filters" aria-label="Reset filters">
-                            <i class="fas fa-rotate-left"></i>
-                        </a>
+                <form method="GET" action="/hwtires/admin/transfers/" class="transfers-unified-filter-form hw-filter-toolbar" data-record-date-filter>
+                    <?php if ($filter_request_id > 0): ?>
+                        <input type="hidden" name="request" value="<?= (int) $filter_request_id ?>">
+                    <?php endif; ?>
+                    <div class="hw-filter-cluster">
+                        <div class="hw-filter-group hw-group-status">
+                            <label for="transferStatus" class="hw-filter-label">Status</label>
+                            <select id="transferStatus" name="status" class="hw-filter-select">
+                                <option value="">All Statuses</option>
+                                <option value="pending" <?= $filter_status === 'pending' ? 'selected' : '' ?>>Pending</option>
+                                <option value="approved" <?= $filter_status === 'approved' ? 'selected' : '' ?>>Approved</option>
+                                <option value="shipped" <?= $filter_status === 'shipped' ? 'selected' : '' ?>>Shipped</option>
+                                <option value="received" <?= $filter_status === 'received' ? 'selected' : '' ?>>Received</option>
+                                <option value="cancelled" <?= $filter_status === 'cancelled' ? 'selected' : '' ?>>Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="hw-filter-group hw-group-priority">
+                            <label for="transferPriority" class="hw-filter-label">Priority</label>
+                            <select id="transferPriority" name="priority" class="hw-filter-select">
+                                <option value="">All Priorities</option>
+                                <option value="high" <?= $filter_priority === 'high' ? 'selected' : '' ?>>High</option>
+                                <option value="medium" <?= $filter_priority === 'medium' ? 'selected' : '' ?>>Medium</option>
+                                <option value="low" <?= $filter_priority === 'low' ? 'selected' : '' ?>>Low</option>
+                            </select>
+                        </div>
+                        <div class="hw-filter-group hw-group-branch">
+                            <label for="transferBranch" class="hw-filter-label">Branch</label>
+                            <select id="transferBranch" name="branch" class="hw-filter-select">
+                                <option value="">All Branches</option>
+                                <?php foreach ($branches as $b): ?>
+                                    <option value="<?= (int)$b['id'] ?>" <?= $filter_branch === (int) $b['id'] ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($b['name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="hw-filter-group hw-group-date">
+                            <label for="transferDateScope" class="hw-filter-label">Records</label>
+                            <select id="transferDateScope" name="date_scope" class="records-date-scope hw-filter-select" aria-label="Select record period">
+                                <option value="all" <?= ($date_filter['scope'] ?? 'all') === 'all' ? 'selected' : '' ?>>All Records</option>
+                                <option value="recent" <?= ($date_filter['scope'] ?? '') === 'recent' ? 'selected' : '' ?>>Current Week</option>
+                                <option value="day" <?= ($date_filter['scope'] ?? '') === 'day' ? 'selected' : '' ?>>Day</option>
+                                <option value="week" <?= ($date_filter['scope'] ?? '') === 'week' ? 'selected' : '' ?>>Week</option>
+                                <option value="month" <?= ($date_filter['scope'] ?? '') === 'month' ? 'selected' : '' ?>>Month</option>
+                                <option value="year" <?= ($date_filter['scope'] ?? '') === 'year' ? 'selected' : '' ?>>Year</option>
+                                <option value="range" <?= ($date_filter['scope'] ?? '') === 'range' ? 'selected' : '' ?>>Date Range</option>
+                            </select>
+                        </div>
+                        <div class="hw-filter-group" data-date-input="day">
+                            <label for="transferDateDay" class="hw-filter-label">Day</label>
+                            <input id="transferDateDay" type="date" name="date_day" class="hw-filter-input" value="<?= htmlspecialchars($date_filter['day']) ?>">
+                        </div>
+                        <div class="hw-filter-group" data-date-input="week">
+                            <label for="transferDateWeek" class="hw-filter-label">Week</label>
+                            <input id="transferDateWeek" type="week" name="date_week" class="hw-filter-input" value="<?= htmlspecialchars($date_filter['week']) ?>">
+                        </div>
+                        <div class="hw-filter-group" data-date-input="month">
+                            <label for="transferDateMonth" class="hw-filter-label">Month</label>
+                            <input id="transferDateMonth" type="month" name="date_month" class="hw-filter-input" value="<?= htmlspecialchars($date_filter['month']) ?>">
+                        </div>
+                        <div class="hw-filter-group" data-date-input="year">
+                            <label for="transferDateYear" class="hw-filter-label">Year</label>
+                            <input id="transferDateYear" type="number" name="date_year" min="2020" max="2100" class="hw-filter-input" value="<?= (int) $date_filter['year'] ?>">
+                        </div>
+                        <div class="hw-filter-group" data-date-input="range">
+                            <label for="transferDateFrom" class="hw-filter-label">From</label>
+                            <input id="transferDateFrom" type="date" name="date_from" class="hw-filter-input" value="<?= htmlspecialchars($date_filter['from']) ?>">
+                        </div>
+                        <div class="hw-filter-group" data-date-input="range">
+                            <label for="transferDateTo" class="hw-filter-label">To</label>
+                            <input id="transferDateTo" type="date" name="date_to" class="hw-filter-input" value="<?= htmlspecialchars($date_filter['to']) ?>">
+                        </div>
+                        <div class="hw-filter-actions">
+                            <button type="submit" class="btn btn-primary hw-filter-icon-btn hw-btn-filter" title="Apply filters" aria-label="Apply filters">
+                                <i class="fas fa-filter"></i>
+                            </button>
+                            <a href="/hwtires/admin/transfers/" class="btn btn-outline-secondary hw-filter-icon-btn hw-btn-reset" title="Reset filters" aria-label="Reset filters">
+                                <i class="fas fa-rotate-left"></i>
+                            </a>
+                        </div>
                     </div>
                     <div class="hw-search-cluster">
                         <div class="hw-filter-group hw-group-search flex-grow-1">
@@ -192,6 +240,7 @@ include __DIR__ . '/../../includes/sidebar.php';
                 </form>
             </div>
         </div>
+        <?php record_date_filter_script(); ?>
 
         <!-- Table -->
         <div class="card border-0 shadow-sm rounded-3">
