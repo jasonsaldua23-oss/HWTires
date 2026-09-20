@@ -53,12 +53,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
     $business_hours = trim($_POST['business_hours'] ?? '');
     $quotation_footer_note = trim($_POST['quotation_footer_note'] ?? '');
     $primary_color = trim($_POST['primary_color'] ?? '#06B6D4');
+    $session_timeout_raw = $_POST['session_inactivity_timeout'] ?? null;
 
     if ($primary_color !== '' && $primary_color[0] !== '#') {
         $primary_color = '#' . $primary_color;
     }
 
     $errors = [];
+
+    $allowed_timeouts = [900, 1800, 2700, 3600, 7200];
+    if ($session_timeout_raw === null || $session_timeout_raw === '' || !is_numeric($session_timeout_raw) || !in_array((int) $session_timeout_raw, $allowed_timeouts, true)) {
+        $errors[] = 'Please select a valid session inactivity timeout (15 Minutes, 30 Minutes, 45 Minutes, 1 Hour, or 2 Hours).';
+    } else {
+        $session_inactivity_timeout = (int) $session_timeout_raw;
+    }
 
     if ($company_name === '') {
         $errors[] = 'Company name is required.';
@@ -131,6 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
                 'quotation_footer_note' => $quotation_footer_note,
                 'company_logo' => $logo_path,
                 'primary_color' => strtoupper($primary_color),
+                'session_inactivity_timeout' => (string) $session_inactivity_timeout,
             ];
 
             $pdo->beginTransaction();
@@ -187,6 +196,10 @@ $company_address_value = $settings['company_address'] ?? '';
 $business_hours_value = $settings['business_hours'] ?? '';
 $quotation_footer_value = $settings['quotation_footer_note'] ?? '';
 $primary_color_value = $settings['primary_color'] ?? '#06B6D4';
+$session_timeout_value = (int) ($settings['session_inactivity_timeout'] ?? 3600);
+if (!in_array($session_timeout_value, [900, 1800, 2700, 3600, 7200], true)) {
+    $session_timeout_value = 3600;
+}
 $logo_path_value = 'assets/images/logo.svg';
 $candidate_logo_setting = ltrim((string) ($settings['company_logo'] ?? ''), '/');
 if ($candidate_logo_setting !== '' && is_file(dirname(__DIR__, 2) . '/' . $candidate_logo_setting)) {
@@ -386,23 +399,39 @@ $logo_src = APP_URL . '/' . $logo_path_value;
             </div>
         </section>
 
-        <!-- Security Information (Read-Only) -->
+        <!-- Session & Security Preferences -->
         <section class="settings-panel security-status-panel">
             <div class="settings-section-heading">
                 <span class="security-heading-icon"><i class="fas fa-shield-check"></i></span>
+                <h2>Session & Security Settings</h2>
+            </div>
+
+            <div class="settings-form-grid" style="margin-bottom: 24px;">
+                <label for="session_inactivity_timeout" style="grid-column: span 2;">
+                    <span>Session Inactivity Timeout</span>
+                    <select
+                        id="session_inactivity_timeout"
+                        name="session_inactivity_timeout"
+                        class="settings-select form-select"
+                    >
+                        <option value="900" <?php echo $session_timeout_value === 900 ? 'selected' : ''; ?>>15 Minutes</option>
+                        <option value="1800" <?php echo $session_timeout_value === 1800 ? 'selected' : ''; ?>>30 Minutes</option>
+                        <option value="2700" <?php echo $session_timeout_value === 2700 ? 'selected' : ''; ?>>45 Minutes</option>
+                        <option value="3600" <?php echo $session_timeout_value === 3600 ? 'selected' : ''; ?>>1 Hour</option>
+                        <option value="7200" <?php echo $session_timeout_value === 7200 ? 'selected' : ''; ?>>2 Hours</option>
+                    </select>
+                    <small class="text-muted" style="display: block; margin-top: 6px; font-size: 13px; color: #64748b;">
+                        Automatically logs out inactive users across Admin and Front Desk portals.
+                    </small>
+                </label>
+            </div>
+
+            <div class="settings-section-heading" style="margin-top: 24px; margin-bottom: 14px;">
+                <span class="security-heading-icon"><i class="fas fa-lock"></i></span>
                 <h2>System Security Protections <small class="security-readonly-hint">(Read-Only Status)</small></h2>
             </div>
 
             <div class="security-status-grid">
-                <div class="security-status-card">
-                    <div class="security-status-icon"><i class="fas fa-clock"></i></div>
-                    <div>
-                        <strong>Session Inactivity Timeout</strong>
-                        <p>Active — 1 Hour</p>
-                    </div>
-                    <span class="security-badge-active"><i class="fas fa-check me-1"></i> Active</span>
-                </div>
-
                 <div class="security-status-card">
                     <div class="security-status-icon"><i class="fas fa-user-lock"></i></div>
                     <div>
@@ -459,6 +488,24 @@ $logo_src = APP_URL . '/' . $logo_path_value;
     transition: all 0.2s ease;
 }
 .settings-textarea:focus {
+    border-color: #0097b2;
+    box-shadow: 0 0 0 0.2rem rgba(0, 151, 178, 0.16);
+}
+.settings-select {
+    width: 100%;
+    max-width: 420px;
+    min-height: 52px;
+    padding: 10px 16px;
+    color: #00183a;
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    outline: none;
+    transition: all 0.2s ease;
+}
+.settings-select:focus {
     border-color: #0097b2;
     box-shadow: 0 0 0 0.2rem rgba(0, 151, 178, 0.16);
 }

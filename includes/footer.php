@@ -364,14 +364,18 @@ window.HWTIRES_ADDRESS_DATA_URL = <?php echo json_encode(APP_URL . '/assets/data
         });
     });
 
-    // Session Inactivity Timeout Handler (1 Hour limit: 59 min idle + 60s countdown modal)
+    // Session Inactivity Timeout Handler (Dynamic limit: [timeout - 60s] idle + 60s countdown modal)
     (function() {
         <?php if (is_logged_in()): ?>
+        <?php
+            $session_timeout_sec = function_exists('app_get_session_timeout') ? app_get_session_timeout() : 3600;
+        ?>
         // =========================================================================
-        // TIMEOUT SETTINGS: 1 Hour Total (59 minutes idle + 60s modal countdown)
+        // TIMEOUT SETTINGS: Dynamic Session Inactivity Timeout
         // =========================================================================
-        const INACTIVITY_TIMEOUT_MS = 59 * 60 * 1000; // 59 minutes before warning modal appears
+        const SESSION_TIMEOUT_SEC = <?php echo (int) $session_timeout_sec; ?>;
         const COUNTDOWN_SECONDS = 60;                 // 60 seconds countdown on warning modal
+        const INACTIVITY_TIMEOUT_MS = Math.max(0, SESSION_TIMEOUT_SEC - COUNTDOWN_SECONDS) * 1000;
         const LOGOUT_URL = <?php echo json_encode(APP_URL . '/logout.php?timeout=1'); ?>;
         const PING_URL = <?php echo json_encode(APP_URL . '/api/notifications-api.php?action=ping'); ?>;
 

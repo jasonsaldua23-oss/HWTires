@@ -55,7 +55,7 @@ define('APP_TIMEZONE', $get_env_val('APP_TIMEZONE', 'Asia/Manila'));
 date_default_timezone_set(APP_TIMEZONE);
 
 // Session configuration
-define('SESSION_TIMEOUT', 3600); // 1 hour in seconds
+define('SESSION_TIMEOUT', 3600); // Default fallback session timeout in seconds
 define('SESSION_NAME', 'hwtires_session');
 
 // Pagination
@@ -325,6 +325,51 @@ if (!function_exists('app_clear_failed_logins')) {
 }
 
 /**
+ * Retrieve effective session inactivity timeout in seconds.
+ * Allowed values: 900 (15m), 1800 (30m), 2700 (45m), 3600 (1h), 7200 (2h).
+ * Falls back to 3600 if missing, corrupt, invalid, or database is unavailable.
+ */
+if (!function_exists('app_get_session_timeout')) {
+    function app_get_session_timeout(?PDO $pdo_conn = null, bool $refresh = false): int {
+        static $cached_timeout = null;
+
+        if ($cached_timeout !== null && !$refresh) {
+            return $cached_timeout;
+        }
+
+        $allowed_timeouts = [900, 1800, 2700, 3600, 7200];
+        $default_timeout = defined('SESSION_TIMEOUT') ? (int) SESSION_TIMEOUT : 3600;
+
+        try {
+            $conn = $pdo_conn;
+            if (!$conn) {
+                global $pdo;
+                $conn = $pdo ?? null;
+            }
+
+            if ($conn instanceof PDO) {
+                $stmt = $conn->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'session_inactivity_timeout' LIMIT 1");
+                $stmt->execute();
+                $val = $stmt->fetchColumn();
+
+                if ($val !== false && is_numeric($val)) {
+                    $val_int = (int) $val;
+                    if (in_array($val_int, $allowed_timeouts, true)) {
+                        $cached_timeout = $val_int;
+                        return $cached_timeout;
+                    }
+                }
+            }
+        } catch (Throwable $e) {
+            // Gracefully degrade to default timeout on any database error
+        }
+
+        $cached_timeout = $default_timeout;
+        return $cached_timeout;
+    }
+}
+
+/**
  * Check if user is logged in and enforce session security
  */
 if (!function_exists('is_logged_in')) {
@@ -334,9 +379,10 @@ if (!function_exists('is_logged_in')) {
             return false;
         }
 
-        if (defined('SESSION_TIMEOUT') && SESSION_TIMEOUT > 0) {
+        $timeout = app_get_session_timeout();
+        if ($timeout > 0) {
             $last_act = $_SESSION['last_activity'] ?? null;
-            if ($last_act !== null && (time() - (int) $last_act > SESSION_TIMEOUT)) {
+            if ($last_act !== null && (time() - (int) $last_act > $timeout)) {
                 if (function_exists('log_audit')) {
                     log_audit('users', 'logout', (int) $user['id'], null, ['reason' => 'inactivity_timeout']);
                 }
