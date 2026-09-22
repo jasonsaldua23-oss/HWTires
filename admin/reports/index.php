@@ -2536,7 +2536,7 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
                     <tbody>
                         <?php if (empty($detail_records)): ?>
                             <tr>
-                                <td colspan="7" class="reports-empty-state">No service records found for this filter.</td>
+                                <td colspan="7" class="reports-empty-state text-center">No service records found for this filter.</td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($detail_records as $service): ?>
@@ -2604,7 +2604,7 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
                     <tbody>
                         <?php if (empty($detail_records)): ?>
                             <tr>
-                                <td colspan="8" class="reports-empty-state">No inventory sales found for this filter.</td>
+                                <td colspan="8" class="reports-empty-state text-center">No inventory sales found for this filter.</td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($detail_records as $movement): ?>
@@ -2683,7 +2683,7 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
                     <tbody>
                         <?php if (empty($detail_records)): ?>
                             <tr>
-                                <td colspan="9" class="reports-empty-state">No vehicle history records found for this filter.</td>
+                                <td colspan="9" class="reports-empty-state text-center">No vehicle history records found for this filter.</td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($detail_records as $record): ?>
@@ -2739,7 +2739,7 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
                     <tbody>
                         <?php if (empty($detail_records)): ?>
                             <tr>
-                                <td colspan="9" class="reports-empty-state">No stock movement records found for this filter.</td>
+                                <td colspan="9" class="reports-empty-state text-center">No stock movement records found for this filter.</td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($detail_records as $movement): ?>
@@ -2814,7 +2814,7 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
                     <tbody>
                         <?php if (empty($detail_records)): ?>
                             <tr>
-                                <td colspan="8" class="reports-empty-state">No archived records found for this filter.</td>
+                                <td colspan="8" class="reports-empty-state text-center">No archived records found for this filter.</td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($detail_records as $record): ?>
@@ -2858,7 +2858,7 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
                     <tbody>
                         <?php if (empty($detail_records)): ?>
                             <tr>
-                                <td colspan="8" class="reports-empty-state">No customer and vehicle records found for this filter.</td>
+                                <td colspan="8" class="reports-empty-state text-center">No customer and vehicle records found for this filter.</td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($detail_records as $record): ?>
@@ -3311,7 +3311,7 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
                 <tbody>
                     <?php if (empty($inventory_tagged_stock_outs)): ?>
                         <tr>
-                            <td colspan="7" class="reports-empty-state">No inventory sales found for this filter.</td>
+                            <td colspan="7" class="reports-empty-state text-center">No inventory sales found for this filter.</td>
                         </tr>
                     <?php else: ?>
                         <?php foreach ($inventory_tagged_stock_outs as $movement): ?>

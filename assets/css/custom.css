@@ -10881,6 +10881,12 @@ body {
     text-align: center;
 }
 
+td.reports-empty-state {
+    display: table-cell !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+}
+
 .front-report-chart-details {
     display: flex;
     flex-wrap: wrap;
