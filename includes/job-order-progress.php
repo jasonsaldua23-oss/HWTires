@@ -129,7 +129,7 @@ if (!function_exists('job_progress_get_transfer_states_for_job')) {
                           AND tr.item_id = ?
                           AND tr.requesting_branch_id = ?
                           AND tr.donor_branch_id = ?
-                        ORDER BY tr.id DESC
+                        ORDER BY FIELD(tr.status, 'received', 'shipped', 'approved', 'pending', 'cancelled') ASC, tr.id DESC
                         LIMIT 1
                     ");
                     $transfer_stmt->execute([
@@ -150,7 +150,7 @@ if (!function_exists('job_progress_get_transfer_states_for_job')) {
                         WHERE tr.quotation_id = ?
                           AND tr.item_id = ?
                           AND tr.requesting_branch_id = ?
-                        ORDER BY tr.id DESC
+                        ORDER BY FIELD(tr.status, 'received', 'shipped', 'approved', 'pending', 'cancelled') ASC, tr.id DESC
                     ");
                     $transfer_stmt->execute([
                         (int) $job['quotation_id'],
@@ -158,20 +158,8 @@ if (!function_exists('job_progress_get_transfer_states_for_job')) {
                         $job_branch_id,
                     ]);
                     $matches = $transfer_stmt->fetchAll(PDO::FETCH_ASSOC);
-                    if (count($matches) === 1) {
+                    if (!empty($matches)) {
                         $transfer = $matches[0];
-                    } elseif (count($matches) > 1) {
-                        $first_donor = (int) ($matches[0]['donor_branch_id'] ?? 0);
-                        $all_same_donor = true;
-                        foreach ($matches as $m) {
-                            if ((int) ($m['donor_branch_id'] ?? 0) !== $first_donor) {
-                                $all_same_donor = false;
-                                break;
-                            }
-                        }
-                        if ($all_same_donor) {
-                            $transfer = $matches[0];
-                        }
                     }
                 }
 
@@ -184,7 +172,7 @@ if (!function_exists('job_progress_get_transfer_states_for_job')) {
                         WHERE tr.quotation_id = ?
                           AND tr.requesting_branch_id = ?
                           AND tr.item_name = ?
-                        ORDER BY tr.id DESC
+                        ORDER BY FIELD(tr.status, 'received', 'shipped', 'approved', 'pending', 'cancelled') ASC, tr.id DESC
                     ");
                     $transfer_stmt->execute([
                         (int) $job['quotation_id'],
@@ -192,20 +180,8 @@ if (!function_exists('job_progress_get_transfer_states_for_job')) {
                         $task['item_name'],
                     ]);
                     $matches = $transfer_stmt->fetchAll(PDO::FETCH_ASSOC);
-                    if (count($matches) === 1) {
+                    if (!empty($matches)) {
                         $transfer = $matches[0];
-                    } elseif (count($matches) > 1) {
-                        $first_donor = (int) ($matches[0]['donor_branch_id'] ?? 0);
-                        $all_same_donor = true;
-                        foreach ($matches as $m) {
-                            if ((int) ($m['donor_branch_id'] ?? 0) !== $first_donor) {
-                                $all_same_donor = false;
-                                break;
-                            }
-                        }
-                        if ($all_same_donor) {
-                            $transfer = $matches[0];
-                        }
                     }
                 }
 

@@ -149,7 +149,7 @@ if (!function_exists('job_order_resolve_received_transfer_inventory_item')) {
               AND tr.item_id = ?
               AND tr.requesting_branch_id = ?
               AND tr.donor_branch_id = ?
-            ORDER BY tr.id DESC
+            ORDER BY FIELD(tr.status, 'received', 'shipped', 'approved', 'pending', 'cancelled') ASC, tr.id DESC
             LIMIT 1
         ");
         $transfer_stmt->execute([$quotation_id, $donor_item_id, $job_branch_id, $donor_branch_id]);

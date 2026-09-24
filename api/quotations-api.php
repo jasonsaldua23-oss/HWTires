@@ -787,6 +787,218 @@ if ($action === 'restore') {
     }
 }
 
+// Handle Re-sourcing of Cancelled Inter-Branch Transfer Item
+if ($action === 'resource_transfer_item') {
+    try {
+        enforce_modify_permission();
+
+        if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+            throw new Exception('Invalid security token');
+        }
+
+        $quotation_id = intval($_POST['quotation_id'] ?? 0);
+        $quotation_item_id = intval($_POST['quotation_item_id'] ?? 0);
+        $new_donor_branch_id = intval($_POST['new_donor_branch_id'] ?? 0);
+        $new_donor_item_id = intval($_POST['new_donor_item_id'] ?? 0);
+
+        if ($quotation_id <= 0) {
+            throw new Exception('Invalid quotation ID');
+        }
+        if ($quotation_item_id <= 0) {
+            throw new Exception('Invalid quotation item ID');
+        }
+        if ($new_donor_branch_id <= 0) {
+            throw new Exception('Please select a valid donor branch');
+        }
+        if ($new_donor_item_id <= 0) {
+            throw new Exception('Please select a valid donor item');
+        }
+
+        // Fetch quotation and verify ownership
+        $q_stmt = $pdo->prepare("SELECT * FROM quotations WHERE id = ?");
+        $q_stmt->execute([$quotation_id]);
+        $quotation = $q_stmt->fetch();
+        if (!$quotation) {
+            throw new Exception('Service operation not found');
+        }
+        enforce_branch_record_ownership($quotation['branch_id'] ?? 0);
+
+        $requesting_branch_id = (int) ($quotation['branch_id'] ?? 0);
+        if ($new_donor_branch_id === $requesting_branch_id) {
+            throw new Exception('Donor branch cannot be the requesting branch');
+        }
+
+        // Fetch quotation item
+        $qi_stmt = $pdo->prepare("SELECT * FROM quotation_items WHERE id = ? AND quotation_id = ?");
+        $qi_stmt->execute([$quotation_item_id, $quotation_id]);
+        $item = $qi_stmt->fetch();
+        if (!$item) {
+            throw new Exception('Service operation item not found');
+        }
+
+        if (($item['source'] ?? '') !== 'other_branch') {
+            throw new Exception('Only items sourced from another branch can be re-sourced');
+        }
+
+        if (strtolower((string) ($item['item_type'] ?? '')) === 'service') {
+            throw new Exception('Service lines cannot be transferred');
+        }
+
+        $meta = quotation_item_inventory_meta($item);
+        $old_donor_item_id = (int) ($meta['inventory_item_id'] ?? 0);
+        $old_donor_branch_id = (int) ($meta['inventory_branch_id'] ?? 0);
+
+        // Check if there is already an active transfer request for this item
+        $active_stmt = $pdo->prepare("
+            SELECT id, request_number, status
+            FROM inter_branch_transfer_requests
+            WHERE quotation_id = ?
+              AND (
+                  (item_id = ? AND donor_branch_id = ?)
+                  OR item_name = ?
+              )
+              AND requesting_branch_id = ?
+              AND status IN ('pending', 'approved', 'shipped', 'received')
+            LIMIT 1
+        ");
+        $active_stmt->execute([
+            $quotation_id,
+            $old_donor_item_id,
+            $old_donor_branch_id,
+            $item['item_name'],
+            $requesting_branch_id
+        ]);
+        if ($active_stmt->fetch()) {
+            throw new Exception('This item already has an active transfer request.');
+        }
+
+        // Check that a cancelled transfer request exists to re-source from
+        $cancelled_stmt = $pdo->prepare("
+            SELECT id, request_number, donor_branch_id, item_id
+            FROM inter_branch_transfer_requests
+            WHERE quotation_id = ?
+              AND (
+                  (item_id = ? AND donor_branch_id = ?)
+                  OR item_name = ?
+              )
+              AND requesting_branch_id = ?
+              AND status = 'cancelled'
+            ORDER BY id DESC
+            LIMIT 1
+        ");
+        $cancelled_stmt->execute([
+            $quotation_id,
+            $old_donor_item_id,
+            $old_donor_branch_id,
+            $item['item_name'],
+            $requesting_branch_id
+        ]);
+        $old_transfer = $cancelled_stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$old_transfer) {
+            throw new Exception('No cancelled transfer request found for this item to re-source.');
+        }
+
+        // Validate new donor branch
+        $branch_chk = $pdo->prepare("
+            SELECT id, name
+            FROM branches
+            WHERE id = ?
+              AND status = 'active'
+              AND has_inventory = 1
+            LIMIT 1
+        ");
+        $branch_chk->execute([$new_donor_branch_id]);
+        $new_donor_branch = $branch_chk->fetch(PDO::FETCH_ASSOC);
+        if (!$new_donor_branch) {
+            throw new Exception('Selected donor branch is invalid or does not carry inventory.');
+        }
+
+        // Validate new donor item
+        $item_chk = $pdo->prepare("
+            SELECT id, item_name, quantity, branch_id
+            FROM inventory_items
+            WHERE id = ?
+              AND branch_id = ?
+              AND status = 'active'
+            LIMIT 1
+        ");
+        $item_chk->execute([$new_donor_item_id, $new_donor_branch_id]);
+        $new_donor_item = $item_chk->fetch(PDO::FETCH_ASSOC);
+        if (!$new_donor_item) {
+            throw new Exception('Selected inventory item not found at the donor branch.');
+        }
+
+        $required_qty = max(1, (int) ($item['quantity'] ?? 1));
+        if ((int) $new_donor_item['quantity'] < $required_qty) {
+            throw new Exception('Donor branch has insufficient stock (available: ' . (int)$new_donor_item['quantity'] . ', required: ' . $required_qty . ').');
+        }
+
+        if (trim($new_donor_item['item_name']) !== trim($item['item_name'])) {
+            throw new Exception('Selected item does not match the quotation item name.');
+        }
+
+        $pdo->beginTransaction();
+
+        // 1. Update quotation_items notes JSON preserving any other metadata
+        $updated_meta = $meta;
+        $updated_meta['inventory_item_id'] = $new_donor_item_id;
+        $updated_meta['inventory_branch_id'] = $new_donor_branch_id;
+        $new_notes = json_encode($updated_meta, JSON_UNESCAPED_SLASHES);
+
+        $upd_item_stmt = $pdo->prepare("UPDATE quotation_items SET notes = ? WHERE id = ?");
+        $upd_item_stmt->execute([$new_notes, $quotation_item_id]);
+
+        // 2. Create new transfer request via quotation_create_item_request
+        $item_payload = $item;
+        $item_payload['inventory_item_id'] = $new_donor_item_id;
+        $item_payload['inventory_branch_id'] = $new_donor_branch_id;
+
+        quotation_create_item_request(
+            $pdo,
+            $user,
+            $quotation_id,
+            (string) ($quotation['quotation_number'] ?? ('QT #' . $quotation_id)),
+            (int) ($quotation['customer_id'] ?? 0),
+            $requesting_branch_id,
+            $item_payload
+        );
+
+        // 3. Log audit trail
+        log_audit('inter_branch_transfer_requests', 're_source', (int) $old_transfer['id'], [
+            'cancelled_transfer_id' => (int) $old_transfer['id'],
+            'old_donor_branch_id' => (int) ($old_transfer['donor_branch_id'] ?? $old_donor_branch_id),
+            'old_item_id' => (int) ($old_transfer['item_id'] ?? $old_donor_item_id),
+        ], [
+            'new_donor_branch_id' => $new_donor_branch_id,
+            'new_donor_item_id' => $new_donor_item_id,
+            'quotation_id' => $quotation_id,
+            'quotation_item_id' => $quotation_item_id,
+        ]);
+
+        $pdo->commit();
+
+        set_flash_message('Item successfully re-sourced to ' . $new_donor_branch['name'] . '. New transfer request submitted.', 'success');
+
+        if (!empty($_POST['redirect'])) {
+            redirect($_POST['redirect']);
+        }
+
+        die(json_encode(['success' => true, 'message' => 'Item re-sourced successfully']));
+
+    } catch (Exception $e) {
+        if ($pdo instanceof PDO && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log('Resource transfer item error: ' . $e->getMessage());
+        set_flash_message($e->getMessage(), 'error');
+        if (!empty($_POST['redirect'])) {
+            redirect($_POST['redirect']);
+        }
+        http_response_code(400);
+        die(json_encode(['success' => false, 'message' => $e->getMessage()]));
+    }
+}
+
 http_response_code(400);
 die(json_encode(['success' => false, 'message' => 'Invalid action']));
 ?>

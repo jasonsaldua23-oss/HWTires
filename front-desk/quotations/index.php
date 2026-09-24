@@ -228,6 +228,107 @@ if (!empty($quotation_ids)) {
     foreach ($items_stmt->fetchAll() as $item) {
         $quotation_items[(int) $item['quotation_id']][] = $item;
     }
+
+    // Batched inter-branch transfer lookup for loaded quotations
+    $quotation_item_transfers = [];
+    $eligible_donors_by_item = [];
+
+    if (function_exists('app_table_exists') && app_table_exists('inter_branch_transfer_requests')) {
+        $tr_placeholders = implode(',', array_fill(0, count($quotation_ids), '?'));
+        $tr_stmt = $pdo->prepare("
+            SELECT tr.*, db.name AS donor_branch_name
+            FROM inter_branch_transfer_requests tr
+            LEFT JOIN branches db ON db.id = tr.donor_branch_id
+            WHERE tr.quotation_id IN ($tr_placeholders)
+            ORDER BY FIELD(tr.status, 'received', 'shipped', 'approved', 'pending', 'cancelled') ASC, tr.id DESC
+        ");
+        $tr_stmt->execute($quotation_ids);
+        $all_transfers = $tr_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $transfers_by_quote = [];
+        foreach ($all_transfers as $tr) {
+            $transfers_by_quote[(int) $tr['quotation_id']][] = $tr;
+        }
+
+        $cancelled_items_to_lookup = [];
+        foreach ($quotations as $quote) {
+            $qid = (int) $quote['id'];
+            $quote_branch_id = (int) ($quote['branch_id'] ?? 0);
+            $q_transfers = $transfers_by_quote[$qid] ?? [];
+            $items_for_quote = $quotation_items[$qid] ?? [];
+
+            foreach ($items_for_quote as $item) {
+                $item_id = (int) $item['id'];
+                $is_other_branch = ($item['source'] ?? '') === 'other_branch';
+                $is_service = strtolower((string) ($item['item_type'] ?? '')) === 'service';
+
+                if (!$is_other_branch || $is_service) {
+                    continue;
+                }
+
+                $meta = [];
+                $notes_str = trim((string) ($item['notes'] ?? ''));
+                if ($notes_str !== '' && $notes_str[0] === '{') {
+                    $meta = json_decode($notes_str, true) ?: [];
+                }
+                $meta_item_id = (int) ($meta['inventory_item_id'] ?? 0);
+                $meta_branch_id = (int) ($meta['inventory_branch_id'] ?? 0);
+
+                $matched_tr = null;
+                foreach ($q_transfers as $tr) {
+                    if (($meta_item_id > 0 && (int) $tr['item_id'] === $meta_item_id && (int) $tr['donor_branch_id'] === $meta_branch_id)
+                        || trim($tr['item_name']) === trim($item['item_name'])) {
+                        $matched_tr = $tr;
+                        break;
+                    }
+                }
+
+                if ($matched_tr) {
+                    $quotation_item_transfers[$item_id] = $matched_tr;
+                    if ($matched_tr['status'] === 'cancelled') {
+                        $cancelled_items_to_lookup[] = [
+                            'item_id' => $item_id,
+                            'item_name' => $item['item_name'],
+                            'quantity' => max(1, (int) ($item['quantity'] ?? 1)),
+                            'requesting_branch_id' => $quote_branch_id,
+                            'rejected_donor_branch_id' => (int) ($matched_tr['donor_branch_id'] ?? 0),
+                        ];
+                    }
+                }
+            }
+        }
+
+        if (!empty($cancelled_items_to_lookup)) {
+            $donor_stmt = $pdo->prepare("
+                SELECT i.id AS inventory_item_id, i.branch_id, i.quantity, b.name AS branch_name
+                FROM inventory_items i
+                INNER JOIN branches b ON b.id = i.branch_id
+                WHERE i.item_name = ?
+                  AND i.branch_id != ?
+                  AND i.status = 'active'
+                  AND b.status = 'active'
+                  AND b.has_inventory = 1
+                  AND i.quantity >= ?
+                ORDER BY b.name ASC
+            ");
+            foreach ($cancelled_items_to_lookup as $c_item) {
+                $donor_stmt->execute([
+                    $c_item['item_name'],
+                    $c_item['requesting_branch_id'],
+                    $c_item['quantity'],
+                ]);
+                $raw_donors = $donor_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                $filtered_donors = [];
+                foreach ($raw_donors as $d) {
+                    if ((int) $d['branch_id'] !== (int) $c_item['rejected_donor_branch_id']) {
+                        $filtered_donors[] = $d;
+                    }
+                }
+                $eligible_donors_by_item[$c_item['item_id']] = !empty($filtered_donors) ? $filtered_donors : $raw_donors;
+            }
+        }
+    }
 }
 
 $pagination_params = '';
@@ -436,6 +537,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                     $can_manage_quotation = ($user['role'] ?? '') === 'front-desk' && $can_update;
                     $can_edit_quotation = $can_manage_quotation && in_array((string) ($quotation['status'] ?? ''), ['pending', 'approved'], true);
                     $can_delete = $can_manage_quotation && ($quotation['status'] ?? '') !== 'archived';
+                    $can_resource = $can_manage_quotation && in_array((string) ($quotation['status'] ?? ''), ['pending', 'approved', 'draft'], true);
                     ?>
                     <article class="quotation-record-card quotation-record-row" role="row">
                         <div class="quotation-record-cell quotation-record-primary">
@@ -584,6 +686,37 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                                                     <div>
                                                         <h4><?php echo esc_html(app_display_item_name($item['item_name'], $item['item_type'] ?? null)); ?></h4>
                                                         <p>Quantity: <?php echo $quantity; ?></p>
+                                                        <?php
+                                                        $iid = (int) $item['id'];
+                                                        $is_other_branch = ($item['source'] ?? '') === 'other_branch';
+                                                        $tr = ($is_other_branch && !$is_service_line) ? ($quotation_item_transfers[$iid] ?? null) : null;
+                                                        ?>
+                                                        <?php if ($tr): ?>
+                                                            <?php
+                                                            $tr_status = strtolower((string) ($tr['status'] ?? ''));
+                                                            $donor_name = trim((string) ($tr['donor_branch_name'] ?? ''));
+                                                            ?>
+                                                            <?php if ($tr_status === 'cancelled'): ?>
+                                                                <div class="mt-2">
+                                                                    <span class="badge bg-danger text-white">
+                                                                        <i class="fas fa-times-circle"></i> Transfer Cancelled &mdash; <?php echo esc_html($donor_name ?: 'Donor Branch'); ?>
+                                                                    </span>
+                                                                </div>
+                                                                <?php if ($can_resource): ?>
+                                                                    <div class="mt-2">
+                                                                        <button type="button" class="btn btn-sm btn-outline-primary" data-quotation-edit-target="resourceModal<?php echo $iid; ?>">
+                                                                            <i class="fas fa-exchange-alt"></i> Re-source Item
+                                                                        </button>
+                                                                    </div>
+                                                                <?php endif; ?>
+                                                            <?php elseif (in_array($tr_status, ['pending', 'approved', 'shipped', 'received'], true)): ?>
+                                                                <div class="mt-2">
+                                                                    <span class="badge bg-<?php echo in_array($tr_status, ['received', 'shipped', 'approved'], true) ? 'success' : 'info'; ?> text-white">
+                                                                        <i class="fas fa-truck"></i> Transfer: <?php echo esc_html(ucfirst($tr_status)); ?><?php if ($donor_name): ?> (<?php echo esc_html($donor_name); ?>)<?php endif; ?>
+                                                                    </span>
+                                                                </div>
+                                                            <?php endif; ?>
+                                                        <?php endif; ?>
                                                     </div>
                                                     <div>
                                                         <span><?php echo front_quote_money($unit_price); ?> each</span>
@@ -742,6 +875,88 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                             </div>
                         </div>
                     <?php endif; ?>
+                    <?php if ($can_resource): ?>
+                        <?php foreach ($items as $item): ?>
+                            <?php
+                            $item_id = (int) $item['id'];
+                            $tr = $quotation_item_transfers[$item_id] ?? null;
+                            if (!$tr || ($tr['status'] ?? '') !== 'cancelled') {
+                                continue;
+                            }
+                            $donors = $eligible_donors_by_item[$item_id] ?? [];
+                            $cancelled_donor = trim((string) ($tr['donor_branch_name'] ?? 'Donor branch'));
+                            ?>
+                            <!-- Re-source Modal for Item #<?php echo $item_id; ?> -->
+                            <div class="modal fade" id="resourceModal<?php echo $item_id; ?>" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content">
+                                        <form method="POST" action="/hwtires/api/quotations-api.php" class="resource-transfer-form">
+                                            <input type="hidden" name="csrf_token" value="<?php echo esc_attr(generate_csrf_token()); ?>">
+                                            <input type="hidden" name="action" value="resource_transfer_item">
+                                            <input type="hidden" name="quotation_id" value="<?php echo $quotation_id; ?>">
+                                            <input type="hidden" name="quotation_item_id" value="<?php echo $item_id; ?>">
+                                            <input type="hidden" name="redirect" value="<?php echo esc_attr($current_url); ?>">
+                                            <input type="hidden" name="new_donor_branch_id" id="donor_branch_id_<?php echo $item_id; ?>" value="">
+                                            <input type="hidden" name="new_donor_item_id" id="donor_item_id_<?php echo $item_id; ?>" value="">
+
+                                            <div class="modal-header">
+                                                <div>
+                                                    <h5 class="modal-title mb-0">
+                                                        <i class="fas fa-exchange-alt text-primary me-2"></i>Re-source Item
+                                                    </h5>
+                                                    <small class="text-muted"><?php echo esc_html($quotation['quotation_number'] ?? ''); ?></small>
+                                                </div>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="mb-3">
+                                                    <label class="form-label text-muted small mb-1">Item to Re-source</label>
+                                                    <p class="fw-bold mb-1"><?php echo esc_html($item['item_name']); ?></p>
+                                                    <small class="text-muted">Quantity Required: <strong><?php echo max(1, (int) ($item['quantity'] ?? 1)); ?></strong></small>
+                                                </div>
+                                                <div class="alert alert-warning py-2 mb-3">
+                                                    <small>
+                                                        <i class="fas fa-info-circle me-1"></i>
+                                                        The previous transfer request (<strong><?php echo esc_html($tr['request_number']); ?></strong>) from <strong><?php echo esc_html($cancelled_donor); ?></strong> was cancelled due to insufficient stock.
+                                                    </small>
+                                                </div>
+
+                                                <?php if (empty($donors)): ?>
+                                                    <div class="alert alert-danger py-2 mb-0">
+                                                        <i class="fas fa-exclamation-triangle me-1"></i>
+                                                        No other branch currently has sufficient stock (&ge; <?php echo max(1, (int) ($item['quantity'] ?? 1)); ?>) for this item.
+                                                    </div>
+                                                <?php else: ?>
+                                                    <div class="mb-3">
+                                                        <label for="donor_select_<?php echo $item_id; ?>" class="form-label fw-bold">Select Alternative Donor Branch <span class="text-danger">*</span></label>
+                                                        <select class="form-select resource-donor-select" id="donor_select_<?php echo $item_id; ?>" data-line-id="<?php echo $item_id; ?>" required>
+                                                            <option value="">-- Select Donor Branch --</option>
+                                                            <?php foreach ($donors as $donor): ?>
+                                                                <option value="<?php echo (int) $donor['branch_id']; ?>" data-inventory-item-id="<?php echo (int) $donor['inventory_item_id']; ?>">
+                                                                    <?php echo esc_html($donor['branch_name']); ?> (<?php echo (int) $donor['quantity']; ?> in stock)
+                                                                </option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                        <div class="form-text">
+                                                            Selecting an alternative donor branch will submit a new transfer request while preserving the cancelled request in the audit history.
+                                                        </div>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                <?php if (!empty($donors)): ?>
+                                                    <button type="submit" class="btn btn-primary" id="btn_submit_resource_<?php echo $item_id; ?>">
+                                                        <i class="fas fa-paper-plane me-1"></i> Submit Re-source Request
+                                                    </button>
+                                                <?php endif; ?>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
@@ -790,6 +1005,34 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             showEditModal();
+        });
+    });
+
+    document.querySelectorAll('.resource-donor-select').forEach(function(selectEl) {
+        selectEl.addEventListener('change', function() {
+            var lineId = this.dataset.lineId;
+            var selectedOption = this.options[this.selectedIndex];
+            var branchIdInput = document.getElementById('donor_branch_id_' + lineId);
+            var itemIdInput = document.getElementById('donor_item_id_' + lineId);
+
+            if (branchIdInput && itemIdInput) {
+                branchIdInput.value = selectedOption ? (selectedOption.value || '') : '';
+                itemIdInput.value = selectedOption ? (selectedOption.dataset.inventoryItemId || '') : '';
+            }
+        });
+    });
+
+    document.querySelectorAll('.resource-transfer-form').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            var lineIdInput = this.querySelector('input[name="quotation_item_id"]');
+            var lineId = lineIdInput ? lineIdInput.value : '';
+            var branchIdInput = document.getElementById('donor_branch_id_' + lineId);
+            var itemIdInput = document.getElementById('donor_item_id_' + lineId);
+
+            if (!branchIdInput || !branchIdInput.value || !itemIdInput || !itemIdInput.value) {
+                e.preventDefault();
+                alert('Please select an alternative donor branch.');
+            }
         });
     });
 });
