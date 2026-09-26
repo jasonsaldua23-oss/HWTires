@@ -320,21 +320,45 @@ try {
                b.name AS branch_name
         FROM inventory_items i
         LEFT JOIN branches b ON b.id = i.branch_id
-        WHERE i.status = 'active' AND i.sku REGEXP '^B[0-9]+-(TIR|PAR|ACC)-[0-9]{5}$'
+        WHERE i.status = 'active'
         ORDER BY i.id ASC
     ");
     $raw_canon_items = $canon_stmt ? $canon_stmt->fetchAll(PDO::FETCH_ASSOC) : [];
-    $canon_by_num = [];
+
+    // Group canonical products by specification identity
+    $canon_by_key = [];
+    $assigned_catalog_nums = [];
+
+    // First pass: identify any existing 5-digit catalog numbers from legacy generated SKUs
     foreach ($raw_canon_items as $ci) {
-        if (!preg_match('/^B([0-9]+)-(TIR|PAR|ACC)-([0-9]{5})$/', $ci['sku'], $cm)) {
-            continue;
+        $specKey = strtolower(trim((string)$ci['category'])) . '|' .
+                   strtolower(trim((string)$ci['item_name'])) . '|' .
+                   strtolower(trim((string)($ci['brand'] ?? ''))) . '|' .
+                   strtolower(trim((string)($ci['model'] ?? ''))) . '|' .
+                   strtolower(trim((string)($ci['size'] ?? '')));
+
+        if (preg_match('/^B[0-9]+-(TIR|PAR|ACC)-([0-9]{5})$/', (string)($ci['sku'] ?? ''), $cm)) {
+            if (!isset($assigned_catalog_nums[$specKey])) {
+                $assigned_catalog_nums[$specKey] = (int)$cm[2];
+            }
         }
-        $catCode = $cm[2];
-        $cNum = (int) $cm[3];
+    }
+
+    foreach ($raw_canon_items as $ci) {
+        $cat = (string)$ci['category'];
+        $catCode = ($cat === 'tire') ? 'TIR' : (($cat === 'accessory') ? 'ACC' : 'PAR');
+
+        $specKey = strtolower(trim($cat)) . '|' .
+                   strtolower(trim((string)$ci['item_name'])) . '|' .
+                   strtolower(trim((string)($ci['brand'] ?? ''))) . '|' .
+                   strtolower(trim((string)($ci['model'] ?? ''))) . '|' .
+                   strtolower(trim((string)($ci['size'] ?? '')));
+
+        $cNum = $assigned_catalog_nums[$specKey] ?? ((int)$ci['id']);
         $bName = inventory_branch_label($ci['branch_name'] ?? ('Branch ' . $ci['branch_id']));
 
-        if (!isset($canon_by_num[$cNum])) {
-            $canon_by_num[$cNum] = [
+        if (!isset($canon_by_key[$specKey])) {
+            $canon_by_key[$specKey] = [
                 'catalog_number' => $cNum,
                 'category_code' => $catCode,
                 'category' => $ci['category'],
@@ -345,9 +369,9 @@ try {
             ];
         }
 
-        if (!in_array($bName, $canon_by_num[$cNum]['carrying_branch_names'], true)) {
-            $canon_by_num[$cNum]['carrying_branch_names'][] = $bName;
-            $canon_by_num[$cNum]['carrying_branch_ids'][] = (int) $ci['branch_id'];
+        if (!in_array($bName, $canon_by_key[$specKey]['carrying_branch_names'], true)) {
+            $canon_by_key[$specKey]['carrying_branch_names'][] = $bName;
+            $canon_by_key[$specKey]['carrying_branch_ids'][] = (int) $ci['branch_id'];
         }
 
         $vKey = strtolower(trim((string)$ci['item_name'])) . '|' .
@@ -355,8 +379,8 @@ try {
                 strtolower(trim((string)$ci['model'])) . '|' .
                 strtolower(trim((string)$ci['size']));
 
-        if (!isset($canon_by_num[$cNum]['variants'][$vKey])) {
-            $canon_by_num[$cNum]['variants'][$vKey] = [
+        if (!isset($canon_by_key[$specKey]['variants'][$vKey])) {
+            $canon_by_key[$specKey]['variants'][$vKey] = [
                 'sample_item_id' => (int) $ci['id'],
                 'item_name' => $ci['item_name'],
                 'category' => $ci['category'],
@@ -370,19 +394,19 @@ try {
                 'branch_ids' => [(int) $ci['branch_id']],
             ];
         } else {
-            if (!in_array($bName, $canon_by_num[$cNum]['variants'][$vKey]['branch_names'], true)) {
-                $canon_by_num[$cNum]['variants'][$vKey]['branch_names'][] = $bName;
-                $canon_by_num[$cNum]['variants'][$vKey]['branch_ids'][] = (int) $ci['branch_id'];
+            if (!in_array($bName, $canon_by_key[$specKey]['variants'][$vKey]['branch_names'], true)) {
+                $canon_by_key[$specKey]['variants'][$vKey]['branch_names'][] = $bName;
+                $canon_by_key[$specKey]['variants'][$vKey]['branch_ids'][] = (int) $ci['branch_id'];
             }
         }
     }
 
-    foreach ($canon_by_num as &$cp) {
+    foreach ($canon_by_key as &$cp) {
         $cp['variants'] = array_values($cp['variants']);
         $cp['has_multiple_variants'] = (count($cp['variants']) > 1);
     }
     unset($cp);
-    $canonical_catalog_products = array_values($canon_by_num);
+    $canonical_catalog_products = array_values($canon_by_key);
 } catch (Exception $e) {
     $canonical_catalog_products = [];
 }
@@ -1938,18 +1962,70 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                         <span><i class="fas fa-search me-1"></i> Select Company Catalog Product <span class="text-danger">*</span></span>
                         <span class="badge bg-primary-subtle text-primary" id="catalog_count_badge"><?php echo count($canonical_catalog_products); ?> Canonical Products</span>
                     </label>
-                    <div class="small text-muted mb-2">Search canonical company catalog by Catalog #, Item Name, Brand, Model, Size, or Category:</div>
-                    <select id="existing_catalog_select" class="form-select mb-2" style="font-size: 13px;">
+                    <div class="small text-muted mb-2">Search or browse canonical company catalog by Catalog #, Item Name, Brand, Model, Size, or Category:</div>
+
+                    <!-- Searchable Combobox Component -->
+                    <div id="catalog_combobox_container" class="position-relative mb-2">
+                        <!-- Search input group -->
+                        <div class="input-group" id="catalog_search_group">
+                            <span class="input-group-text bg-white border-end-0 text-muted">
+                                <i class="fas fa-search"></i>
+                            </span>
+                            <input type="text" 
+                                   id="catalog_search_input" 
+                                   class="form-control border-start-0 border-end-0 ps-1" 
+                                   placeholder="Search by catalog #, item name, brand, model, size..." 
+                                   autocomplete="off"
+                                   role="combobox"
+                                   aria-expanded="false"
+                                   aria-autocomplete="list"
+                                   aria-controls="catalog_results_panel">
+                            <button type="button" 
+                                    id="catalog_search_clear" 
+                                    class="btn btn-outline-secondary border-start-0 d-none" 
+                                    title="Clear search">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+
+                        <!-- Selected Product Summary Banner -->
+                        <div id="catalog_selected_banner" class="d-none p-2 rounded bg-light border border-primary-subtle d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center gap-2 text-truncate pe-2">
+                                <span class="badge bg-primary text-white px-2 py-1"><i class="fas fa-check-circle me-1"></i>Selected</span>
+                                <div class="text-truncate">
+                                    <div class="fw-bold text-dark small text-truncate" id="selected_banner_title"></div>
+                                    <div class="text-muted smaller text-truncate" id="selected_banner_meta" style="font-size: 11.5px;"></div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fw-semibold flex-shrink-0" id="btn_change_product">
+                                <i class="fas fa-sync-alt me-1"></i>Change
+                            </button>
+                        </div>
+
+                        <!-- Scrollable Results Dropdown List (Available before typing) -->
+                        <div id="catalog_results_panel" 
+                             class="border rounded-2 shadow-sm bg-white overflow-y-auto mt-1" 
+                             style="max-height: 280px; display: none; position: relative; z-index: 1050;"
+                             role="listbox">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Authoritative Native Hidden Select (Synchronized Shadow Select) -->
+                    <select id="existing_catalog_select" class="d-none">
                         <option value="">-- Type or Select an Existing Catalog Product --</option>
-                        <?php foreach ($canonical_catalog_products as $cp): ?>
+                        <?php foreach ($canonical_catalog_products as $idx => $cp): ?>
                             <?php
                                 $stock_str = implode(', ', $cp['carrying_branch_names']);
                                 $v0 = $cp['variants'][0] ?? [];
                                 $spec_parts = array_filter([$v0['brand'] ?? '', $v0['model'] ?? '', $v0['size'] ?? '']);
                                 $spec_str = implode(' • ', $spec_parts);
+                                $cat_num_display = (!empty($cp['catalog_number']) && (int)$cp['catalog_number'] > 0)
+                                    ? '[#' . sprintf('%05d', (int)$cp['catalog_number']) . ']'
+                                    : '[Catalog Item]';
                             ?>
-                            <option value="<?php echo (int)$cp['catalog_number']; ?>">
-                                [#<?php echo (int)$cp['catalog_number']; ?>] <?php echo esc_html($cp['primary_name']); ?> (<?php echo esc_html(ucfirst($cp['category'])); ?><?php echo $spec_str !== '' ? ' • ' . esc_html($spec_str) : ''; ?>) — Stocked at: <?php echo esc_html($stock_str); ?>
+                            <option value="<?php echo $idx; ?>" data-catalog-num="<?php echo (int)($cp['catalog_number'] ?? 0); ?>">
+                                <?php echo $cat_num_display; ?> <?php echo esc_html($cp['primary_name']); ?> (<?php echo esc_html(ucfirst($cp['category'])); ?><?php echo $spec_str !== '' ? ' • ' . esc_html($spec_str) : ''; ?>) — Stocked at: <?php echo esc_html($stock_str); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -1985,6 +2061,7 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                                     </option>
                                 <?php endforeach; ?>
                             </select>
+                            <div class="small mt-1 d-none" id="branch_availability_helper"></div>
                         </label>
                         <label>
                             <span>Category <span class="text-danger">*</span></span>
@@ -2031,36 +2108,32 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                         </label>
                     </div>
 
-                    <!-- System-Generated Identifiers Preview Section -->
+                    <!-- Product Identifiers Section -->
                     <div class="p-3 mt-3 rounded-3 border bg-light">
                         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
                             <span class="fw-bold text-dark" style="font-size: 13px;">
-                                <i class="fas fa-barcode text-primary me-1"></i> System-Generated Identifiers
+                                <i class="fas fa-barcode text-primary me-1"></i> Product Identifiers
                             </span>
-                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" style="font-size: 11px;">
-                                Auto-Generated
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" id="identifiers_badge" style="font-size: 11px;">
+                                Manual Entry
                             </span>
                         </div>
                         <div class="row g-2">
                             <div class="col-md-6">
-                                <div class="p-2 border rounded bg-white">
-                                    <small class="text-muted d-block" style="font-size: 11px;">SKU</small>
-                                    <div class="fw-bold text-dark" id="preview_sku" style="font-family: monospace; font-size: 13px;">
-                                        System-generated on save
-                                    </div>
-                                </div>
+                                <label class="d-block mb-0">
+                                    <span class="text-muted d-block mb-1" style="font-size: 11.5px;">SKU <span class="text-danger" id="sku_required_mark">*</span></span>
+                                    <input type="text" name="sku" id="add_sku" class="form-control form-control-sm font-monospace fw-bold" maxlength="100" placeholder="e.g., YKH-FMRIB-26565R17" required>
+                                </label>
                             </div>
                             <div class="col-md-6">
-                                <div class="p-2 border rounded bg-white">
-                                    <small class="text-muted d-block" style="font-size: 11px;">Inventory Serial Number</small>
-                                    <div class="fw-bold text-dark" id="preview_serial" style="font-family: monospace; font-size: 13px;">
-                                        System-generated on save
-                                    </div>
-                                </div>
+                                <label class="d-block mb-0">
+                                    <span class="text-muted d-block mb-1" style="font-size: 11.5px;">Inventory Serial Number <span class="text-danger" id="serial_required_mark">*</span></span>
+                                    <input type="text" name="serial_number" id="add_serial_number" class="form-control form-control-sm font-monospace fw-bold" maxlength="120" placeholder="e.g., SN-2026-99010" required>
+                                </label>
                             </div>
                         </div>
-                        <div class="small text-muted mt-2" style="font-size: 11.5px;">
-                            <i class="fas fa-info-circle me-1"></i> HWTIRES automatically assigns company-standard inventory identifiers.
+                        <div class="small text-muted mt-2" id="identifiers_helper" style="font-size: 11.5px;">
+                            <i class="fas fa-info-circle me-1"></i> Enter the official manufacturer/supplier SKU and product serial number.
                         </div>
                     </div>
 
@@ -2656,6 +2729,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const metadataVariantContainer = document.getElementById('metadataVariantContainer');
     const metadataVariantRadios = document.getElementById('metadataVariantRadios');
 
+    // Searchable Combobox Elements
+    const catalogComboboxContainer = document.getElementById('catalog_combobox_container');
+    const catalogSearchGroup = document.getElementById('catalog_search_group');
+    const catalogSearchInput = document.getElementById('catalog_search_input');
+    const catalogSearchClear = document.getElementById('catalog_search_clear');
+    const catalogSelectedBanner = document.getElementById('catalog_selected_banner');
+    const selectedBannerTitle = document.getElementById('selected_banner_title');
+    const selectedBannerMeta = document.getElementById('selected_banner_meta');
+    const btnChangeProduct = document.getElementById('btn_change_product');
+    const catalogResultsPanel = document.getElementById('catalog_results_panel');
+
     const itemNameInput = document.getElementById('add_item_name');
     const branchSelect = document.getElementById('add_branch_id');
     const categorySelect = document.getElementById('add_category');
@@ -2670,8 +2754,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const modelReqMark = document.getElementById('add_model_required_mark');
     const sizeReqMark = document.getElementById('add_size_required_mark');
 
-    const previewSku = document.getElementById('preview_sku');
-    const previewSerial = document.getElementById('preview_serial');
+    const skuInput = document.getElementById('add_sku');
+    const serialInput = document.getElementById('add_serial_number');
+    const identifiersBadge = document.getElementById('identifiers_badge');
+    const identifiersHelper = document.getElementById('identifiers_helper');
+    const branchHelper = document.getElementById('branch_availability_helper');
 
     const scheduleToggle = document.getElementById('scheduleDeliveryToggle');
     const deliveryContainer = document.getElementById('deliveryFieldsContainer');
@@ -2683,6 +2770,68 @@ document.addEventListener('DOMContentLoaded', function() {
     const refLabel = document.getElementById('deliveryReferenceLabel');
     const refInput = document.getElementById('add_reference_number');
 
+    function restoreAllBranches() {
+        if (!branchSelect) return;
+        for (let i = 0; i < branchSelect.options.length; i++) {
+            const opt = branchSelect.options[i];
+            opt.disabled = false;
+            if (opt.dataset.origText) {
+                opt.textContent = opt.dataset.origText;
+            }
+        }
+        if (branchHelper) {
+            branchHelper.classList.add('d-none');
+            branchHelper.innerHTML = '';
+        }
+    }
+
+    function updateDestinationBranchAvailability(carryingBranchIds) {
+        if (!branchSelect) return;
+        carryingBranchIds = carryingBranchIds || [];
+
+        let firstAvailable = null;
+        let anyAvailable = false;
+
+        for (let i = 0; i < branchSelect.options.length; i++) {
+            const opt = branchSelect.options[i];
+            if (!opt.dataset.origText) {
+                opt.dataset.origText = opt.textContent.trim();
+            }
+            const bId = parseInt(opt.value, 10);
+            if (carryingBranchIds.includes(bId)) {
+                opt.disabled = true;
+                opt.textContent = opt.dataset.origText + ' (Already Carried)';
+            } else {
+                opt.disabled = false;
+                opt.textContent = opt.dataset.origText;
+                anyAvailable = true;
+                if (!firstAvailable) {
+                    firstAvailable = opt;
+                }
+            }
+        }
+
+        // If currently selected branch is disabled, switch to first eligible branch
+        if (branchSelect.selectedOptions[0] && branchSelect.selectedOptions[0].disabled) {
+            if (firstAvailable) {
+                branchSelect.value = firstAvailable.value;
+            } else {
+                branchSelect.value = '';
+            }
+        }
+
+        if (branchHelper) {
+            branchHelper.classList.remove('d-none');
+            if (!anyAvailable) {
+                branchHelper.innerHTML = '<span class="text-danger fw-semibold"><i class="fas fa-exclamation-triangle me-1"></i> This product is already registered in all available branches.</span>';
+            } else {
+                branchHelper.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i> Branches already carrying this product are disabled. Select a branch where the product is not yet registered.</span>';
+            }
+        }
+
+        updateIdentifiersPreview();
+    }
+
     function updateIdentifiersPreview() {
         const isExisting = modeExistingRadio && modeExistingRadio.checked;
         const bId = branchSelect ? branchSelect.value : '1';
@@ -2690,20 +2839,62 @@ document.addEventListener('DOMContentLoaded', function() {
         const catPrefix = (cat === 'tire' ? 'TIR' : (cat === 'accessory' ? 'ACC' : 'PAR'));
 
         if (isExisting) {
+            if (skuInput) {
+                skuInput.readOnly = true;
+                skuInput.required = false;
+                skuInput.classList.add('bg-light');
+            }
+            if (serialInput) {
+                serialInput.readOnly = true;
+                serialInput.required = false;
+                serialInput.classList.add('bg-light');
+            }
+            if (identifiersBadge) {
+                identifiersBadge.className = 'badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1';
+                identifiersBadge.textContent = 'Auto-Generated (Branch Specific)';
+            }
+            if (identifiersHelper) {
+                identifiersHelper.innerHTML = '<i class="fas fa-link me-1"></i> System automatically assigns company-standard branch-specific identifiers for the selected destination branch.';
+            }
+
             const cNum = hiddenCatalogNumber ? parseInt(hiddenCatalogNumber.value, 10) : 0;
             if (!isNaN(cNum) && cNum > 0) {
                 const suffix = ((cNum * 7) % 89) + 10;
                 const sku = 'B' + bId + '-' + catPrefix + '-' + String(cNum).padStart(5, '0');
                 const serial = 'HW-' + catPrefix + '-B' + bId + '-' + String(cNum).padStart(5, '0') + '-' + String(suffix).padStart(2, '0');
-                if (previewSku) previewSku.innerHTML = '<span class="text-primary font-monospace fw-bold">' + sku + '</span>';
-                if (previewSerial) previewSerial.innerHTML = '<span class="text-primary font-monospace fw-bold">' + serial + '</span>';
+                if (skuInput) skuInput.value = sku;
+                if (serialInput) serialInput.value = serial;
             } else {
-                if (previewSku) previewSku.innerHTML = '<span class="text-muted fst-italic">Select a catalog product to preview</span>';
-                if (previewSerial) previewSerial.innerHTML = '<span class="text-muted fst-italic">Select a catalog product to preview</span>';
+                if (skuInput) {
+                    skuInput.value = '';
+                    skuInput.placeholder = 'Auto-assigned on save';
+                }
+                if (serialInput) {
+                    serialInput.value = '';
+                    serialInput.placeholder = 'Auto-assigned on save';
+                }
             }
         } else {
-            if (previewSku) previewSku.innerHTML = '<span class="text-dark font-monospace">B' + bId + '-' + catPrefix + '-XXXXX <small class="text-muted fw-normal">(on save)</small></span>';
-            if (previewSerial) previewSerial.innerHTML = '<span class="text-dark font-monospace">HW-' + catPrefix + '-B' + bId + '-XXXXX-XX <small class="text-muted fw-normal">(on save)</small></span>';
+            // Brand-New Product
+            if (skuInput) {
+                skuInput.readOnly = false;
+                skuInput.required = true;
+                skuInput.classList.remove('bg-light');
+                skuInput.placeholder = 'e.g., YKH-FMRIB-26565R17';
+            }
+            if (serialInput) {
+                serialInput.readOnly = false;
+                serialInput.required = true;
+                serialInput.classList.remove('bg-light');
+                serialInput.placeholder = 'e.g., SN-2026-99010';
+            }
+            if (identifiersBadge) {
+                identifiersBadge.className = 'badge bg-success-subtle text-success border border-success-subtle px-2 py-1';
+                identifiersBadge.textContent = 'Manual Entry';
+            }
+            if (identifiersHelper) {
+                identifiersHelper.innerHTML = '<i class="fas fa-info-circle me-1"></i> Enter the official manufacturer/supplier SKU and product serial number.';
+            }
         }
     }
 
@@ -2797,14 +2988,291 @@ document.addEventListener('DOMContentLoaded', function() {
         updateIdentifiersPreview();
     }
 
+    // ==========================================
+    // Searchable Combobox for Existing Catalog Products
+    // ==========================================
+    let highlightedIndex = -1;
+    let currentFilteredList = [];
+
+    function escapeComboboxHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function renderCatalogResults(filterQuery) {
+        if (!catalogResultsPanel) return;
+        catalogResultsPanel.innerHTML = '';
+        highlightedIndex = -1;
+        currentFilteredList = [];
+
+        const query = (filterQuery || '').trim().toLowerCase();
+        const terms = query.split(/\s+/).filter(Boolean);
+
+        const matches = [];
+        canonicalCatalogProducts.forEach((cp, idx) => {
+            if (!terms.length) {
+                matches.push({ index: idx, cp: cp });
+                return;
+            }
+
+            const v0 = (cp.variants && cp.variants[0]) ? cp.variants[0] : {};
+            const catNumStr = cp.catalog_number ? String(cp.catalog_number) : '';
+            const catNumHash = cp.catalog_number ? ('#' + cp.catalog_number) : '';
+            const catPadded = cp.catalog_number ? ('#' + String(cp.catalog_number).padStart(5, '0')) : '';
+            const branchNames = (cp.carrying_branch_names || []).join(' ');
+
+            const searchable = [
+                catNumStr,
+                catNumHash,
+                catPadded,
+                cp.primary_name || '',
+                cp.category || '',
+                v0.brand || '',
+                v0.model || '',
+                v0.size || '',
+                branchNames
+            ].join(' ').toLowerCase();
+
+            const isMatch = terms.every(t => searchable.includes(t));
+            if (isMatch) {
+                matches.push({ index: idx, cp: cp });
+            }
+        });
+
+        currentFilteredList = matches;
+
+        if (!matches.length) {
+            catalogResultsPanel.innerHTML = `
+                <div class="p-3 text-center text-muted small">
+                    <i class="fas fa-search me-1"></i> No matching products found for "<strong>${escapeComboboxHtml(filterQuery)}</strong>".
+                </div>
+            `;
+            catalogResultsPanel.style.display = 'block';
+            return;
+        }
+
+        const currentSelectedVal = existingCatalogSelect ? existingCatalogSelect.value : '';
+        const fragment = document.createDocumentFragment();
+
+        matches.forEach((item, visibleIdx) => {
+            const cp = item.cp;
+            const idx = item.index;
+            const v0 = (cp.variants && cp.variants[0]) ? cp.variants[0] : {};
+
+            const specParts = [v0.brand, v0.model, v0.size].filter(Boolean);
+            const specStr = specParts.length ? specParts.join(' • ') : '';
+
+            const catNumText = (cp.catalog_number && cp.catalog_number > 0)
+                ? '#' + String(cp.catalog_number).padStart(5, '0')
+                : 'Catalog Item';
+
+            const catName = cp.category ? (cp.category.charAt(0).toUpperCase() + cp.category.slice(1)) : 'Product';
+            const stockStr = (cp.carrying_branch_names && cp.carrying_branch_names.length)
+                ? cp.carrying_branch_names.join(', ')
+                : 'None';
+
+            const isSelected = (String(currentSelectedVal) === String(idx));
+
+            const row = document.createElement('div');
+            row.className = 'catalog-result-row p-2 border-bottom text-start' + (isSelected ? ' bg-primary-subtle border-primary-subtle' : '');
+            row.style.cursor = 'pointer';
+            row.style.transition = 'background-color 0.15s ease-in-out';
+            row.setAttribute('role', 'option');
+            row.setAttribute('data-visible-idx', visibleIdx);
+            row.setAttribute('data-catalog-idx', idx);
+
+            let titleDisplay = escapeComboboxHtml(cp.primary_name);
+            if (specStr && specStr.toLowerCase() !== (cp.primary_name || '').toLowerCase()) {
+                titleDisplay += ' — <span class="text-secondary fw-normal">' + escapeComboboxHtml(specStr) + '</span>';
+            }
+
+            row.innerHTML = `
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                    <div class="fw-bold text-dark small text-truncate pe-2">
+                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle font-monospace me-1">${escapeComboboxHtml(catNumText)}</span>
+                        ${titleDisplay}
+                    </div>
+                    ${isSelected ? '<span class="badge bg-primary text-white flex-shrink-0"><i class="fas fa-check me-1"></i>Selected</span>' : ''}
+                </div>
+                <div class="text-muted smaller d-flex align-items-center gap-2 flex-wrap" style="font-size: 11.5px;">
+                    <span class="badge bg-light text-dark border py-0 px-1">${escapeComboboxHtml(catName)}</span>
+                    <span>•</span>
+                    <span><i class="fas fa-store me-1 text-primary"></i>Stocked at: <strong class="text-dark">${escapeComboboxHtml(stockStr)}</strong></span>
+                </div>
+            `;
+
+            row.addEventListener('mouseenter', () => {
+                setHighlightedRow(visibleIdx, false);
+            });
+
+            row.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectProductByIndex(idx);
+            });
+
+            fragment.appendChild(row);
+        });
+
+        catalogResultsPanel.appendChild(fragment);
+        catalogResultsPanel.style.display = 'block';
+    }
+
+    function setHighlightedRow(visibleIdx, scrollIntoView = true) {
+        if (!catalogResultsPanel) return;
+        const rows = catalogResultsPanel.querySelectorAll('.catalog-result-row');
+        rows.forEach(r => r.classList.remove('bg-light', 'border-primary'));
+
+        if (visibleIdx >= 0 && visibleIdx < rows.length) {
+            highlightedIndex = visibleIdx;
+            const targetRow = rows[visibleIdx];
+            targetRow.classList.add('bg-light', 'border-primary');
+            if (scrollIntoView) {
+                targetRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+        } else {
+            highlightedIndex = -1;
+        }
+    }
+
+    function selectProductByIndex(idx) {
+        if (idx < 0 || idx >= canonicalCatalogProducts.length) return;
+        const cp = canonicalCatalogProducts[idx];
+        if (!cp) return;
+
+        if (existingCatalogSelect) {
+            existingCatalogSelect.value = idx;
+            existingCatalogSelect.dispatchEvent(new Event('change'));
+        }
+    }
+
+    function openSearchPanel() {
+        if (!catalogResultsPanel) return;
+        const query = catalogSearchInput ? catalogSearchInput.value : '';
+        renderCatalogResults(query);
+        if (catalogSearchInput) {
+            catalogSearchInput.setAttribute('aria-expanded', 'true');
+        }
+    }
+
+    function closeSearchPanel() {
+        if (catalogResultsPanel) {
+            catalogResultsPanel.style.display = 'none';
+        }
+        if (catalogSearchInput) {
+            catalogSearchInput.setAttribute('aria-expanded', 'false');
+        }
+    }
+
+    if (catalogSearchInput) {
+        catalogSearchInput.addEventListener('focus', function() {
+            openSearchPanel();
+        });
+
+        catalogSearchInput.addEventListener('click', function() {
+            openSearchPanel();
+        });
+
+        catalogSearchInput.addEventListener('input', function() {
+            const val = this.value;
+            if (val.trim()) {
+                if (catalogSearchClear) catalogSearchClear.classList.remove('d-none');
+            } else {
+                if (catalogSearchClear) catalogSearchClear.classList.add('d-none');
+            }
+            renderCatalogResults(val);
+        });
+
+        catalogSearchInput.addEventListener('keydown', function(e) {
+            if (!catalogResultsPanel || catalogResultsPanel.style.display === 'none') {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    openSearchPanel();
+                    e.preventDefault();
+                    return;
+                }
+            }
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (currentFilteredList.length > 0) {
+                    highlightedIndex = Math.min(highlightedIndex + 1, currentFilteredList.length - 1);
+                    setHighlightedRow(highlightedIndex, true);
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (currentFilteredList.length > 0) {
+                    highlightedIndex = Math.max(highlightedIndex - 1, 0);
+                    setHighlightedRow(highlightedIndex, true);
+                }
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (highlightedIndex >= 0 && highlightedIndex < currentFilteredList.length) {
+                    selectProductByIndex(currentFilteredList[highlightedIndex].index);
+                } else if (currentFilteredList.length === 1) {
+                    selectProductByIndex(currentFilteredList[0].index);
+                }
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                closeSearchPanel();
+            }
+        });
+    }
+
+    if (catalogSearchClear) {
+        catalogSearchClear.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (catalogSearchInput) {
+                catalogSearchInput.value = '';
+                catalogSearchInput.focus();
+            }
+            this.classList.add('d-none');
+            renderCatalogResults('');
+        });
+    }
+
+    if (btnChangeProduct) {
+        btnChangeProduct.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (catalogSelectedBanner) catalogSelectedBanner.classList.add('d-none');
+            if (catalogSearchGroup) catalogSearchGroup.classList.remove('d-none');
+            if (catalogSearchInput) {
+                catalogSearchInput.value = '';
+                catalogSearchInput.focus();
+            }
+            if (catalogSearchClear) catalogSearchClear.classList.add('d-none');
+            openSearchPanel();
+        });
+    }
+
+    document.addEventListener('click', function(e) {
+        if (catalogComboboxContainer && !catalogComboboxContainer.contains(e.target)) {
+            closeSearchPanel();
+        }
+    });
+
     function resetToNewMode() {
         if (modeNewRadio) modeNewRadio.checked = true;
-        if (modeDescription) modeDescription.textContent = 'Create a brand-new catalog product definition with company-standard SKU & Inventory Serial Number.';
+        if (modeDescription) modeDescription.textContent = 'Create a brand-new catalog product definition with manufacturer SKU & Inventory Serial Number.';
         if (existingProductSection) existingProductSection.classList.add('d-none');
         if (metadataVariantContainer) metadataVariantContainer.classList.add('d-none');
         if (hiddenCatalogNumber) hiddenCatalogNumber.value = '';
         if (hiddenSourceItemId) hiddenSourceItemId.value = '';
         if (existingCatalogSelect) existingCatalogSelect.value = '';
+
+        // Reset Searchable Combobox UI
+        if (catalogSelectedBanner) catalogSelectedBanner.classList.add('d-none');
+        if (catalogSearchGroup) catalogSearchGroup.classList.remove('d-none');
+        if (catalogSearchInput) {
+            catalogSearchInput.value = '';
+            catalogSearchInput.setAttribute('aria-expanded', 'false');
+        }
+        if (catalogSearchClear) catalogSearchClear.classList.add('d-none');
+        if (catalogResultsPanel) catalogResultsPanel.style.display = 'none';
 
         if (itemNameInput) {
             itemNameInput.readOnly = false;
@@ -2828,6 +3296,21 @@ document.addEventListener('DOMContentLoaded', function() {
             sizeInput.classList.remove('bg-light');
         }
 
+        if (skuInput) {
+            skuInput.value = '';
+            skuInput.readOnly = false;
+            skuInput.required = true;
+            skuInput.classList.remove('bg-light');
+        }
+
+        if (serialInput) {
+            serialInput.value = '';
+            serialInput.readOnly = false;
+            serialInput.required = true;
+            serialInput.classList.remove('bg-light');
+        }
+
+        restoreAllBranches();
         updateCategoryRequirements();
         updateIdentifiersPreview();
     }
@@ -2844,11 +3327,14 @@ document.addEventListener('DOMContentLoaded', function() {
         modeExistingRadio.addEventListener('change', function() {
             if (this.checked) {
                 if (existingProductSection) existingProductSection.classList.remove('d-none');
-                if (modeDescription) modeDescription.textContent = 'Link an existing canonical catalog product to another branch. Reuses the 5-digit catalog number without allocating a new one.';
-                if (existingCatalogSelect && existingCatalogSelect.value) {
+                if (modeDescription) modeDescription.textContent = 'Link an existing company catalog product to another branch. System automatically derives branch-specific identifiers.';
+                if (existingCatalogSelect && existingCatalogSelect.value !== '') {
                     existingCatalogSelect.dispatchEvent(new Event('change'));
                 } else {
                     updateIdentifiersPreview();
+                    if (catalogSearchGroup && !catalogSearchGroup.classList.contains('d-none')) {
+                        openSearchPanel();
+                    }
                 }
             }
         });
@@ -2856,8 +3342,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (existingCatalogSelect) {
         existingCatalogSelect.addEventListener('change', function() {
-            const selectedNum = parseInt(this.value, 10);
-            if (isNaN(selectedNum) || selectedNum <= 0) {
+            const rawVal = this.value;
+            if (rawVal === '' || rawVal === null || rawVal === undefined) {
                 if (hiddenCatalogNumber) hiddenCatalogNumber.value = '';
                 if (hiddenSourceItemId) hiddenSourceItemId.value = '';
                 if (metadataVariantContainer) metadataVariantContainer.classList.add('d-none');
@@ -2874,15 +3360,31 @@ document.addEventListener('DOMContentLoaded', function() {
                     sizeInput.classList.remove('bg-light');
                     sizeInput.value = '';
                 }
+
+                // Reset Searchable Combobox Presentation
+                if (catalogSelectedBanner) catalogSelectedBanner.classList.add('d-none');
+                if (catalogSearchGroup) catalogSearchGroup.classList.remove('d-none');
+                if (catalogSearchInput) {
+                    catalogSearchInput.value = '';
+                    catalogSearchInput.setAttribute('aria-expanded', 'false');
+                }
+                if (catalogSearchClear) catalogSearchClear.classList.add('d-none');
+                if (catalogResultsPanel) catalogResultsPanel.style.display = 'none';
+
+                restoreAllBranches();
                 updateIdentifiersPreview();
                 return;
             }
 
-            const cp = canonicalCatalogProducts.find(function(p) {
-                return p.catalog_number === selectedNum;
+            const parsedVal = parseInt(rawVal, 10);
+            const cp = canonicalCatalogProducts[parsedVal] || canonicalCatalogProducts.find(function(p) {
+                return p.catalog_number === parsedVal;
             });
 
             if (!cp) return;
+
+            // Update branch availability based on which branches already carry this product
+            updateDestinationBranchAvailability(cp.carrying_branch_ids);
 
             if (cp.has_multiple_variants && cp.variants.length > 1) {
                 if (metadataVariantContainer) metadataVariantContainer.classList.remove('d-none');
@@ -2927,6 +3429,34 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (metadataVariantContainer) metadataVariantContainer.classList.add('d-none');
                 applySelectedVariant(cp.variants[0], cp.catalog_number);
             }
+
+            // Synchronize Selected Product Banner Presentation
+            const v0 = (cp.variants && cp.variants[0]) ? cp.variants[0] : {};
+            const catNumText = (cp.catalog_number && cp.catalog_number > 0)
+                ? '#' + String(cp.catalog_number).padStart(5, '0')
+                : 'Catalog Item';
+            const specParts = [v0.brand, v0.model, v0.size].filter(Boolean);
+            const specStr = specParts.length ? ' — ' + specParts.join(' • ') : '';
+            const catName = cp.category ? (cp.category.charAt(0).toUpperCase() + cp.category.slice(1)) : 'Product';
+            const stockStr = (cp.carrying_branch_names && cp.carrying_branch_names.length)
+                ? cp.carrying_branch_names.join(', ')
+                : 'None';
+
+            if (selectedBannerTitle) {
+                selectedBannerTitle.textContent = '[' + catNumText + '] ' + cp.primary_name + specStr;
+            }
+            if (selectedBannerMeta) {
+                selectedBannerMeta.textContent = catName + ' • Stocked at: ' + stockStr;
+            }
+
+            if (catalogSelectedBanner) catalogSelectedBanner.classList.remove('d-none');
+            if (catalogSearchGroup) catalogSearchGroup.classList.add('d-none');
+            if (catalogResultsPanel) catalogResultsPanel.style.display = 'none';
+            if (catalogSearchInput) {
+                catalogSearchInput.value = '';
+                catalogSearchInput.setAttribute('aria-expanded', 'false');
+            }
+            if (catalogSearchClear) catalogSearchClear.classList.add('d-none');
         });
     }
 
@@ -3160,11 +3690,45 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (existingCatalogSelect) existingCatalogSelect.focus();
                     return;
                 }
+
+                const selectedBranchOpt = branchSelect ? branchSelect.options[branchSelect.selectedIndex] : null;
+                if (!selectedBranchOpt || !selectedBranchOpt.value || selectedBranchOpt.disabled) {
+                    e.preventDefault();
+                    alert('The selected destination branch already carries this product or is unavailable. Please select an available branch.');
+                    if (branchSelect) branchSelect.focus();
+                    return;
+                }
+
                 // Temporarily re-enable select fields before native POST submit so their values are sent
                 if (categorySelect) categorySelect.disabled = false;
                 if (brandSelect) brandSelect.disabled = false;
                 if (modelSelect) modelSelect.disabled = false;
             } else {
+                const skuVal = skuInput ? skuInput.value.trim() : '';
+                const serialVal = serialInput ? serialInput.value.trim() : '';
+
+                if (!skuVal) {
+                    e.preventDefault();
+                    alert('Please enter a unique SKU for this product.');
+                    if (skuInput) skuInput.focus();
+                    return;
+                }
+
+                if (!serialVal) {
+                    e.preventDefault();
+                    alert('Please enter a unique Inventory Serial Number for this product.');
+                    if (serialInput) serialInput.focus();
+                    return;
+                }
+
+                const selectedBranchOpt = branchSelect ? branchSelect.options[branchSelect.selectedIndex] : null;
+                if (!selectedBranchOpt || !selectedBranchOpt.value) {
+                    e.preventDefault();
+                    alert('Please select a destination branch.');
+                    if (branchSelect) branchSelect.focus();
+                    return;
+                }
+
                 const isTire = (categorySelect && categorySelect.value === 'tire');
                 const brandVal = brandSelect ? brandSelect.value : '';
                 const brandCustomVal = brandCustomInput ? brandCustomInput.value.trim() : '';

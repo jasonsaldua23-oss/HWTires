@@ -3609,7 +3609,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 if (adjustModal) adjustModal.hide();
-                window.location.reload();
+                const url = new URL(window.location.href);
+                url.searchParams.set('added_id', result.id || itemId);
+                url.hash = 'inventory-records';
+                window.location.href = url.toString();
             } catch (err) {
                 alert(err.message || 'An error occurred while saving the stock adjustment.');
                 adjustSubmitBtn.disabled = false;

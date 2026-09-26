@@ -470,7 +470,10 @@ if ($action === 'stock_in') {
             'reference_number' => $reference_number,
         ]);
 
-        inventory_api_finish(true, 'Stock added successfully (' . $quantity . ' units added)', 200, ['quantity' => $new_quantity]);
+        inventory_api_finish(true, 'Stock added successfully (' . $quantity . ' units added)', 200, [
+            'id' => $item_id,
+            'quantity' => $new_quantity,
+        ]);
     } catch (Exception $e) {
         error_log('Stock in error: ' . $e->getMessage());
         inventory_api_finish(false, $e->getMessage(), 400);
@@ -746,6 +749,7 @@ if ($action === 'adjust_stock') {
         $pdo->commit();
 
         inventory_api_finish(true, "Stock quantity adjusted from {$old_quantity} to {$new_quantity} ({$diff_formatted} units)", 200, [
+            'id' => $item_id,
             'old_quantity' => $old_quantity,
             'new_quantity' => $new_quantity,
             'difference' => $difference,
@@ -845,45 +849,101 @@ if ($action === 'add') {
                 throw new Exception('Selected catalog source product was not found or is inactive.');
             }
 
-            if (!preg_match('/^B[0-9]+-(TIR|PAR|ACC)-([0-9]{5})$/', $sourceItem['sku'], $sm)) {
-                throw new Exception('Selected source product does not use a canonical catalog SKU format.');
+            $category = strtolower(trim((string) $sourceItem['category']));
+            if (!in_array($category, ['tire', 'accessory', 'part'], true)) {
+                throw new Exception('Invalid source item category.');
             }
-            $source_cat_prefix = $sm[1];
-            $source_catalog_num = (int) $sm[2];
+            $source_cat_prefix = ($category === 'tire') ? 'TIR' : (($category === 'accessory') ? 'ACC' : 'PAR');
+
+            // Determine canonical catalog number
+            $source_catalog_num = 0;
+            if (preg_match('/^B[0-9]+-(?:TIR|PAR|ACC)-([0-9]{5})$/', (string)($sourceItem['sku'] ?? ''), $sm)) {
+                $source_catalog_num = (int) $sm[1];
+            } else {
+                // If source product was registered with a manual SKU, check if any sibling item matching the same specs has an assigned catalog number
+                $stmtCatCheck = $pdo->prepare("
+                    SELECT sku
+                    FROM inventory_items
+                    WHERE category = ?
+                      AND LOWER(TRIM(item_name)) = LOWER(TRIM(?))
+                      AND LOWER(TRIM(COALESCE(brand, ''))) = LOWER(TRIM(COALESCE(?, '')))
+                      AND LOWER(TRIM(COALESCE(model, ''))) = LOWER(TRIM(COALESCE(?, '')))
+                      AND LOWER(TRIM(COALESCE(size, ''))) = LOWER(TRIM(COALESCE(?, '')))
+                      AND sku REGEXP '^B[0-9]+-(TIR|PAR|ACC)-[0-9]{5}$'
+                    ORDER BY id ASC
+                    LIMIT 1
+                ");
+                $stmtCatCheck->execute([
+                    $sourceItem['category'],
+                    $sourceItem['item_name'],
+                    $sourceItem['brand'] ?? '',
+                    $sourceItem['model'] ?? '',
+                    $sourceItem['size'] ?? '',
+                ]);
+                $matchedSku = $stmtCatCheck->fetchColumn();
+
+                if ($matchedSku && preg_match('/^B[0-9]+-(?:TIR|PAR|ACC)-([0-9]{5})$/', $matchedSku, $catMatches)) {
+                    $source_catalog_num = (int) $catMatches[1];
+                } else {
+                    // Allocate next catalog sequence number for this canonical company product family
+                    $source_catalog_num = $last_catalog_number + 1;
+                    $stmtUpdateSeq = $pdo->prepare("
+                        UPDATE inventory_catalog_sequence
+                        SET last_catalog_number = ?
+                        WHERE sequence_key = 'global_catalog'
+                    ");
+                    $stmtUpdateSeq->execute([$source_catalog_num]);
+                    $last_catalog_number = $source_catalog_num;
+                }
+            }
 
             if ($submitted_catalog_num > 0 && $submitted_catalog_num !== $source_catalog_num) {
                 throw new Exception('Submitted catalog number does not match the source product catalog identity.');
             }
 
-            $expected_category = ($source_cat_prefix === 'TIR') ? 'tire' : (($source_cat_prefix === 'ACC') ? 'accessory' : 'part');
-            if ($sourceItem['category'] !== $expected_category) {
-                throw new Exception('Source item category does not match its canonical SKU code.');
-            }
-
             // Inherit canonical product specs
             $item_name = $sourceItem['item_name'];
-            $category = $sourceItem['category'];
             $brand = $sourceItem['brand'];
             $model = $sourceItem['model'];
             $size = $sourceItem['size'];
 
-            // Format destination identifiers
+            // Format destination identifiers (derived branch-specific formula)
             $sku = sprintf('B%d-%s-%05d', $branch_id, $source_cat_prefix, $source_catalog_num);
             $suffix = (($source_catalog_num * 7) % 89) + 10;
             $serial_number = sprintf('HW-%s-B%d-%05d-%02d', $source_cat_prefix, $branch_id, $source_catalog_num, $suffix);
 
-            // Check if destination branch already carries this catalog product (active or archived)
+            // Check if destination branch already carries this product (by identifier or canonical specifications)
             $stmtBranchCheck = $pdo->prepare("
                 SELECT id, item_name, status
                 FROM inventory_items
                 WHERE branch_id = ?
-                  AND (sku = ? OR serial_number = ?)
+                  AND (
+                      sku = ?
+                      OR serial_number = ?
+                      OR (
+                          category = ?
+                          AND LOWER(TRIM(item_name)) = LOWER(TRIM(?))
+                          AND LOWER(TRIM(COALESCE(brand, ''))) = LOWER(TRIM(COALESCE(?, '')))
+                          AND LOWER(TRIM(COALESCE(model, ''))) = LOWER(TRIM(COALESCE(?, '')))
+                          AND LOWER(TRIM(COALESCE(size, ''))) = LOWER(TRIM(COALESCE(?, '')))
+                      )
+                  )
+                LIMIT 1
             ");
-            $stmtBranchCheck->execute([$branch_id, $sku, $serial_number]);
+            $stmtBranchCheck->execute([
+                $branch_id,
+                $sku,
+                $serial_number,
+                $category,
+                $item_name,
+                $brand ?? '',
+                $model ?? '',
+                $size ?? '',
+            ]);
             $existingBranchItem = $stmtBranchCheck->fetch(PDO::FETCH_ASSOC);
             if ($existingBranchItem) {
                 $status_msg = ($existingBranchItem['status'] === 'active') ? 'active' : 'archived';
-                throw new Exception("This catalog product (Catalog #{$source_catalog_num}) is already registered at this branch as Item #{$existingBranchItem['id']} ({$status_msg}).");
+                throw new Exception("This product is already registered at this branch as Item #{$existingBranchItem['id']} ({$status_msg}).");
             }
 
             // Destination editable fields
@@ -901,16 +961,6 @@ if ($action === 'add') {
             if (!in_array($category, ['tire', 'accessory', 'part'], true)) {
                 throw new Exception('Invalid inventory category');
             }
-            $cat_prefix = ($category === 'tire') ? 'TIR' : (($category === 'accessory') ? 'ACC' : 'PAR');
-
-            // Allocate next catalog number
-            $allocated_catalog_num = $last_catalog_number + 1;
-            $stmtUpdateSeq = $pdo->prepare("
-                UPDATE inventory_catalog_sequence
-                SET last_catalog_number = ?
-                WHERE sequence_key = 'global_catalog'
-            ");
-            $stmtUpdateSeq->execute([$allocated_catalog_num]);
 
             // Brand resolution (Select or Custom)
             $raw_brand = trim((string) ($_POST['brand'] ?? ''));
@@ -940,12 +990,46 @@ if ($action === 'add') {
             $reorder_level = inventory_api_clean_int($_POST['reorder_level'] ?? 5, 'Reorder level', 1, 100000);
             $manufacturing_date = inventory_api_clean_date($_POST['manufacturing_date'] ?? '', 'Manufacturing date', false);
 
-            $sku = sprintf('B%d-%s-%05d', $branch_id, $cat_prefix, $allocated_catalog_num);
-            $suffix = (($allocated_catalog_num * 7) % 89) + 10;
-            $serial_number = sprintf('HW-%s-B%d-%05d-%02d', $cat_prefix, $branch_id, $allocated_catalog_num, $suffix);
+            // Manual SKU & Inventory Serial Number (Required for Brand-New Product under Rule 1)
+            $sku = inventory_api_clean_text($_POST['sku'] ?? '', 'SKU', 100, true);
+            $serial_number = inventory_api_clean_text($_POST['serial_number'] ?? '', 'Inventory Serial Number', 100, true);
+
+            // Branch-level duplicate check for matching product specifications or identifiers
+            $stmtBranchCheck = $pdo->prepare("
+                SELECT id, item_name, status
+                FROM inventory_items
+                WHERE branch_id = ?
+                  AND (
+                      sku = ?
+                      OR serial_number = ?
+                      OR (
+                          category = ?
+                          AND LOWER(TRIM(item_name)) = LOWER(TRIM(?))
+                          AND LOWER(TRIM(COALESCE(brand, ''))) = LOWER(TRIM(COALESCE(?, '')))
+                          AND LOWER(TRIM(COALESCE(model, ''))) = LOWER(TRIM(COALESCE(?, '')))
+                          AND LOWER(TRIM(COALESCE(size, ''))) = LOWER(TRIM(COALESCE(?, '')))
+                      )
+                  )
+                LIMIT 1
+            ");
+            $stmtBranchCheck->execute([
+                $branch_id,
+                $sku,
+                $serial_number,
+                $category,
+                $item_name,
+                $brand ?: '',
+                $model ?: '',
+                $size ?: '',
+            ]);
+            $existingBranchItem = $stmtBranchCheck->fetch(PDO::FETCH_ASSOC);
+            if ($existingBranchItem) {
+                $status_msg = ($existingBranchItem['status'] === 'active') ? 'active' : 'archived';
+                throw new Exception("A matching product or identifier is already registered at this branch as Item #{$existingBranchItem['id']} ({$status_msg}).");
+            }
         }
 
-        // Uniqueness checks
+        // Uniqueness checks (system-wide active inventory)
         inventory_api_ensure_unique_value('sku', $sku, 'SKU');
         inventory_api_ensure_unique_value('serial_number', $serial_number, 'Serial number');
 
