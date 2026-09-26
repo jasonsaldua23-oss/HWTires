@@ -51,6 +51,12 @@ try {
         'quotation_id' => $quotation_id,
     ]);
 
+    // Check if a job order has already been created for this quotation
+    $linked_job_stmt = $pdo->prepare("SELECT id, job_number, status FROM job_orders WHERE quotation_id = ? AND status <> 'cancelled' LIMIT 1");
+    $linked_job_stmt->execute([$quotation_id]);
+    $linked_job_order = $linked_job_stmt->fetch(PDO::FETCH_ASSOC);
+    $has_job_order = !empty($linked_job_order);
+
     // Load inter-branch transfer requests for this quotation
     $quotation_transfers = [];
     $item_transfers = [];
@@ -134,6 +140,9 @@ $issued_inventory_total = app_inventory_transaction_rows_total($issued_inventory
 
 $can_manage_quotation = ($user['role'] ?? '') === 'front-desk'
     && (int) ($quotation['branch_id'] ?? 0) === (int) ($user['branch_id'] ?? 0);
+$can_edit_services = $can_manage_quotation
+    && in_array($quotation['status'], ['pending', 'approved'], true)
+    && !$has_job_order;
 $is_cross_branch_quotation = (int) ($quotation['branch_id'] ?? 0) !== (int) ($user['branch_id'] ?? 0);
 $quotation_branch_label = app_branch_label($quotation['branch_name'] ?? '', 'Branch');
 
@@ -400,9 +409,15 @@ if ($flash_message && !$is_print):
 <div class="card no-print">
     <div class="card-body">
         <div class="gap-2">
+            <?php if ($can_edit_services): ?>
             <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#editServicesModal">
                 <i class="fas fa-edit"></i> Edit Services
             </button>
+            <?php elseif ($has_job_order): ?>
+            <span class="badge bg-light text-secondary border p-2 align-self-center">
+                <i class="fas fa-lock"></i> Quotation locked &mdash; A Job Order has already been created.
+            </span>
+            <?php endif; ?>
             <?php if ($quotation['status'] === 'pending'): ?>
             <form method="POST" action="/hwtires/api/quotations-api.php" style="display: inline;">
                 <input type="hidden" name="csrf_token" value="<?php echo generate_csrf_token(); ?>">
@@ -441,9 +456,9 @@ if ($flash_message && !$is_print):
 <?php require_once '../../includes/footer.php'; ?>
 <?php endif; ?>
 
-<?php if ($can_manage_quotation && in_array($quotation['status'], ['pending', 'approved'], true)): ?>
+<?php if ($can_edit_services): ?>
 <!-- Edit Services Modal -->
-<div class="modal fade" id="editServicesModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade edit-services-modal" id="editServicesModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
             <form method="POST" action="/hwtires/admin/quotations/edit.php">

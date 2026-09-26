@@ -74,6 +74,14 @@ try {
     // Ensure front-desk user belongs to the same branch as the quotation
     enforce_branch_record_ownership($quotation['branch_id'] ?? 0);
 
+    // Check if a job order has already been created for this quotation
+    $job_stmt = $pdo->prepare("SELECT id, job_number FROM job_orders WHERE quotation_id = ? AND status <> 'cancelled' LIMIT 1");
+    $job_stmt->execute([$quotation_id]);
+    $linked_job = $job_stmt->fetch(PDO::FETCH_ASSOC);
+    if ($linked_job) {
+        throw new Exception('This quotation can no longer be edited because a Job Order has already been created.');
+    }
+
     $items_stmt = $pdo->prepare("SELECT * FROM quotation_items WHERE quotation_id = ? ORDER BY id");
     $items_stmt->execute([$quotation_id]);
     $items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -89,6 +97,13 @@ try {
             $old_services[] = $it;
         }
     }
+
+    // Validate submitted keep_item_ids against actual items belonging to this quotation
+    $valid_keep_item_ids = array_values(array_intersect($all_item_ids, $keep_item_ids));
+    if (empty($valid_keep_item_ids)) {
+        throw new Exception('At least one service or item must remain in the quotation.');
+    }
+    $keep_item_ids = $valid_keep_item_ids;
 
     // Determine which item IDs to delete (any items not kept)
     $to_delete = array_diff($all_item_ids, $keep_item_ids);
@@ -268,7 +283,7 @@ try {
 } catch (Exception $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
     error_log('Quotation edit error: ' . $e->getMessage());
-    set_flash_message('Error updating quotation: ' . $e->getMessage(), 'danger');
-    redirect('/hwtires/admin/quotations/view.php?id=' . $quotation_id);
+    set_flash_message($e->getMessage(), 'danger');
+    redirect('/hwtires/front-desk/quotations/view.php?id=' . $quotation_id);
 }
 

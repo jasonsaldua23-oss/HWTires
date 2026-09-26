@@ -28784,3 +28784,47 @@ label[hidden],
     }
 }
 
+/* ==========================================================================
+   EDIT SERVICES MODAL CHECKBOX STYLING (ISOLATED OVERRIDE)
+   ========================================================================== */
+:is(#editServicesModal, [id^="editServicesModal"], .edit-services-modal) .form-check-input[type="checkbox"],
+:is(#editServicesModal, [id^="editServicesModal"], .edit-services-modal) input[type="checkbox"] {
+    display: inline-block !important;
+    width: 18px !important;
+    height: 18px !important;
+    min-height: 18px !important;
+    max-height: 18px !important;
+    flex: 0 0 18px !important;
+    flex-shrink: 0 !important;
+    margin: 2px 8px 0 0 !important;
+    vertical-align: top !important;
+    border: 1.5px solid var(--company-border-strong, #cbd5e1) !important;
+    border-radius: 4px !important;
+    background-color: #ffffff !important;
+    background-image: none !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-size: contain !important;
+    cursor: pointer !important;
+    box-shadow: none !important;
+    accent-color: var(--primary-color, #0096b6) !important;
+}
+
+:is(#editServicesModal, [id^="editServicesModal"], .edit-services-modal) .form-check-input[type="checkbox"]:checked,
+:is(#editServicesModal, [id^="editServicesModal"], .edit-services-modal) input[type="checkbox"]:checked {
+    background-color: var(--primary-color, #0096b6) !important;
+    border-color: var(--primary-color, #0096b6) !important;
+    --bs-form-check-bg-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e") !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e") !important;
+}
+
+:is(#editServicesModal, [id^="editServicesModal"], .edit-services-modal) .form-check-input[type="checkbox"]:focus,
+:is(#editServicesModal, [id^="editServicesModal"], .edit-services-modal) input[type="checkbox"]:focus {
+    border-color: var(--primary-color, #0096b6) !important;
+    box-shadow: 0 0 0 3px rgba(0, 150, 182, 0.2) !important;
+}
+
+:is(#editServicesModal, [id^="editServicesModal"], .edit-services-modal) .form-check-label {
+    display: block !important;
+    cursor: pointer !important;
+}

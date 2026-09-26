@@ -229,6 +229,14 @@ if (!empty($quotation_ids)) {
         $quotation_items[(int) $item['quotation_id']][] = $item;
     }
 
+    // Batched linked job orders lookup for loaded quotations
+    $quotation_job_orders = [];
+    $job_stmt = $pdo->prepare("SELECT id, quotation_id, job_number, status FROM job_orders WHERE quotation_id IN ($placeholders) AND status <> 'cancelled'");
+    $job_stmt->execute($quotation_ids);
+    foreach ($job_stmt->fetchAll(PDO::FETCH_ASSOC) as $job_row) {
+        $quotation_job_orders[(int) $job_row['quotation_id']] = $job_row;
+    }
+
     // Batched inter-branch transfer lookup for loaded quotations
     $quotation_item_transfers = [];
     $eligible_donors_by_item = [];
@@ -535,7 +543,8 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                     $status_class = front_quote_status_class($quotation['status'] ?? 'pending');
                     $can_update = intval($quotation['branch_id'] ?? 0) === intval($user['branch_id'] ?? 0);
                     $can_manage_quotation = ($user['role'] ?? '') === 'front-desk' && $can_update;
-                    $can_edit_quotation = $can_manage_quotation && in_array((string) ($quotation['status'] ?? ''), ['pending', 'approved'], true);
+                    $has_job_order = !empty($quotation_job_orders[$quotation_id]);
+                    $can_edit_quotation = $can_manage_quotation && in_array((string) ($quotation['status'] ?? ''), ['pending', 'approved'], true) && !$has_job_order;
                     $can_delete = $can_manage_quotation && ($quotation['status'] ?? '') !== 'archived';
                     $can_resource = $can_manage_quotation && in_array((string) ($quotation['status'] ?? ''), ['pending', 'approved', 'draft'], true);
                     ?>
@@ -789,6 +798,10 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                                                 <i class="fas fa-edit"></i>
                                                 <span>Edit Services</span>
                                             </button>
+                                        <?php elseif ($has_job_order): ?>
+                                            <span class="small text-muted py-1 px-2 border rounded bg-light" title="Quotation locked &mdash; A Job Order has already been created.">
+                                                <i class="fas fa-lock"></i> Quotation locked
+                                            </span>
                                         <?php endif; ?>
                                         <?php if (($quotation['status'] ?? '') === 'archived'): ?>
                                             <form method="POST" action="/hwtires/api/quotations-api.php" class="quotation-modal-action-form" onsubmit="return confirm('Restore this service operation to active status?');">
@@ -822,7 +835,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                     </div>
                     <?php if ($can_edit_quotation): ?>
                         <!-- Inline Edit Services Modal for this quotation -->
-                        <div class="modal fade" id="editServicesModal<?php echo $quotation_id; ?>" tabindex="-1" aria-hidden="true">
+                        <div class="modal fade edit-services-modal" id="editServicesModal<?php echo $quotation_id; ?>" tabindex="-1" aria-hidden="true">
                             <div class="modal-dialog modal-dialog-centered modal-lg">
                                 <div class="modal-content">
                                     <form method="POST" action="/hwtires/admin/quotations/edit.php">
