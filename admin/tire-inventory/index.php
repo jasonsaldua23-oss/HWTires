@@ -1976,6 +1976,7 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                                    class="form-control border-start-0 border-end-0 ps-1" 
                                    placeholder="Search by catalog #, item name, brand, model, size..." 
                                    autocomplete="off"
+                                   data-no-autocomplete="true"
                                    role="combobox"
                                    aria-expanded="false"
                                    aria-autocomplete="list"
