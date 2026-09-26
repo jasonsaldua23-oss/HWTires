@@ -60,11 +60,50 @@ if (!function_exists('forecast_duration_human')) {
         if ($weeks <= 0) {
             return 'Out of stock';
         }
-        if ($weeks < 2.0) {
+
+        if ($weeks < 1.0) {
             $days = max(1, (int) round($weeks * 7));
+            if ($days >= 7) {
+                return '1 week left';
+            }
             return $days === 1 ? '1 day left' : $days . ' days left';
         }
-        return number_format($weeks, 1) . ' weeks left';
+
+        if ($weeks < 8.0) {
+            $fullWeeks = (int) floor($weeks);
+            $remDays = (int) round(($weeks - $fullWeeks) * 7);
+            if ($remDays >= 7) {
+                $fullWeeks++;
+                $remDays = 0;
+            }
+            if ($fullWeeks < 8) {
+                $parts = [];
+                $parts[] = $fullWeeks . ' ' . ($fullWeeks === 1 ? 'week' : 'weeks');
+                if ($remDays > 0) {
+                    $parts[] = $remDays . ' ' . ($remDays === 1 ? 'day' : 'days');
+                }
+                return implode(' ', $parts) . ' left';
+            }
+            $weeks = 8.0;
+        }
+
+        $WEEKS_PER_MONTH = 4.345;
+        $fullMonths = (int) floor($weeks / $WEEKS_PER_MONTH);
+        $remWeeksFloat = $weeks - ($fullMonths * $WEEKS_PER_MONTH);
+        $remWeeks = (int) round($remWeeksFloat);
+
+        if ($remWeeks >= 4) {
+            $fullMonths++;
+            $remWeeks = 0;
+        }
+
+        $parts = [];
+        $parts[] = $fullMonths . ' ' . ($fullMonths === 1 ? 'month' : 'months');
+        if ($remWeeks > 0) {
+            $parts[] = $remWeeks . ' ' . ($remWeeks === 1 ? 'week' : 'weeks');
+        }
+
+        return implode(' ', $parts) . ' left';
     }
 }
 
@@ -80,15 +119,9 @@ if (!function_exists('forecast_duration_human_months')) {
         if ($months <= 0) {
             return 'Out of stock';
         }
-        if ($months < 0.5) {
-            $days = max(1, (int) round($months * 30));
-            return $days === 1 ? '1 day left' : $days . ' days left';
-        }
-        if ($months < 2.0) {
-            $weeks = max(1, (int) round($months * 4.3));
-            return $weeks === 1 ? '1 week left' : $weeks . ' weeks left';
-        }
-        return number_format($months, 1) . ' months left';
+
+        $weeks = $months * 4.345;
+        return forecast_duration_human($weeks, $current_stock);
     }
 }
 
