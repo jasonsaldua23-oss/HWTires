@@ -702,7 +702,7 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
                                     </td>
                                     <td>
                                         <?php if ((int) $item['recommended_monthly_order'] > 0): ?>
-                                            <a class="forecast-row-action" href="<?php echo esc_attr($stock_in_url); ?>">
+                                            <a class="forecast-action-link" href="<?php echo esc_attr($stock_in_url); ?>">
                                                 <i class="fas fa-plus"></i>
                                                 <span>Stock In</span>
                                             </a>
@@ -753,7 +753,7 @@ $forecast_risk_items = array_slice($forecast_risk_items, 0, 6);
                                     <td><strong class="forecast-recommendation"><?php echo (int) $item['recommended_order']; ?> units</strong></td>
                                     <td>
                                         <?php if ((int) $item['recommended_order'] > 0): ?>
-                                            <a class="forecast-row-action" href="<?php echo esc_attr($stock_in_url); ?>">
+                                            <a class="forecast-action-link" href="<?php echo esc_attr($stock_in_url); ?>">
                                                 <i class="fas fa-plus"></i>
                                                 <span>Stock In</span>
                                             </a>
