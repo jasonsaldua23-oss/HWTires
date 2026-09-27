@@ -2929,6 +2929,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const opt = document.createElement('option');
                 opt.value = variant.brand;
                 opt.textContent = variant.brand;
+                opt.dataset.dynamicCatalogOption = '1';
                 brandSelect.insertBefore(opt, brandSelect.lastElementChild);
                 brandSelect.value = variant.brand;
             }
@@ -3275,33 +3276,67 @@ document.addEventListener('DOMContentLoaded', function() {
         if (catalogSearchClear) catalogSearchClear.classList.add('d-none');
         if (catalogResultsPanel) catalogResultsPanel.style.display = 'none';
 
+        // 1. Reset Product Details fields to clean Brand-New defaults
         if (itemNameInput) {
+            itemNameInput.value = '';
             itemNameInput.readOnly = false;
             itemNameInput.classList.remove('bg-light');
         }
 
         if (categorySelect) {
+            categorySelect.value = 'tire';
             categorySelect.disabled = false;
         }
 
         if (brandSelect) {
+            brandSelect.querySelectorAll('option[data-dynamic-catalog-option="1"]').forEach(function(el) {
+                el.remove();
+            });
+            brandSelect.value = '';
             brandSelect.disabled = false;
         }
+        if (brandCustomInput) {
+            brandCustomInput.value = '';
+            brandCustomInput.classList.add('d-none');
+            brandCustomInput.required = false;
+        }
 
+        // Resets modelSelect to '-- Select Brand First --' and clears/hides custom model input
+        updateModelDropdown('');
         if (modelSelect) {
             modelSelect.disabled = false;
         }
 
         if (sizeInput) {
+            sizeInput.value = '';
             sizeInput.readOnly = false;
             sizeInput.classList.remove('bg-light');
         }
 
+        if (unitPriceInput) {
+            unitPriceInput.value = '';
+        }
+
+        if (reorderLevelInput) {
+            reorderLevelInput.value = '5';
+        }
+
+        const mfgDateInput = document.getElementById('add_manufacturing_date');
+        if (mfgDateInput) {
+            mfgDateInput.value = '';
+        }
+
+        if (descriptionInput) {
+            descriptionInput.value = '';
+        }
+
+        // 2. Reset SKU and Serial inputs
         if (skuInput) {
             skuInput.value = '';
             skuInput.readOnly = false;
             skuInput.required = true;
             skuInput.classList.remove('bg-light');
+            skuInput.placeholder = 'e.g., YKH-FMRIB-26565R17';
         }
 
         if (serialInput) {
@@ -3309,9 +3344,47 @@ document.addEventListener('DOMContentLoaded', function() {
             serialInput.readOnly = false;
             serialInput.required = true;
             serialInput.classList.remove('bg-light');
+            serialInput.placeholder = 'e.g., SN-2026-99010';
         }
 
+        // 3. Reset Destination Branch to default (first branch according to existing markup)
         restoreAllBranches();
+        if (branchSelect && branchSelect.options.length > 0) {
+            branchSelect.selectedIndex = 0;
+        }
+
+        // 4. Reset Pending Arrival to fresh initial state
+        if (scheduleToggle) {
+            scheduleToggle.checked = false;
+        }
+        if (deliveryContainer) {
+            deliveryContainer.classList.add('d-none');
+        }
+        if (expectedQtyInput) {
+            expectedQtyInput.value = '';
+            expectedQtyInput.required = false;
+        }
+        if (sourceTypeSelect) {
+            sourceTypeSelect.value = 'supplier_delivery';
+            sourceTypeSelect.required = false;
+        }
+        if (supplierNameInput) {
+            supplierNameInput.value = '';
+            supplierNameInput.readOnly = false;
+        }
+        if (refInput) {
+            refInput.value = '';
+        }
+        const arrivalDateInput = document.getElementById('add_expected_arrival_date');
+        if (arrivalDateInput) {
+            arrivalDateInput.value = '';
+        }
+        const deliveryNotesInput = document.getElementById('add_delivery_notes');
+        if (deliveryNotesInput) {
+            deliveryNotesInput.value = '';
+        }
+        updateDeliverySourceUI();
+
         updateCategoryRequirements();
         updateIdentifiersPreview();
     }
@@ -3678,6 +3751,18 @@ document.addEventListener('DOMContentLoaded', function() {
         sourceTypeSelect.addEventListener('change', updateDeliverySourceUI);
     }
 
+    let isSubmittingAddForm = false;
+
+    // Add Modal Hidden Lifecycle Reset
+    const addModalEl = document.getElementById('addInventoryModal');
+    if (addModalEl) {
+        addModalEl.addEventListener('hidden.bs.modal', function() {
+            if (!isSubmittingAddForm) {
+                resetToNewMode();
+            }
+        });
+    }
+
     // Add Form Validation & Submission Handling
     if (addForm) {
         addForm.addEventListener('submit', function(e) {
@@ -3798,6 +3883,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
             }
+
+            isSubmittingAddForm = true;
         });
     }
 
