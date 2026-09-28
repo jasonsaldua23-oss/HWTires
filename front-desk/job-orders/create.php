@@ -78,6 +78,61 @@ if (!function_exists('front_job_money')) {
     }
 }
 
+if (!function_exists('front_job_summarize_single_duration')) {
+    function front_job_summarize_single_duration(string $text): string {
+        $text = trim($text);
+        if ($text === '') {
+            return '';
+        }
+
+        // Standardize unicode dashes to standard hyphen
+        $text = preg_replace('/[\x{2013}\x{2014}]/u', '-', $text);
+
+        // If semicolons exist, split into clauses
+        $clauses = array_map('trim', explode(';', $text));
+        $clean_clauses = [];
+
+        foreach ($clauses as $clause) {
+            if ($clause === '') {
+                continue;
+            }
+            $c = $clause;
+            // Clean common verbose wordings while preserving time ranges and key qualifiers
+            $c = preg_replace('/\s+only\b/i', '', $c);
+            $c = preg_replace('/\bfor cleaning\/adjustment\b/i', 'cleaning', $c);
+            $c = preg_replace('/\bfor brake repair\b/i', 'repair', $c);
+            $c = preg_replace('/\bfull alignment\b/i', 'alignment', $c);
+            $c = preg_replace('/\bfor proper A\/C recharge\b/i', 'recharge', $c);
+            $c = preg_replace('/\buse\s+/i', '', $c);
+            $c = preg_replace('/\bfor quick top-up\b/i', 'top-up', $c);
+            $c = preg_replace('/\bif including preparation and ventilation\b/i', 'with prep', $c);
+            $c = preg_replace('/\bfor quick fogging\b/i', 'fogging', $c);
+            $c = preg_replace('/\bfor quick scan\b/i', 'quick scan', $c);
+            $c = preg_replace('/\bfor full diagnostic test\b/i', 'full diag', $c);
+            $c = preg_replace('/\bif full PMS package\b/i', 'full PMS', $c);
+            $c = preg_replace('/\bdepending on [^;,\.]+/i', '', $c);
+            $c = preg_replace('/\bfor 4 wheels\b/i', '', $c);
+            $c = preg_replace('/\bfor 4 tires with balancing\b/i', '4 tires', $c);
+            $c = preg_replace('/\bfor 4 tires\b/i', '4 tires', $c);
+            $c = preg_replace('/\bminutes\b/i', 'mins', $c);
+            $c = preg_replace('/\bminute\b/i', 'min', $c);
+            $c = preg_replace('/\bhours\b/i', 'hrs', $c);
+            $c = preg_replace('/\bhour\b/i', 'hr', $c);
+            $c = preg_replace('/\s+/', ' ', $c);
+            $c = trim($c);
+            if ($c !== '') {
+                $clean_clauses[] = $c;
+            }
+        }
+
+        if (empty($clean_clauses)) {
+            return '';
+        }
+
+        return implode('; ', $clean_clauses);
+    }
+}
+
 if (!function_exists('front_job_estimated_duration')) {
     function front_job_estimated_duration(array $service_names, array $duration_map) {
         $durations = [];
@@ -90,7 +145,66 @@ if (!function_exists('front_job_estimated_duration')) {
         }
 
         $durations = array_values(array_unique(array_filter($durations)));
-        return implode('; ', $durations);
+        if (empty($durations)) {
+            return '';
+        }
+
+        // Tier 1: Original raw catalog durations if within 120 chars
+        $raw = implode('; ', $durations);
+        if (mb_strlen($raw, 'UTF-8') <= 120) {
+            return $raw;
+        }
+
+        // Tier 2: Condense phrasing across all clauses
+        $condensed = [];
+        foreach ($durations as $d) {
+            $condensed[] = front_job_summarize_single_duration($d);
+        }
+        $candidate = implode('; ', array_values(array_unique(array_filter($condensed))));
+        if (mb_strlen($candidate, 'UTF-8') <= 120) {
+            return $candidate;
+        }
+
+        // Tier 3: Primary clauses only (before semicolon for each service)
+        $primary_only = [];
+        foreach ($durations as $d) {
+            $parts = explode(';', $d);
+            $primary = front_job_summarize_single_duration($parts[0]);
+            if ($primary !== '') {
+                $primary_only[] = $primary;
+            }
+        }
+        $candidate2 = implode('; ', array_values(array_unique(array_filter($primary_only))));
+        if (mb_strlen($candidate2, 'UTF-8') <= 120) {
+            return $candidate2;
+        }
+
+        // Tier 4: Time ranges only with count
+        $times_only = [];
+        foreach ($durations as $d) {
+            $d_norm = preg_replace('/[\x{2013}\x{2014}]/u', '-', $d);
+            if (preg_match('/(\d+(?:\.\d+)?(?:\s*-\s*\d+(?:\.\d+)?)?\s*(?:minutes?|mins?|hours?|hrs?|days?))/i', $d_norm, $m)) {
+                $t = $m[1];
+                $t = preg_replace('/\bminutes?\b/i', 'm', $t);
+                $t = preg_replace('/\bhours?\b/i', 'h', $t);
+                $t = preg_replace('/\s+/', '', $t);
+                $times_only[] = $t;
+            }
+        }
+        if (!empty($times_only)) {
+            $candidate3 = implode(', ', $times_only) . ' (' . count($durations) . ' services)';
+            if (mb_strlen($candidate3, 'UTF-8') <= 120) {
+                return $candidate3;
+            }
+        }
+
+        // Tier 5: Safe delimiter boundary fallback (never cuts within words or ranges)
+        $clean_fallback = mb_substr($candidate2, 0, 117, 'UTF-8');
+        $last_semi = mb_strrpos($clean_fallback, ';');
+        if ($last_semi !== false && $last_semi > 20) {
+            return mb_substr($clean_fallback, 0, $last_semi);
+        }
+        return $clean_fallback;
     }
 }
 
@@ -184,6 +298,7 @@ $approved_stmt = $pdo->prepare("
            v.model AS vehicle_model,
            v.year AS vehicle_year,
            v.plate_number,
+           v.customer_id AS vehicle_current_owner_id,
            b.name AS branch_name
     FROM quotations q
     LEFT JOIN customers c ON c.id = q.customer_id
@@ -195,14 +310,42 @@ $approved_stmt = $pdo->prepare("
     ORDER BY q.created_at DESC, q.id DESC
 ");
 $approved_stmt->execute([$user_branch_id, $approved_quote_year]);
-$approved_quotations = $approved_stmt->fetchAll();
+$raw_approved_quotations = $approved_stmt->fetchAll();
+
+// Exclude transferred-owner quotations from valid conversion options
+$approved_quotations = [];
+foreach ($raw_approved_quotations as $quote_row) {
+    $v_id = (int) ($quote_row['vehicle_id'] ?? 0);
+    if ($v_id > 0) {
+        $v_owner = (int) ($quote_row['vehicle_current_owner_id'] ?? 0);
+        $q_cust = (int) ($quote_row['customer_id'] ?? 0);
+        if ($v_owner <= 0 || $v_owner !== $q_cust) {
+            continue;
+        }
+    }
+    $approved_quotations[] = $quote_row;
+}
 
 $approved_ids = array_map(static function ($quote) {
     return (int) $quote['id'];
 }, $approved_quotations);
 
 if ($selected_quotation_id > 0 && !in_array($selected_quotation_id, $approved_ids, true)) {
-    set_flash_message('Only approved service operations from your branch can be converted to job orders.', 'warning');
+    // Check if the requested quotation specifically has transferred vehicle ownership
+    $transferred_check_stmt = $pdo->prepare("
+        SELECT q.id, q.customer_id, q.vehicle_id, v.customer_id AS vehicle_current_owner_id
+        FROM quotations q
+        LEFT JOIN vehicles v ON v.id = q.vehicle_id
+        WHERE q.id = ?
+    ");
+    $transferred_check_stmt->execute([$selected_quotation_id]);
+    $t_quote = $transferred_check_stmt->fetch();
+
+    if ($t_quote && (int) ($t_quote['vehicle_id'] ?? 0) > 0 && ((int) ($t_quote['vehicle_current_owner_id'] ?? 0) !== (int) $t_quote['customer_id'])) {
+        set_flash_message('Cannot convert this quotation into a Job Order because the vehicle is now registered under another customer. Please create a new quotation for the current registered owner.', 'warning');
+    } else {
+        set_flash_message('Only approved service operations from your branch can be converted to job orders.', 'warning');
+    }
     $selected_quotation_id = 0;
 }
 
@@ -453,7 +596,7 @@ if (!empty($job_quotation_ids)) {
                         <label for="quotation_id">Approved service operation <span>*</span></label>
                         <label class="job-quote-search" for="jobQuotationSearch">
                             <span>Search approved service operation</span>
-                            <input type="search" id="jobQuotationSearch" maxlength="100" data-text-format="first-letter" placeholder="Type customer, plate, or service operation number..." autocomplete="off">
+                            <input type="search" id="jobQuotationSearch" maxlength="100" data-text-format="first-letter" placeholder="Type customer, plate, or service operation number..." autocomplete="off" data-no-autocomplete="true">
                             <div class="job-quote-results" id="jobQuotationResults" hidden></div>
                         </label>
                         <select id="quotation_id" name="quotation_id" class="job-quote-select" required>
@@ -552,7 +695,7 @@ if (!empty($job_quotation_ids)) {
                         <div class="job-technician-picker">
                             <div class="job-technician-selected" id="jobTechnicianSelected"></div>
                             <label class="job-technician-search" for="jobTechnicianSearch">
-                                <input type="search" id="jobTechnicianSearch" placeholder="Search technician name..." autocomplete="off" maxlength="100" data-text-format="person-name">
+                                <input type="search" id="jobTechnicianSearch" placeholder="Search technician name..." autocomplete="off" maxlength="100" data-text-format="person-name" data-no-autocomplete="true">
                                 <div class="job-technician-results" id="jobTechnicianResults" hidden></div>
                             </label>
                             <select id="jobTechnicianDropdown" class="job-technician-select">
@@ -590,7 +733,7 @@ if (!empty($job_quotation_ids)) {
                 </label>
                 <label class="job-duration-field">
                     <span>Estimated Job Duration</span>
-                    <input type="text" name="estimated_duration" id="jobEstimatedDuration" maxlength="50" data-text-format="first-letter" placeholder="e.g., 2 hours or 2 days">
+                    <input type="text" name="estimated_duration" id="jobEstimatedDuration" maxlength="120" data-text-format="first-letter" placeholder="e.g., 2 hours or 2 days">
                 </label>
             </div>
             <label class="job-notes-field">
@@ -1466,7 +1609,7 @@ function renderSelectedQuotation() {
     document.getElementById('job_branch_id').value = quote.branch_id || '<?php echo (int) $user_branch_id; ?>';
     document.getElementById('jobNotes').value = quote.notes || '';
     if (durationInput) {
-        durationInput.value = quote.estimated_duration || '';
+        durationInput.value = (quote.estimated_duration || '').slice(0, 120);
         syncJobDurationTypeFromText();
     }
 
@@ -1530,6 +1673,7 @@ function filterJobQuotationOptions() {
 if (quoteSearch) {
     quoteSearch.addEventListener('input', filterJobQuotationOptions);
     quoteSearch.addEventListener('focus', filterJobQuotationOptions);
+    quoteSearch.addEventListener('search', filterJobQuotationOptions);
 }
 
 if (durationType) {
@@ -1561,6 +1705,9 @@ if (technicianSearchInput) {
         renderTechnicianResults(normalizeJobSearchTerms(technicianSearchInput.value));
     });
     technicianSearchInput.addEventListener('focus', () => {
+        renderTechnicianResults(normalizeJobSearchTerms(technicianSearchInput.value));
+    });
+    technicianSearchInput.addEventListener('search', () => {
         renderTechnicianResults(normalizeJobSearchTerms(technicianSearchInput.value));
     });
     technicianSearchInput.addEventListener('keydown', (event) => {
@@ -1609,6 +1756,13 @@ if (frontJobOrderForm) {
                 technicianSearchInput.focus();
             }
             alert('Please choose at least one assigned technician.');
+            return;
+        }
+
+        if (durationInput && durationInput.value.trim().length > 120) {
+            event.preventDefault();
+            durationInput.focus();
+            alert('Estimated job duration cannot exceed 120 characters. Please provide a more concise duration.');
             return;
         }
 

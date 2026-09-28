@@ -1464,9 +1464,9 @@ if (!function_exists('cv_records_render_history_modal')) {
                             <div class="customer-history-filter-item">
                                 <label>Branch</label>
                                 <select class="customer-history-branch-select" data-history-branch-select>
-                                    <option value="">All Branches</option>
+                                    <option value="" selected>All Branches</option>
                                     <?php foreach ($branch_options as $branch_id => $branch_name): ?>
-                                        <option value="<?php echo (int) $branch_id; ?>" <?php echo $default_branch_filter === (int) $branch_id ? 'selected' : ''; ?>>
+                                        <option value="<?php echo (int) $branch_id; ?>">
                                             <?php echo esc_html($branch_name); ?>
                                         </option>
                                     <?php endforeach; ?>
@@ -1476,7 +1476,7 @@ if (!function_exists('cv_records_render_history_modal')) {
                             <div class="customer-history-filter-item">
                                 <label>Period</label>
                                 <select class="customer-history-date-scope" data-history-scope>
-                                    <option value="all">All Records</option>
+                                    <option value="all" selected>All Records</option>
                                     <option value="recent">Current Week</option>
                                     <option value="day">Day</option>
                                     <option value="week">Week</option>
@@ -2029,6 +2029,30 @@ if (!function_exists('cv_records_render_history_script')) {
                     });
                 });
 
+                function resetFiltersToDefaults() {
+                    if (branchSelect) {
+                        branchSelect.value = '';
+                    }
+                    if (scope) {
+                        scope.value = 'all';
+                    }
+                    inputs.forEach(function(field) {
+                        field.value = '';
+                    });
+                    const defaultTab = modal.querySelector('[data-history-tab="services"]');
+                    if (defaultTab) {
+                        tabs.forEach(function(item) {
+                            const active = item === defaultTab;
+                            item.classList.toggle('active', active);
+                            item.setAttribute('aria-selected', active ? 'true' : 'false');
+                        });
+                        panels.forEach(function(panel) {
+                            panel.classList.toggle('active', panel.dataset.historyPanel === 'services');
+                        });
+                    }
+                    syncDateInputs();
+                }
+
                 if (scope) {
                     scope.addEventListener('change', function() {
                         syncDateInputs();
@@ -2037,7 +2061,10 @@ if (!function_exists('cv_records_render_history_script')) {
                 }
 
                 if (vehicleSelect) {
-                    vehicleSelect.addEventListener('change', applyFilter);
+                    vehicleSelect.addEventListener('change', function() {
+                        resetFiltersToDefaults();
+                        applyFilter();
+                    });
                 }
 
                 if (branchSelect) {
@@ -2057,14 +2084,15 @@ if (!function_exists('cv_records_render_history_script')) {
                     if (requestedVehicleId && vehicleSelect) {
                         vehicleSelect.value = requestedVehicleId;
                     }
-                });
-
-                modal.addEventListener('shown.bs.modal', function() {
-                    syncDateInputs();
+                    resetFiltersToDefaults();
                     applyFilter();
                 });
 
-                syncDateInputs();
+                modal.addEventListener('shown.bs.modal', function() {
+                    applyFilter();
+                });
+
+                resetFiltersToDefaults();
                 applyFilter();
             });
         });

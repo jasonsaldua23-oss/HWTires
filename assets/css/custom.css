@@ -5122,11 +5122,28 @@ body {
     gap: 14px;
 }
 
+.quote-labor-field {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    max-width: 320px;
+    text-align: right;
+}
+
+.quote-labor-field input {
+    width: 200px;
+    max-width: 200px;
+    text-align: right;
+}
+
 .quote-labor-field small {
+    display: block;
     color: #53627a;
     font-size: 13px;
     font-weight: 500;
     line-height: 1.35;
+    text-align: right;
 }
 
 .quote-line-hint {
@@ -5184,7 +5201,6 @@ body {
 .quote-cost-row,
 .quote-total-row {
     display: flex;
-    align-items: center;
     justify-content: space-between;
     gap: 24px;
     min-height: 66px;
@@ -5192,9 +5208,15 @@ body {
     border-bottom: 1px solid #e2e8f0;
 }
 
+.quote-cost-row {
+    align-items: flex-start;
+    padding-top: 8px;
+}
+
 .quote-cost-row span {
     color: #16223c;
     font-size: 20px;
+    line-height: 40px;
 }
 
 .quote-cost-row input {
@@ -5206,9 +5228,11 @@ body {
     color: #00183a;
     font-size: 20px;
     font-weight: 800;
+    line-height: 40px;
 }
 
 .quote-total-row {
+    align-items: center;
     min-height: 70px;
     padding: 18px 20px;
     background: #e8fdff;
@@ -27649,8 +27673,7 @@ input.hw-search-input,
     width: 100% !important;
     min-height: 38px !important;
     height: 38px !important;
-    padding: 6px 12px !important;
-    padding-left: 12px !important;
+    padding: 6px 36px 6px 12px !important;
     font-size: 0.875rem !important;
     font-weight: 500 !important;
     color: #1e293b !important;
@@ -27683,12 +27706,111 @@ input.hw-search-input::placeholder,
     font-weight: 400 !important;
 }
 
+input[type="search"]::-webkit-search-decoration,
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-results-button,
+input[type="search"]::-webkit-search-results-decoration,
 .hw-search-input::-webkit-search-decoration,
 .hw-search-input::-webkit-search-cancel-button,
 .hw-search-input::-webkit-search-results-button,
 .hw-search-input::-webkit-search-results-decoration {
     -webkit-appearance: none !important;
     appearance: none !important;
+    display: none !important;
+}
+
+/* Standardized HWTIRES Search Clear (X) Button */
+.hw-search-clear-btn,
+button.hw-search-clear-btn,
+.hw-search-wrapper button.hw-search-clear-btn,
+.hw-search-cluster button.hw-search-clear-btn,
+.records-date-filter button.hw-search-clear-btn,
+.hw-filter-toolbar button.hw-search-clear-btn,
+.modal button.hw-search-clear-btn {
+    position: absolute !important;
+    right: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    min-height: 24px !important;
+    max-width: 24px !important;
+    max-height: 24px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 50% !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    color: #94a3b8 !important;
+    font-size: 13px !important;
+    line-height: 1 !important;
+    cursor: pointer !important;
+    display: none;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 10 !important;
+    box-shadow: none !important;
+    outline: none !important;
+    transition: background-color 0.15s ease, color 0.15s ease !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    flex: 0 0 24px !important;
+    align-self: auto !important;
+}
+
+.hw-search-clear-btn i,
+.hw-search-clear-btn svg,
+button.hw-search-clear-btn i,
+button.hw-search-clear-btn svg {
+    font-size: 12px !important;
+    line-height: 1 !important;
+    color: inherit !important;
+    pointer-events: none !important;
+    vertical-align: middle !important;
+}
+
+.hw-search-clear-btn:hover,
+button.hw-search-clear-btn:hover {
+    color: #475569 !important;
+    background: rgba(148, 163, 184, 0.18) !important;
+    background-color: rgba(148, 163, 184, 0.18) !important;
+    border: none !important;
+}
+
+.hw-search-clear-btn:active,
+button.hw-search-clear-btn:active {
+    color: #1e293b !important;
+    background: rgba(148, 163, 184, 0.3) !important;
+    background-color: rgba(148, 163, 184, 0.3) !important;
+    border: none !important;
+}
+
+.hw-search-clear-btn:focus,
+button.hw-search-clear-btn:focus {
+    outline: none !important;
+    border: none !important;
+    box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.25) !important;
+}
+
+/* Ensure padding-right across modal and specialized search inputs */
+.job-quote-search input {
+    padding-right: 48px !important;
+}
+
+.job-technician-search input,
+.quote-customer-selector input,
+.quote-picker-search input,
+input.has-search-clear {
+    padding-right: 36px !important;
+}
+
+.job-quote-search,
+.job-technician-search,
+.quote-customer-selector,
+.quote-picker-search {
+    position: relative !important;
 }
 
 /* Action Buttons & Icon-Only Sizing */

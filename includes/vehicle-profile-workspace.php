@@ -1514,6 +1514,50 @@ try {
         ];
     }
 
+    // Check for ongoing Job Orders (HARD BLOCK) and existing Quotations (INFORMATIONAL WARNING)
+    $has_active_job_order = false;
+    $has_existing_quotation = false;
+    try {
+        $active_job_stmt = $pdo->prepare("
+            SELECT id, job_number, status
+            FROM job_orders
+            WHERE vehicle_id = ?
+              AND status IN ('waiting', 'pending', 'in-progress')
+            LIMIT 1
+        ");
+        $active_job_stmt->execute([$vehicle_id]);
+        $has_active_job_order = (bool) $active_job_stmt->fetch();
+
+        $existing_quote_stmt = $pdo->prepare("
+            SELECT id, quotation_number, status
+            FROM quotations
+            WHERE vehicle_id = ?
+              AND status IN ('pending', 'approved')
+            LIMIT 1
+        ");
+        $existing_quote_stmt->execute([$vehicle_id]);
+        $has_existing_quotation = (bool) $existing_quote_stmt->fetch();
+    } catch (Exception $e) {
+        $has_active_job_order = false;
+        $has_existing_quotation = false;
+    }
+
+    $transfer_customer_candidates = [];
+    if ($role === 'front-desk') {
+        try {
+            $cand_stmt = $pdo->prepare("
+                SELECT id, name, phone_mobile, contact, address, city
+                FROM customers
+                WHERE status = 'active' AND id <> ?
+                ORDER BY name ASC
+            ");
+            $cand_stmt->execute([intval($vehicle['customer_id'] ?? 0)]);
+            $transfer_customer_candidates = $cand_stmt->fetchAll();
+        } catch (Exception $e) {
+            $transfer_customer_candidates = [];
+        }
+    }
+
     $item_summary_sql = "
         SELECT quotation_id,
                GROUP_CONCAT(item_name ORDER BY id SEPARATOR ', ') AS item_names,
@@ -2119,7 +2163,14 @@ foreach ($record_sections as $record_section) {
                 <div class="vehicle-workspace-facts">
                     <div>
                         <span>Current Owner</span>
-                        <strong><?php echo esc_html($vehicle['customer_name'] ?? '-'); ?></strong>
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+                            <strong><?php echo esc_html($vehicle['customer_name'] ?? '-'); ?></strong>
+                            <?php if ($role === 'front-desk' && ($vehicle['status'] ?? 'active') === 'active'): ?>
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#transferOwnershipModal" style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; font-size: 11px; font-weight: 600; border-radius: 5px;">
+                                    <i class="fas fa-exchange-alt"></i> Transfer
+                                </button>
+                            <?php endif; ?>
+                        </div>
                     </div>
                     <div>
                         <span>Plate Number</span>
@@ -2181,7 +2232,14 @@ foreach ($record_sections as $record_section) {
             <?php if ($active_tab === 'ownership'): ?>
                 <div class="vehicle-workspace-panel-head">
                     <h2><i class="fas fa-users"></i> Ownership History</h2>
-                    <span>Current and previous owners</span>
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <span>Current and previous owners</span>
+                        <?php if ($role === 'front-desk' && ($vehicle['status'] ?? 'active') === 'active'): ?>
+                            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#transferOwnershipModal" style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; font-size: 12px; font-weight: 600; border-radius: 6px;">
+                                <i class="fas fa-exchange-alt"></i> Transfer Ownership
+                            </button>
+                        <?php endif; ?>
+                    </div>
                 </div>
                 <div class="vehicle-workspace-owner-list full">
                     <?php foreach ($ownership_history as $ownership): ?>
@@ -2531,6 +2589,616 @@ foreach ($record_sections as $record_section) {
         </div>
     </div>
 </div>
+<?php endif; ?>
+
+<?php if ($role === 'front-desk' && ($vehicle['status'] ?? 'active') === 'active'): ?>
+<!-- Transfer Vehicle Ownership Modal Styles -->
+<style>
+#transferOwnershipModal .modal-dialog {
+    max-height: calc(100vh - 2.5rem);
+    margin: 1.25rem auto;
+    display: flex;
+    flex-direction: column;
+}
+#transferOwnershipModal .modal-content {
+    max-height: calc(100vh - 2.5rem);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 12px;
+}
+#transferOwnershipModal #transferOwnershipForm {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: 100%;
+    overflow: hidden;
+    margin: 0;
+}
+#transferOwnershipModal .modal-header {
+    flex: 0 0 auto;
+    background-color: #f8fafc !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+}
+#transferOwnershipModal .modal-title,
+#transferOwnershipModal #transferOwnershipModalLabel {
+    color: #1e293b !important;
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+#transferOwnershipModal .transfer-modal-subtitle {
+    color: #475569 !important;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+#transferOwnershipModal .transfer-modal-plate-badge {
+    background-color: #e2e8f0 !important;
+    color: #0f172a !important;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #cbd5e1;
+    letter-spacing: 0.5px;
+}
+#transferOwnershipModal .btn-close {
+    filter: none !important;
+    opacity: 0.7;
+}
+#transferOwnershipModal .btn-close:hover {
+    opacity: 1;
+}
+#transferOwnershipModal .modal-footer {
+    flex: 0 0 auto;
+    border-top: 1px solid #e2e8f0;
+}
+#transferOwnershipModal .modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+    max-height: calc(100vh - 210px);
+    -webkit-overflow-scrolling: touch;
+}
+@media (max-height: 768px) {
+    #transferOwnershipModal .modal-dialog {
+        max-height: calc(100vh - 1.5rem);
+        margin: 0.75rem auto;
+    }
+    #transferOwnershipModal .modal-content,
+    #transferOwnershipModal #transferOwnershipForm {
+        max-height: calc(100vh - 1.5rem);
+    }
+    #transferOwnershipModal .modal-body {
+        max-height: calc(100vh - 170px);
+        padding: 1rem !important;
+    }
+}
+@media (max-height: 600px) {
+    #transferOwnershipModal .modal-dialog {
+        max-height: calc(100vh - 0.75rem);
+        margin: 0.375rem auto;
+    }
+    #transferOwnershipModal .modal-content,
+    #transferOwnershipModal #transferOwnershipForm {
+        max-height: calc(100vh - 0.75rem);
+    }
+    #transferOwnershipModal .modal-body {
+        max-height: calc(100vh - 130px);
+        padding: 0.75rem !important;
+    }
+}
+
+/* Radio buttons & mode pills */
+#transferOwnershipModal .transfer-mode-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    background-color: #f8fafc;
+    border: 2px solid #cbd5e1;
+    border-radius: 8px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.15s ease;
+    margin: 0;
+}
+#transferOwnershipModal .transfer-mode-pill:hover {
+    background-color: #f1f5f9;
+    border-color: #94a3b8;
+}
+#transferOwnershipModal .transfer-mode-pill.active {
+    background-color: #eff6ff;
+    border-color: #2563eb;
+    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.12);
+}
+#transferOwnershipModal input[type="radio"].transfer-mode-radio {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    min-height: 18px !important;
+    max-width: 18px !important;
+    max-height: 18px !important;
+    flex: 0 0 18px !important;
+    flex-shrink: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    float: none !important;
+    border: 2px solid #64748b !important;
+    border-radius: 50% !important;
+    background-color: #ffffff !important;
+    cursor: pointer !important;
+    box-shadow: none !important;
+    outline: none !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+#transferOwnershipModal input[type="radio"].transfer-mode-radio:hover {
+    border-color: #2563eb !important;
+}
+#transferOwnershipModal input[type="radio"].transfer-mode-radio:focus {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2) !important;
+}
+#transferOwnershipModal input[type="radio"].transfer-mode-radio:checked {
+    border-color: #2563eb !important;
+    background-color: #ffffff !important;
+}
+#transferOwnershipModal input[type="radio"].transfer-mode-radio:checked::after {
+    content: '';
+    display: block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #2563eb;
+}
+#transferOwnershipModal .transfer-mode-label {
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #1e293b;
+    margin: 0;
+}
+
+/* Checkbox & confirmation box */
+#transferOwnershipModal .transfer-confirm-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    background-color: #f8fafc;
+    border: 2px solid #cbd5e1;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+#transferOwnershipModal .transfer-confirm-box:hover {
+    background-color: #f1f5f9;
+    border-color: #94a3b8;
+}
+#transferOwnershipModal .transfer-confirm-box.is-confirmed {
+    background-color: #eff6ff;
+    border-color: #2563eb;
+}
+#transferOwnershipModal input[type="checkbox"].transfer-confirm-input {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+    max-width: 20px !important;
+    max-height: 20px !important;
+    flex: 0 0 20px !important;
+    flex-shrink: 0 !important;
+    margin: 2px 0 0 0 !important;
+    padding: 0 !important;
+    float: none !important;
+    border: 2px solid #64748b !important;
+    border-radius: 4px !important;
+    background-color: #ffffff !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-size: 14px 14px !important;
+    cursor: pointer !important;
+    box-shadow: none !important;
+    outline: none !important;
+    position: relative;
+}
+#transferOwnershipModal input[type="checkbox"].transfer-confirm-input:hover {
+    border-color: #2563eb !important;
+}
+#transferOwnershipModal input[type="checkbox"].transfer-confirm-input:focus {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2) !important;
+}
+#transferOwnershipModal input[type="checkbox"].transfer-confirm-input:checked {
+    background-color: #2563eb !important;
+    border-color: #2563eb !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e") !important;
+}
+#transferOwnershipModal .transfer-confirm-label {
+    cursor: pointer !important;
+    user-select: none;
+    line-height: 1.45;
+    color: #1e293b;
+    flex: 1 1 auto;
+}
+</style>
+
+<!-- Transfer Vehicle Ownership Modal -->
+<div class="modal fade" id="transferOwnershipModal" tabindex="-1" aria-labelledby="transferOwnershipModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="/hwtires/api/vehicles-api.php" id="transferOwnershipForm">
+                <input type="hidden" name="action" value="transfer_ownership">
+                <input type="hidden" name="vehicle_id" value="<?php echo (int) $vehicle_id; ?>">
+                <input type="hidden" name="csrf_token" value="<?php echo esc_attr(generate_csrf_token()); ?>">
+                <input type="hidden" name="redirect" value="<?php echo esc_attr($_SERVER['REQUEST_URI'] ?? ''); ?>">
+
+                <div class="modal-header py-3 px-4">
+                    <div>
+                        <h5 class="modal-title font-weight-bold mb-1" id="transferOwnershipModalLabel">
+                            <i class="fas fa-exchange-alt me-2 text-primary"></i> Transfer Vehicle Ownership
+                        </h5>
+                        <div class="d-flex align-items-center gap-2 mt-1 flex-wrap">
+                            <span class="transfer-modal-subtitle">
+                                <i class="fas fa-car me-1" style="color: #64748b;"></i><?php echo esc_html($vehicle_name); ?>
+                            </span>
+                            <span class="badge transfer-modal-plate-badge">
+                                <?php echo esc_html(($vehicle['plate_number'] ?? '') ?: 'No Plate'); ?>
+                            </span>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <?php if ($has_active_job_order): ?>
+                        <div class="alert alert-danger d-flex align-items-center mb-3 p-3 rounded-3" role="alert">
+                            <i class="fas fa-ban fa-2x me-3 flex-shrink-0"></i>
+                            <div>
+                                <h6 class="alert-heading font-weight-bold mb-1">Transfer Blocked by Ongoing Job Order</h6>
+                                <p class="mb-0 small">Ownership transfer cannot proceed because this vehicle has an ongoing Job Order. Please complete the Job Order before transferring vehicle ownership.</p>
+                            </div>
+                        </div>
+                    <?php else: ?>
+                        <?php if ($has_existing_quotation): ?>
+                            <div class="alert alert-warning d-flex align-items-center mb-3 p-3 rounded-3" role="alert">
+                                <i class="fas fa-exclamation-triangle fa-2x me-3 flex-shrink-0 text-warning"></i>
+                                <div>
+                                    <h6 class="alert-heading font-weight-bold mb-1">Notice: Existing Quotation</h6>
+                                    <p class="mb-0 small">This vehicle has an existing Quotation under the previous owner. The Quotation will remain associated with that customer and will not be modified during ownership transfer.</p>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                        <!-- 1. Vehicle and Current Owner Summary (Read-Only) -->
+                        <div class="card bg-light border-0 mb-3 rounded-3 p-3">
+                            <div class="row g-2 small">
+                                <div class="col-md-6 col-12">
+                                    <span class="text-muted d-block font-weight-bold">Vehicle Details:</span>
+                                    <strong class="text-dark"><?php echo esc_html($vehicle_name); ?></strong>
+                                    <span class="badge bg-secondary ms-1"><?php echo esc_html($vehicle['plate_number'] ?? 'No Plate'); ?></span>
+                                </div>
+                                <div class="col-md-6 col-12">
+                                    <span class="text-muted d-block font-weight-bold">Current Registered Owner:</span>
+                                    <strong class="text-primary"><?php echo esc_html($vehicle['customer_name'] ?? '-'); ?></strong>
+                                    <span class="text-muted ms-1">(<?php echo esc_html(($vehicle['phone_mobile'] ?? '') ?: (($vehicle['contact'] ?? '') ?: 'No phone')); ?>)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2. New Owner Selection Method -->
+                        <div class="mb-3">
+                            <label class="form-label font-weight-bold d-block text-dark">
+                                Select New Owner <span class="text-danger">*</span>
+                            </label>
+                            <div class="d-flex gap-3 mb-2 flex-wrap">
+                                <label class="transfer-mode-pill active" for="ownerModeExisting">
+                                    <input class="transfer-mode-radio" type="radio" name="owner_mode" id="ownerModeExisting" value="existing" checked>
+                                    <span class="transfer-mode-label font-weight-bold">
+                                        <i class="fas fa-user-check me-1 text-primary"></i> Select Existing Customer
+                                    </span>
+                                </label>
+                                <label class="transfer-mode-pill" for="ownerModeNew">
+                                    <input class="transfer-mode-radio" type="radio" name="owner_mode" id="ownerModeNew" value="new">
+                                    <span class="transfer-mode-label font-weight-bold">
+                                        <i class="fas fa-user-plus me-1 text-success"></i> Register New Customer
+                                    </span>
+                                </label>
+                            </div>
+
+                            <!-- Option 1: Existing Customer -->
+                            <div id="transferOptionExisting" class="p-3 border rounded-3 bg-white">
+                                <div class="form-group mb-2">
+                                    <label class="form-label small text-muted font-weight-bold">Search &amp; Select Customer</label>
+                                    <input type="text" id="transferCustomerSearch" class="form-control form-control-sm mb-2" placeholder="Type to filter customer name or phone...">
+                                    <select name="existing_customer_id" id="transferExistingCustomerSelect" class="form-select">
+                                        <option value="" selected disabled>-- Select Existing Customer --</option>
+                                        <?php foreach ($transfer_customer_candidates as $cand): ?>
+                                            <?php
+                                            $c_phone = ($cand['phone_mobile'] ?? '') ?: ($cand['contact'] ?? '');
+                                            $c_addr = $cand['address'] ?? '';
+                                            ?>
+                                            <option value="<?php echo (int) $cand['id']; ?>"
+                                                    data-name="<?php echo esc_attr($cand['name'] ?? ''); ?>"
+                                                    data-phone="<?php echo esc_attr($c_phone); ?>"
+                                                    data-address="<?php echo esc_attr($c_addr); ?>"
+                                                    data-search="<?php echo esc_attr(strtolower(($cand['name'] ?? '') . ' ' . $c_phone)); ?>">
+                                                <?php echo esc_html($cand['name'] . ($c_phone ? ' (' . $c_phone . ')' : '')); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div id="transferCustomerPreview" class="card bg-light border-0 p-2 mt-2" style="display: none;">
+                                    <div class="small">
+                                        <div class="d-flex justify-content-between">
+                                            <strong id="previewCustomerName" class="text-dark"></strong>
+                                            <span id="previewCustomerPhone" class="text-muted"></span>
+                                        </div>
+                                        <div id="previewCustomerAddress" class="text-muted mt-1 small"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Option 2: Register New Customer -->
+                            <div id="transferOptionNew" class="p-3 border rounded-3 bg-white" style="display: none;">
+                                <div class="row g-2 mb-2">
+                                    <div class="col-md-7 col-12">
+                                        <label class="form-label small font-weight-bold">Full Name <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control form-control-sm" name="new_customer_name" id="newCustomerName" maxlength="100" data-text-format="person-name" placeholder="e.g. Maria Santos">
+                                    </div>
+                                    <div class="col-md-5 col-12">
+                                        <label class="form-label small font-weight-bold">Contact Number <span class="text-danger">*</span></label>
+                                        <input type="tel" class="form-control form-control-sm" name="new_customer_phone" id="newCustomerPhone" inputmode="numeric" minlength="11" maxlength="11" pattern="09[0-9]{9}" placeholder="09XXXXXXXXX">
+                                    </div>
+                                </div>
+
+                                <div class="ph-address-component border-top pt-2 mt-2" data-address-scope="transfer">
+                                    <div class="address-error-alert alert alert-danger py-1 px-2 mb-2" style="display: none; font-size: 0.8rem;"></div>
+                                    <div class="row g-2">
+                                        <div class="col-md-6 col-12">
+                                            <label class="form-label small font-weight-bold">Region <span class="text-danger">*</span></label>
+                                            <select class="form-select form-select-sm ph-region-select" name="new_address_region" id="newAddressRegion">
+                                                <option value="" selected disabled>-- Select Region --</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6 col-12">
+                                            <label class="form-label small font-weight-bold">Province <span class="text-danger">*</span></label>
+                                            <select class="form-select form-select-sm ph-province-select" name="new_address_province" id="newAddressProvince" disabled>
+                                                <option value="" selected disabled>-- Select Province --</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6 col-12">
+                                            <label class="form-label small font-weight-bold">City / Municipality <span class="text-danger">*</span></label>
+                                            <select class="form-select form-select-sm ph-city-select" name="new_address_city" id="newAddressCity" disabled>
+                                                <option value="" selected disabled>-- Select City / Municipality --</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6 col-12">
+                                            <label class="form-label small font-weight-bold">Barangay <span class="text-danger">*</span></label>
+                                            <select class="form-select form-select-sm ph-barangay-select" name="new_address_barangay" id="newAddressBarangay" disabled>
+                                                <option value="" selected disabled>-- Select Barangay --</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label small font-weight-bold text-muted">Street / House No. / Building / Subdivision <span class="fw-normal text-muted">(Optional)</span></label>
+                                            <input type="text" class="form-control form-control-sm ph-street-input" name="new_street_address" id="newStreetAddress" maxlength="150" placeholder="e.g. 123 Rizal Street">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. Transfer Details -->
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6 col-12">
+                                <label class="form-label small font-weight-bold">Transfer Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control form-control-sm" name="transfer_date" id="transferDateInput" value="<?php echo date('Y-m-d'); ?>" max="<?php echo date('Y-m-d'); ?>" required>
+                            </div>
+                            <div class="col-md-6 col-12">
+                                <label class="form-label small font-weight-bold">Transfer Notes <span class="fw-normal text-muted">(Optional)</span></label>
+                                <input type="text" class="form-control form-control-sm" name="transfer_notes" placeholder="e.g. Sold to new owner; deed of sale #1234">
+                            </div>
+                        </div>
+
+                        <!-- 4. Explicit Confirmation Checkbox -->
+                        <div class="transfer-confirm-box mb-3" id="transferConfirmBox">
+                            <input class="transfer-confirm-input" type="checkbox" id="transferConfirmCheck">
+                            <label class="transfer-confirm-label small mb-0" for="transferConfirmCheck">
+                                <strong>I confirm this ownership transfer:</strong> The vehicle will be reassigned to the selected new owner. Historical quotations, job orders, and completed service records will remain safely preserved under the previous owner.
+                            </label>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <?php if (!$has_active_job_order): ?>
+                        <button type="submit" class="btn btn-primary px-4 font-weight-bold" id="confirmTransferBtn" disabled>
+                            <i class="fas fa-check-circle me-1"></i> Confirm Transfer
+                        </button>
+                    <?php endif; ?>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Transfer Ownership Modal Handler
+(function() {
+    const modalEl = document.getElementById('transferOwnershipModal');
+    if (!modalEl) return;
+
+    const form = document.getElementById('transferOwnershipForm');
+    const modeExistingRadio = document.getElementById('ownerModeExisting');
+    const modeNewRadio = document.getElementById('ownerModeNew');
+    const optionExisting = document.getElementById('transferOptionExisting');
+    const optionNew = document.getElementById('transferOptionNew');
+    const customerSelect = document.getElementById('transferExistingCustomerSelect');
+    const searchInput = document.getElementById('transferCustomerSearch');
+    const previewBox = document.getElementById('transferCustomerPreview');
+    const previewName = document.getElementById('previewCustomerName');
+    const previewPhone = document.getElementById('previewCustomerPhone');
+    const previewAddress = document.getElementById('previewCustomerAddress');
+    const confirmCheck = document.getElementById('transferConfirmCheck');
+    const confirmBtn = document.getElementById('confirmTransferBtn');
+
+    const newNameInput = document.getElementById('newCustomerName');
+    const newPhoneInput = document.getElementById('newCustomerPhone');
+    const newRegSelect = document.getElementById('newAddressRegion');
+    const newProvSelect = document.getElementById('newAddressProvince');
+    const newCitySelect = document.getElementById('newAddressCity');
+    const newBrgySelect = document.getElementById('newAddressBarangay');
+
+    function syncMode() {
+        if (!modeExistingRadio || !modeNewRadio) return;
+        const isExisting = modeExistingRadio.checked;
+
+        const pillExisting = modeExistingRadio.closest('.transfer-mode-pill');
+        const pillNew = modeNewRadio.closest('.transfer-mode-pill');
+        if (pillExisting) pillExisting.classList.toggle('active', isExisting);
+        if (pillNew) pillNew.classList.toggle('active', !isExisting);
+
+        if (isExisting) {
+            if (optionExisting) optionExisting.style.display = 'block';
+            if (optionNew) optionNew.style.display = 'none';
+
+            if (customerSelect) customerSelect.required = true;
+
+            if (newNameInput) { newNameInput.required = false; newNameInput.disabled = true; }
+            if (newPhoneInput) { newPhoneInput.required = false; newPhoneInput.disabled = true; }
+            if (newRegSelect) { newRegSelect.required = false; newRegSelect.disabled = true; }
+            if (newProvSelect) { newProvSelect.required = false; newProvSelect.disabled = true; }
+            if (newCitySelect) { newCitySelect.required = false; newCitySelect.disabled = true; }
+            if (newBrgySelect) { newBrgySelect.required = false; newBrgySelect.disabled = true; }
+        } else {
+            if (optionExisting) optionExisting.style.display = 'none';
+            if (optionNew) optionNew.style.display = 'block';
+
+            if (customerSelect) { customerSelect.required = false; customerSelect.value = ''; }
+            if (previewBox) previewBox.style.display = 'none';
+
+            if (newNameInput) { newNameInput.required = true; newNameInput.disabled = false; }
+            if (newPhoneInput) { newPhoneInput.required = true; newPhoneInput.disabled = false; }
+            if (newRegSelect) { newRegSelect.required = true; newRegSelect.disabled = false; }
+            if (newProvSelect) { newProvSelect.required = true; newProvSelect.disabled = false; }
+            if (newCitySelect) { newCitySelect.required = true; newCitySelect.disabled = false; }
+            if (newBrgySelect) { newBrgySelect.required = true; newBrgySelect.disabled = false; }
+
+            const comp = modalEl.querySelector('.ph-address-component');
+            if (comp && window.HWTIRES_PH_ADDRESS && typeof window.HWTIRES_PH_ADDRESS.initComponent === 'function') {
+                window.HWTIRES_PH_ADDRESS.initComponent(comp);
+            }
+        }
+        checkValidity();
+    }
+
+    if (modeExistingRadio) modeExistingRadio.addEventListener('change', syncMode);
+    if (modeNewRadio) modeNewRadio.addEventListener('change', syncMode);
+
+    if (searchInput && customerSelect) {
+        searchInput.addEventListener('input', function() {
+            const q = this.value.toLowerCase().trim();
+            const options = customerSelect.querySelectorAll('option');
+            options.forEach(function(opt) {
+                if (!opt.value) return;
+                const searchData = opt.getAttribute('data-search') || opt.textContent.toLowerCase();
+                opt.hidden = q !== '' && !searchData.includes(q);
+            });
+        });
+    }
+
+    if (customerSelect) {
+        customerSelect.addEventListener('change', function() {
+            const selected = this.options[this.selectedIndex];
+            if (selected && selected.value) {
+                if (previewName) previewName.textContent = selected.getAttribute('data-name') || '-';
+                if (previewPhone) previewPhone.textContent = selected.getAttribute('data-phone') || 'No contact';
+                if (previewAddress) previewAddress.textContent = selected.getAttribute('data-address') || 'No address registered';
+                if (previewBox) previewBox.style.display = 'block';
+            } else {
+                if (previewBox) previewBox.style.display = 'none';
+            }
+            checkValidity();
+        });
+    }
+
+    function checkValidity() {
+        if (!confirmBtn || !confirmCheck) return;
+        const isChecked = Boolean(confirmCheck.checked);
+        confirmBtn.disabled = !isChecked;
+        const box = document.getElementById('transferConfirmBox');
+        if (box) {
+            box.classList.toggle('is-confirmed', isChecked);
+        }
+    }
+
+    if (confirmCheck) {
+        confirmCheck.addEventListener('change', checkValidity);
+    }
+
+    const confirmBox = document.getElementById('transferConfirmBox');
+    if (confirmBox && confirmCheck) {
+        confirmBox.addEventListener('click', function(e) {
+            if (e.target !== confirmCheck && e.target.tagName !== 'LABEL' && !e.target.closest('label')) {
+                confirmCheck.checked = !confirmCheck.checked;
+                checkValidity();
+            }
+        });
+    }
+
+    modalEl.addEventListener('show.bs.modal', function() {
+        syncMode();
+        if (confirmCheck) confirmCheck.checked = false;
+        checkValidity();
+    });
+
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            if (confirmBtn && confirmBtn.disabled) {
+                e.preventDefault();
+                return;
+            }
+
+            const isExisting = modeExistingRadio && modeExistingRadio.checked;
+            if (isExisting && customerSelect && !customerSelect.value) {
+                e.preventDefault();
+                alert('Please select an existing customer to proceed with ownership transfer.');
+                customerSelect.focus();
+                return;
+            }
+
+            if (!isExisting) {
+                if (newNameInput && !newNameInput.value.trim()) {
+                    e.preventDefault();
+                    alert('Please enter the new customer full name.');
+                    newNameInput.focus();
+                    return;
+                }
+                if (newPhoneInput && !/^09\d{9}$/.test(newPhoneInput.value.trim())) {
+                    e.preventDefault();
+                    alert('Please enter a valid 11-digit Philippine mobile number starting with 09 (e.g. 09171234567).');
+                    newPhoneInput.focus();
+                    return;
+                }
+            }
+
+            if (confirmBtn) {
+                confirmBtn.disabled = true;
+                confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Transferring Ownership...';
+            }
+        });
+    }
+})();
+</script>
 <?php endif; ?>
 
 <script>

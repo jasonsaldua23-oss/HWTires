@@ -86,8 +86,21 @@
         return panel;
     }
 
+    function isInputVisible(input) {
+        if (!input || !input.isConnected) return false;
+        if (input.offsetParent === null && window.getComputedStyle(input).position !== 'fixed') {
+            return false;
+        }
+        const rect = input.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+    }
+
     function updatePanelPosition(input, panel) {
         if (!input || !panel) return;
+        if (!isInputVisible(input)) {
+            closePanel(panel);
+            return;
+        }
         const rect = input.getBoundingClientRect();
         const panelWidth = Math.min(480, Math.max(380, rect.width));
         let left = rect.right - panelWidth;
@@ -99,36 +112,104 @@
         panel.style.width = panelWidth + 'px';
     }
 
+    function positionClearButton(input, clearBtn) {
+        if (!input || !clearBtn) return;
+        const top = input.offsetTop + (input.offsetHeight / 2);
+        clearBtn.style.top = top + 'px';
+        clearBtn.style.transform = 'translateY(-50%)';
+        if (input.id === 'jobQuotationSearch') {
+            clearBtn.style.right = '14px';
+        } else {
+            clearBtn.style.right = '8px';
+        }
+    }
+
+    function updateClearBtnState(input, clearBtn) {
+        if (!input || !clearBtn) return;
+        const hasText = String(input.value || '').trim().length > 0;
+        clearBtn.style.display = hasText ? 'flex' : 'none';
+        if (hasText) {
+            positionClearButton(input, clearBtn);
+        }
+    }
+
     function ensureClearButton(input, host) {
-        let clearBtn = host.querySelector('.hw-search-clear-btn');
+        let clearBtn = host.querySelector(':scope > .hw-search-clear-btn');
         if (!clearBtn) {
             clearBtn = document.createElement('button');
             clearBtn.type = 'button';
             clearBtn.className = 'hw-search-clear-btn';
+            clearBtn.setAttribute('aria-label', 'Clear search');
             clearBtn.title = 'Clear search';
-            clearBtn.innerHTML = '&times;';
-            clearBtn.style.cssText = `
-                position: absolute;
-                right: 12px;
-                top: 50%;
-                transform: translateY(-50%);
-                border: none;
-                background: transparent;
-                color: #94a3b8;
-                font-size: 18px;
-                cursor: pointer;
-                line-height: 1;
-                padding: 2px 6px;
-                border-radius: 50%;
-                z-index: 10;
-                display: ${input.value.trim() ? 'block' : 'none'};
-                transition: color 0.15s ease;
-            `;
-            clearBtn.addEventListener('mouseenter', () => { clearBtn.style.color = '#ef4444'; });
-            clearBtn.addEventListener('mouseleave', () => { clearBtn.style.color = '#94a3b8'; });
+            clearBtn.innerHTML = '<i class="fas fa-times"></i>';
+            clearBtn.tabIndex = -1;
             host.appendChild(clearBtn);
         }
+        positionClearButton(input, clearBtn);
         return clearBtn;
+    }
+
+    function bindClearButton(input) {
+        if (!input || input.dataset.hwClearBound === '1') {
+            return;
+        }
+        if (input.type === 'hidden' || input.readOnly || input.disabled) {
+            return;
+        }
+
+        const host = ensureHost(input);
+        if (!host) return;
+
+        input.dataset.hwClearBound = '1';
+        input.classList.add('has-search-clear');
+
+        const clearBtn = ensureClearButton(input, host);
+        updateClearBtnState(input, clearBtn);
+
+        input.addEventListener('input', () => updateClearBtnState(input, clearBtn));
+        input.addEventListener('change', () => updateClearBtnState(input, clearBtn));
+        input.addEventListener('keyup', () => updateClearBtnState(input, clearBtn));
+        input.addEventListener('paste', () => {
+            window.setTimeout(() => updateClearBtnState(input, clearBtn), 0);
+        });
+        input.addEventListener('focus', () => {
+            positionClearButton(input, clearBtn);
+            updateClearBtnState(input, clearBtn);
+        });
+
+        clearBtn.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+        });
+
+        clearBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const hadValue = String(input.value || '').trim() !== '';
+            input.value = '';
+            updateClearBtnState(input, clearBtn);
+            input.focus();
+
+            // Trigger events so live search / filters update immediately
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            input.dispatchEvent(new Event('search', { bubbles: true }));
+
+            // If suggestions panel exists, close it
+            document.querySelectorAll('.hw-search-suggestions').forEach(closePanel);
+
+            // If this input was previously submitted in a GET form with search in URL, submit to reset
+            const formMethod = (input.form && input.form.method ? input.form.method : 'get').toLowerCase();
+            const urlParams = new URLSearchParams(window.location.search);
+            const searchParamName = input.name || 'search';
+            if (hadValue && input.form && formMethod === 'get' && urlParams.has(searchParamName) && urlParams.get(searchParamName) !== '') {
+                const hiddenSearch = input.form.querySelector(`input[type="hidden"][name="${searchParamName}"]`);
+                if (hiddenSearch) {
+                    hiddenSearch.value = '';
+                }
+                submitSearch(input);
+            }
+        });
     }
 
     function closePanel(panel) {
@@ -188,7 +269,12 @@
         'default': { bg: '#f1f5f9', color: '#475569', border: '#e2e8f0' }
     };
 
-    function renderSuggestions(input, panel, suggestions, query) {
+    function renderSuggestions(input, panel, suggestions, query, onSelect) {
+        if (!isInputVisible(input) || document.activeElement !== input || input.value.trim() !== String(query).trim()) {
+            closePanel(panel);
+            return;
+        }
+
         panel.innerHTML = '';
         panel.dataset.activeIndex = '-1';
 
@@ -198,6 +284,7 @@
             empty.style.cssText = 'padding: 14px 16px; color: #94a3b8; font-size: 0.88rem; text-align: center; font-style: italic;';
             empty.textContent = 'No matching results found';
             panel.appendChild(empty);
+            updatePanelPosition(input, panel);
             panel.hidden = false;
             panel.style.display = 'block';
             return;
@@ -272,7 +359,14 @@
             });
 
             button.addEventListener('click', function() {
+                if (typeof onSelect === 'function') {
+                    onSelect();
+                }
                 input.value = button.dataset.value;
+                const clearBtn = input.parentElement ? input.parentElement.querySelector('.hw-search-clear-btn') : null;
+                if (clearBtn) {
+                    updateClearBtnState(input, clearBtn);
+                }
                 closePanel(panel);
                 submitSearch(input);
             });
@@ -290,48 +384,60 @@
         panel.style.display = 'block';
     }
 
+    function isDedicatedPickerOrModalInput(input) {
+        if (!input) return true;
+        if (input.dataset.noAutocomplete === 'true' || input.getAttribute('data-no-autocomplete') === 'true') {
+            return true;
+        }
+        if (input.closest('.modal, [role="dialog"], .job-quote-picker-search, .job-technician-picker-search, .quote-picker-search, .quote-customer-selector, .catalog-autocomplete-wrapper, .catalog-search-wrapper, .customer-advanced-search')) {
+            return true;
+        }
+        if (input.id === 'stockOutCustomerInput' || input.id === 'stockOutVehicleInput' || input.id === 'addVehicleCustomerInput' || input.id === 'add_vehicle_customer_input') {
+            return true;
+        }
+        return false;
+    }
+
     function bindInput(input) {
+        bindClearButton(input);
+
         if (input.dataset.hwSearchSuggestBound === '1') {
             return;
         }
 
-        if (input.dataset.noAutocomplete === 'true' || input.getAttribute('data-no-autocomplete') === 'true') {
-            return;
-        }
-
-        if (input.id === 'stockOutCustomerInput' || input.id === 'stockOutVehicleInput' || input.id === 'addVehicleCustomerInput' || input.id === 'add_vehicle_customer_input') {
+        if (isDedicatedPickerOrModalInput(input)) {
             return;
         }
 
         input.dataset.hwSearchSuggestBound = '1';
+        input.classList.add('hw-search-input');
         input.setAttribute('autocomplete', 'off');
 
         const host = ensureHost(input);
         if (!host) return;
 
         const panel = createPanel();
-        const clearBtn = ensureClearButton(input, host);
+        const clearBtn = host.querySelector('.hw-search-clear-btn');
+        const updateClearBtn = () => {
+            if (clearBtn) {
+                updateClearBtnState(input, clearBtn);
+            }
+        };
         let timer = null;
         let controller = null;
+        let activeRequestId = 0;
 
-        function updateClearBtn() {
-            clearBtn.style.display = input.value.trim() !== '' ? 'block' : 'none';
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                activeRequestId++;
+                if (controller) {
+                    controller.abort();
+                    controller = null;
+                }
+                window.clearTimeout(timer);
+                closePanel(panel);
+            });
         }
-
-        clearBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            const hadValue = input.value !== '';
-            input.value = '';
-            updateClearBtn();
-            closePanel(panel);
-            input.focus();
-
-            const urlParams = new URLSearchParams(window.location.search);
-            if (hadValue && urlParams.has('search') && urlParams.get('search') !== '') {
-                submitSearch(input);
-            }
-        });
 
         function fetchAndRender(query) {
             const value = query.trim();
@@ -346,6 +452,8 @@
                 closePanel(panel);
                 return;
             }
+
+            const currentRequestId = ++activeRequestId;
 
             timer = window.setTimeout(function() {
                 controller = new AbortController();
@@ -366,7 +474,22 @@
                     signal: controller.signal,
                 })
                     .then(response => response.ok ? response.json() : { suggestions: [] })
-                    .then(data => renderSuggestions(input, panel, data.suggestions || [], value))
+                    .then(data => {
+                        if (currentRequestId !== activeRequestId) {
+                            return;
+                        }
+                        if (!isInputVisible(input) || document.activeElement !== input || input.value.trim() !== value) {
+                            closePanel(panel);
+                            return;
+                        }
+                        renderSuggestions(input, panel, data.suggestions || [], value, () => {
+                            activeRequestId++;
+                            if (controller) {
+                                controller.abort();
+                                controller = null;
+                            }
+                        });
+                    })
                     .catch(error => {
                         if (error.name !== 'AbortError') {
                             closePanel(panel);
@@ -385,6 +508,14 @@
             if (this.value.trim().length >= MIN_CHARS) {
                 fetchAndRender(this.value);
             }
+        });
+
+        input.addEventListener('blur', function() {
+            window.setTimeout(() => {
+                if (document.activeElement !== input && (!document.activeElement || !panel.contains(document.activeElement))) {
+                    closePanel(panel);
+                }
+            }, 180);
         });
 
         input.addEventListener('keydown', function(event) {
@@ -410,6 +541,11 @@
                 setActive(panel, current <= 0 ? items.length - 1 : current - 1);
             } else if (event.key === 'Enter' && current >= 0) {
                 event.preventDefault();
+                activeRequestId++;
+                if (controller) {
+                    controller.abort();
+                    controller = null;
+                }
                 input.value = items[current].dataset.value || input.value;
                 updateClearBtn();
                 closePanel(panel);
@@ -420,8 +556,15 @@
         });
 
         const onReposition = () => {
+            if (clearBtn) {
+                positionClearButton(input, clearBtn);
+            }
             if (!panel.hidden && panel.style.display !== 'none') {
-                updatePanelPosition(input, panel);
+                if (!isInputVisible(input)) {
+                    closePanel(panel);
+                } else {
+                    updatePanelPosition(input, panel);
+                }
             }
         };
         window.addEventListener('scroll', onReposition, { passive: true });
@@ -434,29 +577,104 @@
         });
     }
 
+    function initSearchClearButtons() {
+        const clearSelectors = [
+            'input[type="search"]:not([type="hidden"])',
+            'input[name="search"]:not([type="hidden"])',
+            'input.hw-search-input:not([type="hidden"])',
+            '#frontQuoteSearch',
+            '#reportsSearchInput',
+            '#frontReportsSearch',
+            '#frontJobSearch',
+            '#jobQuotationSearch',
+            '#jobTechnicianSearch',
+            '#customerAdvancedSearch',
+            '#servicePickerSearch',
+            '#itemPickerSearch',
+            '#adminInventorySearch',
+            '.job-quote-search input',
+            '.job-technician-search input',
+            '.quote-picker-search input',
+            '.quote-customer-selector input',
+            '.catalog-search-wrapper input',
+            '.customer-advanced-search input',
+            '.records-search-input:not([type="hidden"])',
+            '.inventory-search-input:not([type="hidden"])',
+            '.customer-search-input:not([type="hidden"])'
+        ];
+
+        document.querySelectorAll(clearSelectors.join(', ')).forEach(input => {
+            bindClearButton(input);
+            const host = input.parentElement;
+            if (host) {
+                const clearBtn = host.querySelector(':scope > .hw-search-clear-btn');
+                if (clearBtn) {
+                    positionClearButton(input, clearBtn);
+                    updateClearBtnState(input, clearBtn);
+                }
+            }
+        });
+    }
+
     function initSearchSuggestions() {
+        const modalExclude = ':not(.modal input):not([role="dialog"] input):not([data-no-autocomplete="true"])';
         const searchSelectors = [
-            'input[name="search"]:not([type="hidden"]):not([data-no-autocomplete="true"])',
-            'input[type="search"]:not([type="hidden"]):not([data-no-autocomplete="true"])',
-            'input[name="q"]:not([type="hidden"]):not([data-no-autocomplete="true"])',
-            'input.records-search-input:not([type="hidden"]):not([data-no-autocomplete="true"])',
-            'input.inventory-search-input:not([type="hidden"]):not([data-no-autocomplete="true"])',
-            'input.customer-search-input:not([type="hidden"]):not([data-no-autocomplete="true"])',
-            'input[placeholder*="Search"]:not([type="hidden"]):not([data-no-autocomplete="true"])',
-            'input[placeholder*="search"]:not([type="hidden"]):not([data-no-autocomplete="true"])',
-            '#customerSearchInput:not([data-no-autocomplete="true"])',
-            '#inventorySearchInput:not([data-no-autocomplete="true"])',
-            '#recordsSearchInput:not([data-no-autocomplete="true"])'
+            `input[name="search"]:not([type="hidden"])${modalExclude}`,
+            `input[type="search"]:not([type="hidden"])${modalExclude}`,
+            `input[name="q"]:not([type="hidden"])${modalExclude}`,
+            `input.records-search-input:not([type="hidden"])${modalExclude}`,
+            `input.inventory-search-input:not([type="hidden"])${modalExclude}`,
+            `input.customer-search-input:not([type="hidden"])${modalExclude}`,
+            `input[placeholder*="Search"]:not([type="hidden"])${modalExclude}`,
+            `input[placeholder*="search"]:not([type="hidden"])${modalExclude}`,
+            `#customerSearchInput:not([data-no-autocomplete="true"])`,
+            `#inventorySearchInput:not([data-no-autocomplete="true"])`,
+            `#recordsSearchInput:not([data-no-autocomplete="true"])`
         ];
 
         document.querySelectorAll(searchSelectors.join(', ')).forEach(bindInput);
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initSearchSuggestions);
-    } else {
+    document.addEventListener('hide.bs.modal', function() {
+        document.querySelectorAll('.hw-search-suggestions').forEach(closePanel);
+    });
+    document.addEventListener('hidden.bs.modal', function() {
+        document.querySelectorAll('.hw-search-suggestions').forEach(closePanel);
+    });
+
+    document.addEventListener('shown.bs.modal', function(e) {
+        initSearchClearButtons();
+        if (e.target && e.target.querySelectorAll) {
+            e.target.querySelectorAll('.hw-search-clear-btn').forEach(btn => {
+                const input = btn.parentElement ? btn.parentElement.querySelector('input') : null;
+                if (input) {
+                    positionClearButton(input, btn);
+                    updateClearBtnState(input, btn);
+                }
+            });
+        }
+    });
+
+    window.addEventListener('resize', () => {
+        document.querySelectorAll('.hw-search-clear-btn').forEach(btn => {
+            const input = btn.parentElement ? btn.parentElement.querySelector('input') : null;
+            if (input) {
+                positionClearButton(input, btn);
+            }
+        });
+    });
+
+    function init() {
+        initSearchClearButtons();
         initSearchSuggestions();
     }
 
-    window.setTimeout(initSearchSuggestions, 500);
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
+    window.setTimeout(init, 300);
+    window.setTimeout(init, 1000);
 })();

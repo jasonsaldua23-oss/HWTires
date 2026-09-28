@@ -58,6 +58,9 @@ if ($action === 'create') {
         $scheduled_end_time = trim($_POST['scheduled_end_time'] ?? '');
         $scheduled_end_date = trim($_POST['scheduled_end_date'] ?? '');
         $estimated_duration = trim($_POST['estimated_duration'] ?? '');
+        if (mb_strlen($estimated_duration, 'UTF-8') > 120) {
+            throw new Exception('Estimated job duration cannot exceed 120 characters. Please provide a more concise duration.');
+        }
         $notes = trim($_POST['notes'] ?? '');
 
         $valid_create_statuses = ['waiting', 'in-progress'];
@@ -96,6 +99,22 @@ if ($action === 'create') {
             $customer_id = intval($quotation['customer_id']);
             $vehicle_id = intval($quotation['vehicle_id'] ?? 0);
             $branch_id = intval($quotation['branch_id']);
+
+            // Validate that the quotation's customer_id matches the vehicle's current owner
+            if ($vehicle_id > 0) {
+                $veh_stmt = $pdo->prepare("SELECT id, customer_id FROM vehicles WHERE id = ?");
+                $veh_stmt->execute([$vehicle_id]);
+                $vehicle_record = $veh_stmt->fetch();
+
+                if (!$vehicle_record) {
+                    throw new Exception('Cannot convert this quotation into a Job Order: The associated vehicle record was not found.');
+                }
+
+                $current_owner_id = intval($vehicle_record['customer_id'] ?? 0);
+                if ($current_owner_id <= 0 || $current_owner_id !== $customer_id) {
+                    throw new Exception('Cannot convert this quotation into a Job Order because the vehicle is now registered under another customer. Please create a new quotation for the current registered owner.');
+                }
+            }
 
             if (empty($notes)) {
                 $notes = trim($quotation['notes'] ?? '');
@@ -181,6 +200,8 @@ if ($action === 'create') {
         }
 
         // Create job order
+        $pdo->beginTransaction();
+
         $stmt = $pdo->prepare(
             'INSERT INTO job_orders (' . implode(', ', $columns) . ') VALUES (' . implode(', ', $placeholders) . ')'
         );
@@ -217,6 +238,8 @@ if ($action === 'create') {
             'status' => $status
         ]);
 
+        $pdo->commit();
+
         set_flash_message('Job order created successfully', 'success');
         http_response_code(200);
 
@@ -227,6 +250,9 @@ if ($action === 'create') {
         die(json_encode(['success' => true, 'message' => 'Job order created successfully', 'id' => $job_order_id]));
 
     } catch (Exception $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         error_log('Create job order error: ' . $e->getMessage());
         set_flash_message($e->getMessage(), 'error');
 

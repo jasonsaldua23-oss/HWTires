@@ -57,6 +57,18 @@ try {
     $linked_job_order = $linked_job_stmt->fetch(PDO::FETCH_ASSOC);
     $has_job_order = !empty($linked_job_order);
 
+    // Check if vehicle has been transferred to another customer
+    $is_vehicle_transferred = false;
+    $quotation_vehicle_id = (int) ($quotation['vehicle_id'] ?? 0);
+    if ($quotation_vehicle_id > 0) {
+        $veh_check_stmt = $pdo->prepare("SELECT customer_id FROM vehicles WHERE id = ?");
+        $veh_check_stmt->execute([$quotation_vehicle_id]);
+        $veh_current_owner_id = (int) $veh_check_stmt->fetchColumn();
+        if ($veh_current_owner_id > 0 && $veh_current_owner_id !== (int) ($quotation['customer_id'] ?? 0)) {
+            $is_vehicle_transferred = true;
+        }
+    }
+
     // Load inter-branch transfer requests for this quotation
     $quotation_transfers = [];
     $item_transfers = [];
@@ -244,6 +256,11 @@ if ($flash_message && !$is_print):
                     <span class="badge <?php echo ($quotation['status'] === 'approved' ? 'success' : ($quotation['status'] === 'pending' ? 'warning' : 'danger')); ?>">
                         <?php echo ucfirst($quotation['status']); ?>
                     </span>
+                    <?php if ($is_vehicle_transferred): ?>
+                        <span class="badge bg-secondary ms-1">
+                            <i class="fas fa-info-circle me-1"></i> Vehicle Transferred
+                        </span>
+                    <?php endif; ?>
                 </p>
             </div>
             <div class="col-md-3">
@@ -443,9 +460,15 @@ if ($flash_message && !$is_print):
             <?php endif; ?>
 
             <?php if ($quotation['status'] === 'approved'): ?>
-            <a href="/hwtires/<?php echo $user['role']; ?>/job-orders/create.php?quotation_id=<?php echo $quotation['id']; ?>" class="btn btn-primary">
-                <i class="fas fa-hammer"></i> Create Job Order
-            </a>
+                <?php if ($is_vehicle_transferred): ?>
+                <span class="badge bg-secondary p-2 d-inline-flex align-items-center" title="Cannot create Job Order: Vehicle ownership has been transferred to another customer.">
+                    <i class="fas fa-info-circle me-1"></i> Vehicle Transferred
+                </span>
+                <?php else: ?>
+                <a href="/hwtires/<?php echo $user['role']; ?>/job-orders/create.php?quotation_id=<?php echo $quotation['id']; ?>" class="btn btn-primary">
+                    <i class="fas fa-hammer"></i> Create Job Order
+                </a>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
     </div>

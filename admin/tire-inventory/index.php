@@ -1967,7 +1967,7 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                     <!-- Searchable Combobox Component -->
                     <div id="catalog_combobox_container" class="position-relative mb-2">
                         <!-- Search input group -->
-                        <div class="input-group" id="catalog_search_group">
+                        <div class="input-group catalog-search-wrapper" id="catalog_search_group">
                             <span class="input-group-text bg-white border-end-0 text-muted">
                                 <i class="fas fa-search"></i>
                             </span>

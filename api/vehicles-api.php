@@ -429,6 +429,265 @@ if ($action === 'get_customer_vehicles') {
     }
 }
 
+// Handle Transfer Vehicle Ownership
+if ($action === 'transfer_ownership') {
+    try {
+        enforce_modify_permission();
+
+        if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+            throw new Exception('Invalid security token');
+        }
+
+        $vehicle_id = intval($_POST['vehicle_id'] ?? $_POST['id'] ?? 0);
+        if ($vehicle_id <= 0) {
+            throw new Exception('Invalid vehicle ID');
+        }
+
+        // Fetch vehicle record
+        $veh_stmt = $pdo->prepare("SELECT * FROM vehicles WHERE id = ?");
+        $veh_stmt->execute([$vehicle_id]);
+        $vehicle = $veh_stmt->fetch();
+        if (!$vehicle) {
+            throw new Exception('Vehicle not found');
+        }
+        if (($vehicle['status'] ?? 'active') !== 'active') {
+            throw new Exception('Only active vehicles can undergo ownership transfer');
+        }
+
+        $old_customer_id = intval($vehicle['customer_id'] ?? 0);
+
+        // Fetch current active ownership record
+        $cur_owner_stmt = $pdo->prepare("
+            SELECT id, customer_id, owned_from
+            FROM vehicle_ownership_history
+            WHERE vehicle_id = ? AND is_current = 1
+            ORDER BY id DESC LIMIT 1
+        ");
+        $cur_owner_stmt->execute([$vehicle_id]);
+        $current_ownership = $cur_owner_stmt->fetch();
+
+        // 1. Check for unresolved Job Orders (HARD BLOCK)
+        $active_job_stmt = $pdo->prepare("
+            SELECT id, job_number, status
+            FROM job_orders
+            WHERE vehicle_id = ?
+              AND status IN ('waiting', 'pending', 'in-progress')
+            LIMIT 1
+        ");
+        $active_job_stmt->execute([$vehicle_id]);
+        $active_job = $active_job_stmt->fetch();
+        if ($active_job) {
+            throw new Exception('Ownership transfer cannot proceed because this vehicle has an ongoing Job Order. Please complete the Job Order before transferring vehicle ownership.');
+        }
+
+        // 2. Validate transfer date
+        $transfer_date = trim((string) ($_POST['transfer_date'] ?? date('Y-m-d')));
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $transfer_date)) {
+            throw new Exception('Invalid transfer date format. Use YYYY-MM-DD');
+        }
+        $today = date('Y-m-d');
+        if ($transfer_date > $today) {
+            throw new Exception('Transfer date cannot be in the future');
+        }
+        if ($current_ownership && !empty($current_ownership['owned_from']) && $transfer_date < $current_ownership['owned_from']) {
+            throw new Exception('Transfer date (' . $transfer_date . ') cannot be earlier than the current ownership start date (' . $current_ownership['owned_from'] . ').');
+        }
+
+        $transfer_notes = trim((string) ($_POST['transfer_notes'] ?? ''));
+        $owner_mode = trim((string) ($_POST['owner_mode'] ?? 'existing'));
+        $new_customer_id = 0;
+
+        $user_branch_id = intval($user['branch_id'] ?? 0);
+        if ($user_branch_id <= 0 && ($user['role'] ?? '') === 'admin') {
+            $user_branch_id = intval($vehicle['branch_id'] ?? 1);
+        }
+        if ($user_branch_id <= 0) {
+            $user_branch_id = 1;
+        }
+
+        $pdo->beginTransaction();
+
+        if ($owner_mode === 'new') {
+            // Option 2: Register New Customer
+            $new_name = trim((string) ($_POST['new_customer_name'] ?? ''));
+            $new_phone = preg_replace('/\D+/', '', trim((string) ($_POST['new_customer_phone'] ?? '')));
+            $new_type = strtolower(trim((string) ($_POST['new_customer_type'] ?? 'individual')));
+            if (!in_array($new_type, ['individual', 'corporate'], true)) {
+                $new_type = 'individual';
+            }
+
+            if ($new_name === '') {
+                throw new Exception('New customer name is required');
+            }
+            if ($new_phone === '') {
+                throw new Exception('New customer contact number is required');
+            }
+            if (preg_match('/^09\d{9}$/', $new_phone) !== 1) {
+                throw new Exception('Contact number must be an 11-digit Philippine mobile number, e.g. 09171234567');
+            }
+
+            // Check duplicate customer by name
+            $check_cust_stmt = $pdo->prepare("
+                SELECT id, name, phone_mobile
+                FROM customers
+                WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) AND status = 'active'
+                LIMIT 1
+            ");
+            $check_cust_stmt->execute([$new_name]);
+            $existing_match = $check_cust_stmt->fetch();
+            if ($existing_match) {
+                throw new Exception('A customer named "' . esc_html($existing_match['name']) . '" already exists (' . esc_html($existing_match['phone_mobile']) . '). Please choose "Select Existing Customer" instead.');
+            }
+
+            $reg = trim((string) ($_POST['new_address_region'] ?? ''));
+            $prov = trim((string) ($_POST['new_address_province'] ?? ''));
+            $city = trim((string) ($_POST['new_address_city'] ?? ''));
+            $brgy = trim((string) ($_POST['new_address_barangay'] ?? ''));
+            $street = trim((string) ($_POST['new_street_address'] ?? ''));
+
+            if ($reg === '') throw new Exception('Region is required');
+            if ($prov === '') throw new Exception('Province is required');
+            if ($city === '') throw new Exception('City / Municipality is required');
+            if ($brgy === '') throw new Exception('Barangay is required');
+
+            $composed_address = app_compose_philippine_address($street, $brgy, $city, $prov, $reg);
+            if (mb_strlen($composed_address, 'UTF-8') > 255) {
+                throw new Exception('Full address exceeds 255 characters. Please shorten the street address.');
+            }
+
+            $insert_cust_stmt = $pdo->prepare("
+                INSERT INTO customers (name, phone_mobile, contact, address, city, customer_type, branch_id, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'active')
+            ");
+            $insert_cust_stmt->execute([
+                $new_name,
+                $new_phone,
+                $new_phone,
+                $composed_address,
+                $city,
+                $new_type,
+                $user_branch_id
+            ]);
+            $new_customer_id = (int) $pdo->lastInsertId();
+
+        } else {
+            // Option 1: Select Existing Customer
+            $new_customer_id = intval($_POST['existing_customer_id'] ?? 0);
+            if ($new_customer_id <= 0) {
+                throw new Exception('Please select an existing customer');
+            }
+            if ($new_customer_id === $old_customer_id) {
+                throw new Exception('Vehicle is already registered to this customer');
+            }
+
+            $check_new_cust = $pdo->prepare("SELECT id, name FROM customers WHERE id = ? AND status = 'active'");
+            $check_new_cust->execute([$new_customer_id]);
+            $new_customer_record = $check_new_cust->fetch();
+            if (!$new_customer_record) {
+                throw new Exception('Selected customer not found or inactive');
+            }
+        }
+
+        if ($new_customer_id <= 0) {
+            throw new Exception('Failed to determine new owner');
+        }
+
+        // 4. Update vehicle customer association ONLY (preserve original home branch_id)
+        $upd_veh = $pdo->prepare("
+            UPDATE vehicles
+            SET customer_id = ?,
+                updated_at = NOW()
+            WHERE id = ?
+        ");
+        $upd_veh->execute([$new_customer_id, $vehicle_id]);
+
+        // 5. Close previous ownership record
+        if ($current_ownership) {
+            $close_stmt = $pdo->prepare("
+                UPDATE vehicle_ownership_history
+                SET is_current = 0,
+                    owned_until = ?,
+                    updated_at = NOW()
+                WHERE id = ?
+            ");
+            $close_stmt->execute([$transfer_date, $current_ownership['id']]);
+        } else {
+            $close_all = $pdo->prepare("
+                UPDATE vehicle_ownership_history
+                SET is_current = 0,
+                    owned_until = ?,
+                    updated_at = NOW()
+                WHERE vehicle_id = ? AND is_current = 1
+            ");
+            $close_all->execute([$transfer_date, $vehicle_id]);
+        }
+
+        // 6. Insert new current ownership record
+        $effective_notes = $transfer_notes !== '' ? $transfer_notes : 'Vehicle ownership transferred to new owner';
+        $ins_hist = $pdo->prepare("
+            INSERT INTO vehicle_ownership_history (
+                vehicle_id, customer_id, owned_from, owned_until, is_current, transfer_notes, created_by, created_at, updated_at
+            ) VALUES (
+                ?, ?, ?, NULL, 1, ?, ?, NOW(), NOW()
+            )
+        ");
+        $ins_hist->execute([
+            $vehicle_id,
+            $new_customer_id,
+            $transfer_date,
+            $effective_notes,
+            $user['id'] ?? null
+        ]);
+
+        // 7. Associate new customer with current servicing branch
+        app_touch_customer_branch_record($new_customer_id, $user_branch_id, $user['id'] ?? null);
+
+        // 8. Audit logging
+        log_audit('vehicles', 'transfer_ownership', $vehicle_id,
+            [
+                'previous_customer_id' => $old_customer_id,
+                'home_branch_id' => $vehicle['branch_id'] ?? null
+            ],
+            [
+                'new_customer_id' => $new_customer_id,
+                'transfer_date' => $transfer_date,
+                'transfer_notes' => $effective_notes,
+                'servicing_branch_id' => $user_branch_id
+            ]
+        );
+
+        $pdo->commit();
+
+        set_flash_message('Vehicle ownership transferred successfully', 'success');
+
+        if (!empty($_POST['redirect'])) {
+            redirect($_POST['redirect']);
+        }
+
+        die(json_encode([
+            'success' => true,
+            'message' => 'Vehicle ownership transferred successfully',
+            'vehicle_id' => $vehicle_id,
+            'customer_id' => $new_customer_id
+        ]));
+
+    } catch (Exception $e) {
+        if ($pdo instanceof PDO && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        error_log('Transfer ownership error: ' . $e->getMessage());
+        set_flash_message($e->getMessage(), 'error');
+
+        if (!empty($_POST['redirect'])) {
+            redirect($_POST['redirect']);
+        }
+
+        http_response_code(400);
+        die(json_encode(['success' => false, 'message' => $e->getMessage()]));
+    }
+}
+
 http_response_code(400);
 die(json_encode(['success' => false, 'message' => 'Invalid action']));
 ?>

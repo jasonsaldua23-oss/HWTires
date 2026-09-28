@@ -232,7 +232,7 @@ $redirect_url = '/hwtires/front-desk/quotations/';
                 <label>
                     <span>Select Customer</span>
                     <div class="quote-customer-selector">
-                        <input type="search" id="customerAdvancedSearch" maxlength="100" data-text-format="first-letter" placeholder="Search customer name or phone...">
+                        <input type="search" id="customerAdvancedSearch" maxlength="100" data-text-format="first-letter" placeholder="Search customer name or phone..." autocomplete="off" data-no-autocomplete="true">
                         <div class="quote-customer-results" id="customerAdvancedResults" hidden></div>
                         <select id="customer_id" name="customer_id" required>
                             <option value="">Select Customer</option>
@@ -361,7 +361,7 @@ $redirect_url = '/hwtires/front-desk/quotations/';
                     <span>Search or type service</span>
                     <div class="quote-picker-input-row">
                         <i class="fas fa-search"></i>
-                        <input type="search" id="servicePickerSearch" maxlength="100" data-text-format="first-letter" placeholder="Search services, or type a custom service...">
+                        <input type="search" id="servicePickerSearch" maxlength="100" data-text-format="first-letter" placeholder="Search services, or type a custom service..." autocomplete="off" data-no-autocomplete="true">
                     </div>
                 </label>
                 <div class="quote-picker-list" id="servicePickerList" aria-label="Available services"></div>
@@ -389,7 +389,7 @@ $redirect_url = '/hwtires/front-desk/quotations/';
                     <span>Search or type item</span>
                     <div class="quote-picker-input-row">
                         <i class="fas fa-search"></i>
-                        <input type="search" id="itemPickerSearch" maxlength="100" data-text-format="first-letter" placeholder="Search inventory, or type a custom item...">
+                        <input type="search" id="itemPickerSearch" maxlength="100" data-text-format="first-letter" placeholder="Search inventory, or type a custom item..." autocomplete="off" data-no-autocomplete="true">
                     </div>
                 </label>
                 <div class="quote-picker-list quote-picker-list-large" id="itemPickerList" aria-label="Available parts and items"></div>
@@ -1421,6 +1421,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (customerSearch) {
         customerSearch.addEventListener('input', filterCustomerDropdown);
         customerSearch.addEventListener('focus', filterCustomerDropdown);
+        customerSearch.addEventListener('search', filterCustomerDropdown);
         customerSearch.addEventListener('blur', () => {
             window.setTimeout(closeCustomerSearchResults, 140);
         });
@@ -1446,7 +1447,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('addServiceBtn').addEventListener('click', addTypedService);
     document.getElementById('addItemBtn').addEventListener('click', addTypedItem);
     document.getElementById('servicePickerSearch').addEventListener('input', renderServicePickerList);
+    document.getElementById('servicePickerSearch').addEventListener('search', renderServicePickerList);
     document.getElementById('itemPickerSearch').addEventListener('input', renderItemPickerList);
+    document.getElementById('itemPickerSearch').addEventListener('search', renderItemPickerList);
     ['inspection_complaint', 'inspection_findings', 'inspection_recommendations'].forEach((fieldId) => {
         const field = document.getElementById(fieldId);
         if (field) {
