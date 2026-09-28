@@ -5,6 +5,7 @@
  */
 
 require_once __DIR__ . '/../../includes/config.php';
+require_once __DIR__ . '/../../includes/record-filters.php';
 if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
     session_name(SESSION_NAME);
     session_start();
@@ -515,16 +516,19 @@ if (!function_exists('audit_changes_summary')) {
 // Helper: URL builder preserving active filter parameters
 if (!function_exists('audit_filter_url')) {
     function audit_filter_url($params = []) {
+        global $date_filter;
+        $date_params = is_array($date_filter) ? record_date_filter_query_params($date_filter) : [];
         $current = [
             'search' => $_GET['search'] ?? '',
             'module' => $_GET['module'] ?? '',
             'action' => $_GET['action'] ?? '',
             'user_id' => $_GET['user_id'] ?? '',
-            'start_date' => $_GET['start_date'] ?? '',
-            'end_date' => $_GET['end_date'] ?? '',
             'per_page' => $_GET['per_page'] ?? 20,
             'page' => $_GET['page'] ?? 1,
         ];
+        if (!empty($date_params)) {
+            $current = array_merge($current, $date_params);
+        }
 
         $merged = array_merge($current, $params);
         $clean = [];
@@ -544,8 +548,25 @@ $search_query = trim((string) ($_GET['search'] ?? ''));
 $module_filter = trim((string) ($_GET['module'] ?? ''));
 $action_filter = trim((string) ($_GET['action'] ?? ''));
 $user_filter = trim((string) ($_GET['user_id'] ?? ''));
-$start_date = trim((string) ($_GET['start_date'] ?? ''));
-$end_date = trim((string) ($_GET['end_date'] ?? ''));
+
+// Period & date filters via shared helper (defaulting to 'all')
+$date_filter = record_date_filter_current('all');
+
+// Backward compatibility: support legacy start_date / end_date URLs if date_scope not set
+if (!isset($_GET['date_scope']) && (isset($_GET['start_date']) || isset($_GET['end_date']))) {
+    $legacy_start = trim((string) ($_GET['start_date'] ?? ''));
+    $legacy_end = trim((string) ($_GET['end_date'] ?? ''));
+    if ($legacy_start !== '' || $legacy_end !== '') {
+        $date_filter['scope'] = 'range';
+        $valid_from = record_date_filter_valid_date($legacy_start ?: $legacy_end);
+        $valid_to = record_date_filter_valid_date($legacy_end ?: $legacy_start);
+        if (strtotime($valid_from) > strtotime($valid_to)) {
+            [$valid_from, $valid_to] = [$valid_to, $valid_from];
+        }
+        $date_filter['from'] = $valid_from;
+        $date_filter['to'] = $valid_to;
+    }
+}
 
 $per_page = (int) ($_GET['per_page'] ?? 20);
 if (!in_array($per_page, [20, 50, 100], true)) {
@@ -554,14 +575,6 @@ if (!in_array($per_page, [20, 50, 100], true)) {
 
 $page = max(1, (int) ($_GET['page'] ?? 1));
 $offset = ($page - 1) * $per_page;
-
-// Validate dates format (YYYY-MM-DD)
-if ($start_date !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $start_date)) {
-    $start_date = '';
-}
-if ($end_date !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $end_date)) {
-    $end_date = '';
-}
 
 // Fetch filter option dropdowns
 $filter_users = $pdo->query("SELECT id, name, role FROM users ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
@@ -653,29 +666,14 @@ if ($user_filter !== '' && $user_filter !== 'all') {
     $params[':filter_user_id'] = (int)$user_filter;
 }
 
-// Timezone-safe date boundaries: Convert Asia/Manila calendar date to UTC boundaries for SQL
-if ($start_date !== '') {
-    try {
-        $dt_start = new DateTime($start_date . ' 00:00:00', new DateTimeZone('Asia/Manila'));
-        $dt_start->setTimezone(new DateTimeZone('UTC'));
-        $where[] = "a.created_at >= :start_date_utc";
-        $params[':start_date_utc'] = $dt_start->format('Y-m-d H:i:s');
-    } catch (Exception $e) {
-        $where[] = "DATE(a.created_at) >= :start_date_fallback";
-        $params[':start_date_fallback'] = $start_date;
-    }
-}
-
-if ($end_date !== '') {
-    try {
-        $dt_end = new DateTime($end_date . ' 23:59:59', new DateTimeZone('Asia/Manila'));
-        $dt_end->setTimezone(new DateTimeZone('UTC'));
-        $where[] = "a.created_at <= :end_date_utc";
-        $params[':end_date_utc'] = $dt_end->format('Y-m-d H:i:s');
-    } catch (Exception $e) {
-        $where[] = "DATE(a.created_at) <= :end_date_fallback";
-        $params[':end_date_fallback'] = $end_date;
-    }
+// Timezone-safe date boundaries via shared helper (Asia/Manila calendar date -> UTC boundaries)
+$date_params = [];
+$date_cond = record_date_filter_condition('a.created_at', $date_filter, $date_params, 'event_timestamp');
+if ($date_cond !== '' && count($date_params) === 2) {
+    // Avoid mixing positional and named PDO parameters; map to named placeholders
+    $where[] = "a.created_at >= :date_filter_start AND a.created_at < :date_filter_end";
+    $params[':date_filter_start'] = $date_params[0];
+    $params[':date_filter_end'] = $date_params[1];
 }
 
 $where_clause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
@@ -767,10 +765,10 @@ include __DIR__ . '/../../includes/sidebar.php';
 
     <!-- Search & Filters Card (Aligned 2-Row Layout) -->
     <div class="card border-0 shadow-sm rounded-3 mb-4 hw-filter-card">
-        <form method="get" action="/hwtires/admin/audit-trail/" class="hw-filter-toolbar audit-trail-filter-form">
+        <form method="get" action="/hwtires/admin/audit-trail/" class="hw-filter-toolbar audit-trail-filter-form" data-record-date-filter>
             <input type="hidden" name="per_page" value="<?php echo (int) $per_page; ?>">
 
-            <!-- Row 1: Primary Dropdown & Date Filters (Module, Action, User, Start Date, End Date, Filter, Reset) -->
+            <!-- Row 1: Primary Dropdown & Date Filters (Module, Action, User, Period / Date Selection, Filter, Reset) -->
             <div class="hw-filter-cluster audit-filters-row">
                 <div class="hw-filter-group hw-group-md">
                     <label for="auditModuleFilter" class="hw-filter-label">Module</label>
@@ -809,13 +807,46 @@ include __DIR__ . '/../../includes/sidebar.php';
                 </div>
 
                 <div class="hw-filter-group hw-group-date">
-                    <label for="auditStartDate" class="hw-filter-label">Start Date</label>
-                    <input id="auditStartDate" type="date" name="start_date" class="hw-filter-input" value="<?php echo esc_attr($start_date); ?>">
+                    <label for="auditDateScope" class="hw-filter-label">Period</label>
+                    <select id="auditDateScope" name="date_scope" class="records-date-scope hw-filter-select" aria-label="Select record period">
+                        <option value="all" <?php echo ($date_filter['scope'] ?? 'all') === 'all' ? 'selected' : ''; ?>>All Records</option>
+                        <option value="recent" <?php echo ($date_filter['scope'] ?? '') === 'recent' ? 'selected' : ''; ?>>Current Week</option>
+                        <option value="day" <?php echo ($date_filter['scope'] ?? '') === 'day' ? 'selected' : ''; ?>>Day</option>
+                        <option value="week" <?php echo ($date_filter['scope'] ?? '') === 'week' ? 'selected' : ''; ?>>Week</option>
+                        <option value="month" <?php echo ($date_filter['scope'] ?? '') === 'month' ? 'selected' : ''; ?>>Month</option>
+                        <option value="year" <?php echo ($date_filter['scope'] ?? '') === 'year' ? 'selected' : ''; ?>>Year</option>
+                        <option value="range" <?php echo ($date_filter['scope'] ?? '') === 'range' ? 'selected' : ''; ?>>Date Range</option>
+                    </select>
                 </div>
 
-                <div class="hw-filter-group hw-group-date">
-                    <label for="auditEndDate" class="hw-filter-label">End Date</label>
-                    <input id="auditEndDate" type="date" name="end_date" class="hw-filter-input" value="<?php echo esc_attr($end_date); ?>">
+                <div class="hw-filter-group" data-date-input="day" <?php echo ($date_filter['scope'] ?? '') !== 'day' ? 'hidden' : ''; ?>>
+                    <label for="auditDateDay" class="hw-filter-label">Day</label>
+                    <input id="auditDateDay" type="date" name="date_day" class="hw-filter-input" value="<?php echo esc_attr($date_filter['day']); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'day' ? 'disabled' : ''; ?>>
+                </div>
+
+                <div class="hw-filter-group" data-date-input="week" <?php echo ($date_filter['scope'] ?? '') !== 'week' ? 'hidden' : ''; ?>>
+                    <label for="auditDateWeek" class="hw-filter-label">Week</label>
+                    <input id="auditDateWeek" type="week" name="date_week" class="hw-filter-input" value="<?php echo esc_attr($date_filter['week']); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'week' ? 'disabled' : ''; ?>>
+                </div>
+
+                <div class="hw-filter-group" data-date-input="month" <?php echo ($date_filter['scope'] ?? '') !== 'month' ? 'hidden' : ''; ?>>
+                    <label for="auditDateMonth" class="hw-filter-label">Month</label>
+                    <input id="auditDateMonth" type="month" name="date_month" class="hw-filter-input" value="<?php echo esc_attr($date_filter['month']); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'month' ? 'disabled' : ''; ?>>
+                </div>
+
+                <div class="hw-filter-group" data-date-input="year" <?php echo ($date_filter['scope'] ?? '') !== 'year' ? 'hidden' : ''; ?>>
+                    <label for="auditDateYear" class="hw-filter-label">Year</label>
+                    <input id="auditDateYear" type="number" name="date_year" min="2020" max="2100" class="hw-filter-input" value="<?php echo (int) $date_filter['year']; ?>" <?php echo ($date_filter['scope'] ?? '') !== 'year' ? 'disabled' : ''; ?>>
+                </div>
+
+                <div class="hw-filter-group" data-date-input="range" <?php echo ($date_filter['scope'] ?? '') !== 'range' ? 'hidden' : ''; ?>>
+                    <label for="auditDateFrom" class="hw-filter-label">From</label>
+                    <input id="auditDateFrom" type="date" name="date_from" class="hw-filter-input" value="<?php echo esc_attr($date_filter['from']); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'range' ? 'disabled' : ''; ?>>
+                </div>
+
+                <div class="hw-filter-group" data-date-input="range" <?php echo ($date_filter['scope'] ?? '') !== 'range' ? 'hidden' : ''; ?>>
+                    <label for="auditDateTo" class="hw-filter-label">To</label>
+                    <input id="auditDateTo" type="date" name="date_to" class="hw-filter-input" value="<?php echo esc_attr($date_filter['to']); ?>" <?php echo ($date_filter['scope'] ?? '') !== 'range' ? 'disabled' : ''; ?>>
                 </div>
 
                 <div class="hw-filter-actions">
@@ -852,6 +883,7 @@ include __DIR__ . '/../../includes/sidebar.php';
                 </div>
             </div>
         </form>
+        <?php record_date_filter_script(); ?>
 
         <!-- Status Summary Strip Below Form -->
         <div class="audit-summary-row d-flex align-items-center flex-wrap gap-2 pt-2 mt-2 border-top text-secondary small">
@@ -859,8 +891,7 @@ include __DIR__ . '/../../includes/sidebar.php';
             $has_filters = ($module_filter !== '' && $module_filter !== 'all')
                         || ($action_filter !== '' && $action_filter !== 'all')
                         || ($user_filter !== '' && $user_filter !== 'all')
-                        || $start_date !== ''
-                        || $end_date !== '';
+                        || (($date_filter['scope'] ?? 'all') !== 'all');
             $has_search = ($search_query !== '');
             ?>
             <?php if ($has_filters || $has_search): ?>
@@ -872,6 +903,11 @@ include __DIR__ . '/../../includes/sidebar.php';
                         Search: "<strong><?php echo esc_html($search_query); ?></strong>"
                     </span>
                 <?php endif; ?>
+                <?php if (($date_filter['scope'] ?? 'all') !== 'all'): ?>
+                    <span class="badge bg-light text-dark border">
+                        Period: <strong><?php echo esc_html(record_date_filter_label($date_filter)); ?></strong>
+                    </span>
+                <?php endif; ?>
                 <?php if ($action_filter !== '' && $action_filter !== 'all'): ?>
                     <span class="badge bg-light text-dark border">
                         Action: <strong><?php echo esc_html(audit_action_label($action_filter)); ?></strong>
@@ -880,6 +916,15 @@ include __DIR__ . '/../../includes/sidebar.php';
                 <?php if ($module_filter !== '' && $module_filter !== 'all'): ?>
                     <span class="badge bg-light text-dark border">
                         Module: <strong><?php echo esc_html(audit_table_label($module_filter)); ?></strong>
+                    </span>
+                <?php endif; ?>
+                <?php if ($user_filter !== '' && $user_filter !== 'all'): ?>
+                    <span class="badge bg-light text-dark border">
+                        User: <strong><?php
+                            $u_match = array_filter($filter_users, fn($u) => (string)$u['id'] === (string)$user_filter);
+                            $u_first = !empty($u_match) ? reset($u_match) : null;
+                            echo esc_html($u_first['name'] ?? ('User #' . $user_filter));
+                        ?></strong>
                     </span>
                 <?php endif; ?>
                 <span class="text-muted ms-1">Matching records: <strong><?php echo number_format($total_records); ?></strong></span>
@@ -903,8 +948,9 @@ include __DIR__ . '/../../includes/sidebar.php';
                     <?php if ($module_filter !== '' && $module_filter !== 'all'): ?><input type="hidden" name="module" value="<?php echo esc_attr($module_filter); ?>"><?php endif; ?>
                     <?php if ($action_filter !== '' && $action_filter !== 'all'): ?><input type="hidden" name="action" value="<?php echo esc_attr($action_filter); ?>"><?php endif; ?>
                     <?php if ($user_filter !== '' && $user_filter !== 'all'): ?><input type="hidden" name="user_id" value="<?php echo esc_attr($user_filter); ?>"><?php endif; ?>
-                    <?php if ($start_date !== ''): ?><input type="hidden" name="start_date" value="<?php echo esc_attr($start_date); ?>"><?php endif; ?>
-                    <?php if ($end_date !== ''): ?><input type="hidden" name="end_date" value="<?php echo esc_attr($end_date); ?>"><?php endif; ?>
+                    <?php if (($date_filter['scope'] ?? 'all') !== 'all'): ?>
+                        <?php record_date_filter_hidden_inputs(record_date_filter_query_params($date_filter)); ?>
+                    <?php endif; ?>
                     <select name="per_page" class="form-select form-select-sm" onchange="this.form.submit()">
                         <option value="20" <?php echo $per_page === 20 ? 'selected' : ''; ?>>20</option>
                         <option value="50" <?php echo $per_page === 50 ? 'selected' : ''; ?>>50</option>
