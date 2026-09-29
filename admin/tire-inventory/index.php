@@ -354,7 +354,7 @@ try {
                    strtolower(trim((string)($ci['model'] ?? ''))) . '|' .
                    strtolower(trim((string)($ci['size'] ?? '')));
 
-        $cNum = $assigned_catalog_nums[$specKey] ?? ((int)$ci['id']);
+        $cNum = $assigned_catalog_nums[$specKey] ?? 0;
         $bName = inventory_branch_label($ci['branch_name'] ?? ('Branch ' . $ci['branch_id']));
 
         if (!isset($canon_by_key[$specKey])) {
