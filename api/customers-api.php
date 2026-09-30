@@ -93,9 +93,6 @@ if ($action === 'add') {
             if ($address_barangay === '') {
                 throw new Exception('Barangay is required');
             }
-            if ($street_address === '') {
-                throw new Exception('Street / House No. / Building is required');
-            }
 
             $composed_address = app_compose_philippine_address($street_address, $address_barangay, $address_city, $address_province, $address_region);
             if (mb_strlen($composed_address, 'UTF-8') > 255) {
@@ -348,9 +345,6 @@ if ($action === 'update') {
             }
             if ($address_barangay === '') {
                 throw new Exception('Barangay is required');
-            }
-            if ($street_address === '') {
-                throw new Exception('Street / House No. / Building is required');
             }
 
             $composed_address = app_compose_philippine_address($street_address, $address_barangay, $address_city, $address_province, $address_region);

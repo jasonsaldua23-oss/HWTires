@@ -780,8 +780,8 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                                 </div>
                                 <div class="col-12">
                                     <div class="form-group mb-0">
-                                        <label class="form-label required">Street / House No. / Building / Subdivision</label>
-                                        <input type="text" class="form-control ph-street-input" name="street_address" maxlength="150" placeholder="e.g., 852 Rosario Street" required>
+                                        <label class="form-label">Street / House No. / Building / Subdivision <span class="fw-normal text-muted">(Optional)</span></label>
+                                        <input type="text" class="form-control ph-street-input" name="street_address" maxlength="150" placeholder="e.g., 852 Rosario Street">
                                     </div>
                                 </div>
                             </div>
@@ -909,7 +909,7 @@ $pagination_params .= record_date_filter_query_string($date_filter);
                                     </div>
                                     <div class="col-12">
                                         <div class="form-group mb-0">
-                                            <label class="form-label required">Street / House No. / Building / Subdivision</label>
+                                            <label class="form-label">Street / House No. / Building / Subdivision <span class="fw-normal text-muted">(Optional)</span></label>
                                             <input type="text" class="form-control ph-street-input" name="street_address" maxlength="150" placeholder="e.g., 852 Rosario Street">
                                         </div>
                                     </div>
@@ -1042,7 +1042,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (structuredBlock) structuredBlock.style.display = 'block';
                 if (modeInput) modeInput.value = 'structured';
                 if (editComponent) {
-                    editComponent.querySelectorAll('select, input').forEach(function(el) {
+                    editComponent.querySelectorAll('select').forEach(function(el) {
                         el.setAttribute('required', 'required');
                     });
                     if (window.HWTIRES_PH_ADDRESS && window.HWTIRES_PH_ADDRESS.initComponent) {

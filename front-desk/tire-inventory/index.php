@@ -60,7 +60,8 @@ if (!function_exists('front_inventory_item_details')) {
 
 if (!function_exists('front_inventory_item_detail_lines')) {
     function front_inventory_item_detail_lines($item) {
-        $serial = trim((string) ($item['serial_number'] ?? $item['sku'] ?? ''));
+        $sku = trim((string) ($item['sku'] ?? ''));
+        $serial = trim((string) ($item['serial_number'] ?? ''));
         $model = trim((string) ($item['model'] ?? ''));
         $size = trim((string) ($item['size'] ?? ''));
         $category = strtolower(trim((string) ($item['category'] ?? '')));
@@ -76,12 +77,23 @@ if (!function_exists('front_inventory_item_detail_lines')) {
             $model = $description;
         }
 
-        return [
+        $lines = [
             ['label' => $size_label, 'value' => $size !== '' ? $size : '-'],
             ['label' => 'Model', 'value' => $model !== '' ? $model : '-'],
-            ['label' => 'Serial/SKU', 'value' => $serial !== '' ? $serial : '-'],
-            ['label' => 'Mfg Date', 'value' => $manufacturing_date !== '' ? format_date($manufacturing_date, 'M d, Y') : '-'],
         ];
+
+        if ($sku !== '') {
+            $lines[] = ['label' => 'SKU', 'value' => $sku];
+        }
+        if ($serial !== '') {
+            $lines[] = ['label' => 'Inventory Serial', 'value' => $serial];
+        } elseif ($sku === '') {
+            $lines[] = ['label' => 'Serial/SKU', 'value' => '-'];
+        }
+
+        $lines[] = ['label' => 'Mfg Date', 'value' => $manufacturing_date !== '' ? format_date($manufacturing_date, 'M d, Y') : '-'];
+
+        return $lines;
     }
 }
 
