@@ -140,11 +140,18 @@ if (!function_exists('reports_filter_url')) {
 
 if (!function_exists('reports_detail_url')) {
     function reports_detail_url($report, $branch_id, $date_from, $date_to, $status, $search, $extra = []) {
-        return reports_filter_url($branch_id, $date_from, $date_to, array_merge([
+        $params = array_merge([
             'report' => $report,
             'status' => $status,
             'search' => $search,
-        ], $extra));
+        ], $extra);
+        if ($report === 'services' && !isset($params['include_inspection'])) {
+            $curr_inc = isset($_GET['include_inspection']) && ($_GET['include_inspection'] === '1' || $_GET['include_inspection'] === 'true' || $_GET['include_inspection'] === 'on');
+            if ($curr_inc) {
+                $params['include_inspection'] = '1';
+            }
+        }
+        return reports_filter_url($branch_id, $date_from, $date_to, $params);
     }
 }
 
@@ -517,7 +524,7 @@ if (!function_exists('reports_send_csv')) {
 }
 
 if (!function_exists('reports_send_detail_csv')) {
-    function reports_send_detail_csv(array $filters, $report_tab, array $active_report, array $detail_records) {
+    function reports_send_detail_csv(array $filters, $report_tab, array $active_report, array $detail_records, array $top_availed_services = [], int $total_service_availments = 0) {
         $filename_label = strtolower(($active_report['label'] ?? 'Report') . '-' . ($filters['branch_label'] ?? 'All Branches'));
         $filename_label = trim((string) preg_replace('/[^a-z0-9]+/', '-', $filename_label), '-');
 
@@ -636,6 +643,28 @@ if (!function_exists('reports_send_detail_csv')) {
                 ]);
             }
         } else {
+            if ($report_tab === 'services' && !empty($top_availed_services)) {
+                $inc_insp = !empty($filters['include_inspection']);
+                fputcsv($out, ['Most Frequently Availed Services (' . ($inc_insp ? 'Including Service Inspection' : 'Excluding Baseline Inspection') . ')']);
+                fputcsv($out, ['Rank', 'Service Name', 'Category', 'Times Availed (Job Orders)', 'Total Units Serviced', 'Share of Total (%)', 'Total Revenue']);
+                foreach ($top_availed_services as $index => $row) {
+                    $rank = $index + 1;
+                    $times_availed = (int) ($row['times_availed'] ?? 0);
+                    $total_units = (int) ($row['total_units'] ?? $times_availed);
+                    $share_pct = $total_service_availments > 0 ? round(($times_availed / $total_service_availments) * 100, 1) : 0;
+                    fputcsv($out, [
+                        '#' . $rank,
+                        $row['service_name'],
+                        $row['category'] ?? 'Service',
+                        $times_availed,
+                        $total_units,
+                        $share_pct . '%',
+                        reports_csv_money((float) ($row['total_revenue'] ?? 0)),
+                    ]);
+                }
+                fputcsv($out, []);
+            }
+            fputcsv($out, ['Detailed Services']);
             fputcsv($out, ['Date', 'Branch', 'Customer', 'Contact', 'Vehicle', 'Services Availed', 'Job Order', 'Service Operation', 'Status', 'Amount']);
             foreach ($detail_records as $service) {
                 fputcsv($out, [
@@ -753,6 +782,7 @@ if (!in_array($detail_per_page, $page_sizes, true)) {
 }
 $detail_page = max(1, (int) ($_GET['page'] ?? 1));
 $is_export_request = isset($_GET['export']) && $_GET['export'] === 'csv';
+$include_inspection = isset($_GET['include_inspection']) && ($_GET['include_inspection'] === '1' || $_GET['include_inspection'] === 'true' || $_GET['include_inspection'] === 'on');
 
 $visible_branches = array_values(array_filter($branches, static function ($branch) use ($branch_filter) {
     return $branch_filter === '' || (int) $branch['id'] === $branch_filter;
@@ -1245,6 +1275,50 @@ $services_stmt = $pdo->prepare("
 ");
 $services_stmt->execute($services_params);
 $detailed_services = $services_stmt->fetchAll();
+
+$top_availed_services = [];
+$total_service_availments = 0;
+if ($report_tab === 'services') {
+    $top_services_params = [$date_from, $date_to];
+    $top_services_branch_sql = '';
+    if ($branch_filter !== '') {
+        $top_services_branch_sql = ' AND q.branch_id = ?';
+        $top_services_params[] = $branch_filter;
+    }
+    $top_services_inspection_sql = $include_inspection ? '' : " AND qi.item_name <> 'Service Inspection'";
+
+    $top_services_stmt = $pdo->prepare("
+        SELECT
+            qi.item_name AS service_name,
+            COALESCE(NULLIF(qi.category, ''), 'Service') AS category,
+            COUNT(DISTINCT jo.id) AS times_availed,
+            COALESCE(SUM(qi.quantity), COUNT(DISTINCT jo.id)) AS total_units,
+            COALESCE(SUM(qi.subtotal), 0) AS total_revenue
+        FROM quotation_items qi
+        JOIN quotations q ON q.id = qi.quotation_id
+        JOIN job_orders jo ON jo.quotation_id = q.id
+        WHERE qi.item_type = 'service'
+          AND jo.status = 'completed'
+          AND q.quotation_date BETWEEN ? AND ?" . $top_services_branch_sql . $top_services_inspection_sql . "
+        GROUP BY qi.item_name, COALESCE(NULLIF(qi.category, ''), 'Service')
+        ORDER BY times_availed DESC, total_revenue DESC
+        LIMIT 10
+    ");
+    $top_services_stmt->execute($top_services_params);
+    $top_availed_services = $top_services_stmt->fetchAll();
+
+    $total_availments_stmt = $pdo->prepare("
+        SELECT COUNT(DISTINCT jo.id, qi.item_name) AS total_availments
+        FROM quotation_items qi
+        JOIN quotations q ON q.id = qi.quotation_id
+        JOIN job_orders jo ON jo.quotation_id = q.id
+        WHERE qi.item_type = 'service'
+          AND jo.status = 'completed'
+          AND q.quotation_date BETWEEN ? AND ?" . $top_services_branch_sql . $top_services_inspection_sql . "
+    ");
+    $total_availments_stmt->execute($top_services_params);
+    $total_service_availments = (int) ($total_availments_stmt->fetch()['total_availments'] ?? 0);
+}
 
 $inventory_item_select_extra = '';
 $inventory_item_group_extra = '';
@@ -2060,10 +2134,13 @@ if ($is_export_request) {
             'date_to' => $date_to,
             'status_label' => $active_status_label,
             'search' => $search_filter,
+            'include_inspection' => $include_inspection,
         ],
         $report_tab,
         $active_report,
-        $detail_records
+        $detail_records,
+        $top_availed_services,
+        $total_service_availments
     );
 }
 
@@ -2378,6 +2455,9 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
                 </div>
             </div>
             <input type="hidden" name="per_page" value="<?php echo (int) $detail_per_page; ?>">
+            <?php if ($include_inspection): ?>
+                <input type="hidden" name="include_inspection" value="1">
+            <?php endif; ?>
         </form>
         <script>
         const reportStatusOptions = <?php echo json_encode($report_status_options_map, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
@@ -2485,6 +2565,115 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
         </article>
     </section>
 
+    <?php if ($report_tab === 'services'): ?>
+        <section class="reports-panel reports-detail-panel" id="most-frequently-availed-services" style="margin-bottom: 24px;">
+            <div class="reports-panel-title-row" style="flex-wrap: wrap; gap: 14px; margin-bottom: 16px;">
+                <div>
+                    <h2 style="display: flex; align-items: center; gap: 8px; margin: 0 0 4px;">
+                        <i class="fas fa-trophy" style="color: #f59e0b; font-size: 18px;"></i>
+                        Most Frequently Availed Services
+                    </h2>
+                    <p style="margin: 0; color: #64748b; font-size: 13px;">
+                        Ranked by distinct completed Job Orders.
+                        <?php if ($include_inspection): ?>
+                            <span class="reports-badge" style="background: #e0f2fe; color: #0284c7; font-size: 11px; padding: 2px 7px; border-radius: 4px; font-weight: 700; margin-left: 4px;">Including Service Inspection</span>
+                        <?php else: ?>
+                            <span class="reports-badge" style="background: #f1f5f9; color: #475569; font-size: 11px; padding: 2px 7px; border-radius: 4px; font-weight: 700; margin-left: 4px;">Excluding Baseline Inspection</span>
+                        <?php endif; ?>
+                    </p>
+                </div>
+                <form method="get" action="./#most-frequently-availed-services" class="reports-inspection-toggle-form" style="display: inline-flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 12px;">
+                    <input type="hidden" name="report" value="services">
+                    <?php if ($branch_filter !== ''): ?>
+                        <input type="hidden" name="branch" value="<?php echo (int) $branch_filter; ?>">
+                    <?php endif; ?>
+                    <input type="hidden" name="date_from" value="<?php echo esc_attr($date_from); ?>">
+                    <input type="hidden" name="date_to" value="<?php echo esc_attr($date_to); ?>">
+                    <?php if ($status_filter !== 'all'): ?>
+                        <input type="hidden" name="status" value="<?php echo esc_attr($status_filter); ?>">
+                    <?php endif; ?>
+                    <?php if ($search_filter !== ''): ?>
+                        <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
+                    <?php endif; ?>
+                    <input type="hidden" name="per_page" value="<?php echo (int) $detail_per_page; ?>">
+                    <label style="display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font-size: 13px; font-weight: 600; color: #1e293b; margin: 0; user-select: none;">
+                        <input type="checkbox" name="include_inspection" value="1" <?php echo $include_inspection ? 'checked' : ''; ?> onchange="this.form.submit()" style="cursor: pointer; width: 16px; height: 16px;">
+                        <span>Include Service Inspection</span>
+                    </label>
+                </form>
+            </div>
+
+            <?php if (empty($top_availed_services)): ?>
+                <div class="reports-empty-state text-center" style="padding: 24px; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1; color: #64748b;">
+                    <i class="fas fa-wrench" style="font-size: 24px; color: #94a3b8; display: block; margin-bottom: 8px;"></i>
+                    No completed service records found for the selected period and branch filters.
+                </div>
+            <?php else: ?>
+                <div class="reports-detail-table-wrap">
+                    <table class="reports-detail-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 65px; text-align: center;">Rank</th>
+                                <th>Service Name</th>
+                                <th>Category</th>
+                                <th style="text-align: right;">Times Availed</th>
+                                <th style="width: 220px;">Share of Total</th>
+                                <th style="text-align: right;">Total Revenue</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($top_availed_services as $index => $row): ?>
+                                <?php
+                                $rank = $index + 1;
+                                $times_availed = (int) ($row['times_availed'] ?? 0);
+                                $total_units = (int) ($row['total_units'] ?? $times_availed);
+                                $share_pct = $total_service_availments > 0 ? round(($times_availed / $total_service_availments) * 100, 1) : 0;
+                                $cat_label = trim((string) ($row['category'] ?? 'Service')) ?: 'Service';
+                                ?>
+                                <tr>
+                                    <td style="text-align: center;">
+                                        <span style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; font-weight: 800; font-size: 11.5px; <?php echo $rank === 1 ? 'background: #fef3c7; color: #b45309; border: 1px solid #fde68a;' : ($rank === 2 ? 'background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;' : ($rank === 3 ? 'background: #ffedd5; color: #c2410c; border: 1px solid #fed7aa;' : 'background: #f8fafc; color: #64748b;')); ?>">
+                                            #<?php echo $rank; ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <strong><?php echo esc_html($row['service_name']); ?></strong>
+                                        <?php if ($row['service_name'] === 'Service Inspection'): ?>
+                                            <small style="display: block; color: #0284c7; font-size: 11px;"><i class="fas fa-info-circle"></i> Standard intake inspection</small>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <span class="reports-category" style="background: #f1f5f9; color: #334155; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 4px;">
+                                            <?php echo esc_html($cat_label); ?>
+                                        </span>
+                                    </td>
+                                    <td style="text-align: right;">
+                                        <strong style="font-size: 14px; color: #0f172a;"><?php echo number_format($times_availed); ?></strong>
+                                        <span style="font-size: 11.5px; color: #64748b; display: block;">job orders</span>
+                                        <?php if ($total_units > $times_availed): ?>
+                                            <small style="color: #64748b; font-size: 11px; display: block;"><?php echo number_format($total_units); ?> units serviced</small>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <div style="flex: 1; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+                                                <div style="width: <?php echo min(100, $share_pct); ?>%; height: 100%; background: #0284c7; border-radius: 4px;"></div>
+                                            </div>
+                                            <span style="font-weight: 700; font-size: 12px; color: #1e293b; min-width: 44px; text-align: right;"><?php echo number_format($share_pct, 1); ?>%</span>
+                                        </div>
+                                    </td>
+                                    <td style="text-align: right;">
+                                        <strong style="color: #0f172a;"><?php echo reports_money((float) ($row['total_revenue'] ?? 0)); ?></strong>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </section>
+    <?php endif; ?>
+
     <section class="reports-panel reports-detail-panel reports-primary-detail-panel" id="detailed-report">
         <div class="reports-panel-title-row">
             <div>
@@ -2506,6 +2695,9 @@ $reset_url = reports_detail_url($report_tab, '', $default_from, $default_to, 'al
                 <?php endif; ?>
                 <?php if ($search_filter !== ''): ?>
                     <input type="hidden" name="search" value="<?php echo esc_attr($search_filter); ?>">
+                <?php endif; ?>
+                <?php if ($include_inspection): ?>
+                    <input type="hidden" name="include_inspection" value="1">
                 <?php endif; ?>
                 <label>
                     <span>Rows per page</span>
