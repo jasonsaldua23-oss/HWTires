@@ -190,6 +190,198 @@ $redirect_url = '/hwtires/front-desk/quotations/';
 <?php require_once '../../includes/header.php'; ?>
 <?php require_once '../../includes/sidebar.php'; ?>
 
+<style>
+.quote-inspection-tech-section {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px dashed #cbd5e1;
+}
+.quote-tech-section-header h3 {
+    margin: 0 0 4px;
+    font-size: 17px;
+    font-weight: 800;
+    color: #15233f;
+}
+.quote-tech-section-header p {
+    margin: 0 0 16px;
+    font-size: 13px;
+    color: #64748b;
+}
+.quote-tech-block {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.quote-tech-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.quote-tech-heading span {
+    font-size: 15px;
+    font-weight: 800;
+    color: #15233f;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.quote-tech-heading small {
+    font-size: 12px;
+    color: #64748b;
+}
+.quote-tech-search {
+    min-height: 44px;
+    padding: 0 14px;
+}
+.quote-tech-search input {
+    min-height: 40px;
+    font-size: 15px;
+}
+.quote-tech-search i {
+    font-size: 15px;
+}
+.quote-tech-list {
+    max-height: 220px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+.quote-tech-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+.quote-tech-item:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+.quote-tech-item.is-checked {
+    background: #f0fdf4;
+    border-color: #86efac;
+}
+.quote-tech-item-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+.quote-tech-item-left input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    min-height: 16px;
+    accent-color: #0897b4;
+    cursor: pointer;
+}
+.quote-tech-item-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.quote-tech-item-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.quote-tech-item-meta {
+    font-size: 11px;
+    color: #64748b;
+}
+.quote-tech-item-price {
+    font-size: 13px;
+    font-weight: 800;
+    color: #007496;
+    white-space: nowrap;
+}
+.quote-badge-required {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    color: #b91c1c;
+    background: #fee2e2;
+    border: 1px solid #fca5a5;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+    margin-left: 8px;
+}
+.quote-badge-recommended {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    color: #0369a1;
+    background: #e0f2fe;
+    border: 1px solid #bae6fd;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 800;
+    vertical-align: middle;
+    margin-left: 8px;
+}
+.quote-opt-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-right: 4px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+    cursor: pointer;
+}
+.quote-opt-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    min-height: 18px;
+    cursor: pointer;
+    accent-color: #0897b4;
+}
+.quote-line-name {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+}
+.quote-line-name-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.quote-line-name-header > label {
+    margin: 0;
+    color: #15233f;
+    font-size: 16px;
+    font-weight: 800;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+.quote-tech-empty {
+    padding: 16px;
+    text-align: center;
+    font-size: 13px;
+    color: #94a3b8;
+}
+</style>
+
 <div class="quote-create-page">
     <form id="quotationForm" method="POST" action="/hwtires/api/quotations-api.php">
         <input type="hidden" name="action" value="create">
@@ -340,6 +532,38 @@ $redirect_url = '/hwtires/front-desk/quotations/';
                     </div>
                 </label>
             </div>
+            <div class="quote-inspection-tech-section">
+                <div class="quote-tech-section-header">
+                    <h3>Technician Service &amp; Material Directives</h3>
+                    <p>Explicit required services and recommended materials identified during technical inspection.</p>
+                </div>
+                <div class="quote-field-grid">
+                    <div class="quote-tech-block">
+                        <label class="quote-tech-heading">
+                            <span><i class="fas fa-tools" style="color: #b91c1c;"></i> Required Services <em>(Technician Confirmed)</em></span>
+                            <small>Checked services are strictly required and automatically included in Selected Services.</small>
+                        </label>
+                        <div class="quote-picker-input-row quote-tech-search">
+                            <i class="fas fa-search"></i>
+                            <input type="search" id="requiredServicesSearch" placeholder="Search catalog services to mark as required..." autocomplete="off">
+                        </div>
+                        <div class="quote-tech-list" id="requiredServicesList" aria-label="Required services list"></div>
+                    </div>
+
+                    <div class="quote-tech-block">
+                        <label class="quote-tech-heading">
+                            <span><i class="fas fa-box" style="color: #0369a1;"></i> Recommended Parts &amp; Items <em>(Optional SKU Selection)</em></span>
+                            <small>Specific branch in-stock parts recommended. Pre-selected in Step 2; customer may decline.</small>
+                        </label>
+                        <div class="quote-picker-input-row quote-tech-search">
+                            <i class="fas fa-search"></i>
+                            <input type="search" id="recommendedItemsSearch" placeholder="Search branch in-stock parts to recommend..." autocomplete="off">
+                        </div>
+                        <div class="quote-tech-list" id="recommendedItemsList" aria-label="Recommended items list"></div>
+                    </div>
+                </div>
+            </div>
+
             <div class="quote-step-actions">
                 <button type="button" class="quote-continue-btn" id="continueToQuotationBtn">
                     <span>Continue to Service Operation</span>
@@ -444,6 +668,37 @@ let activeItemCategory = 'All';
 let lineCounter = 0;
 let quotationStep = 1;
 let laborCostTouched = false;
+let optedOutKeys = new Set();
+
+const RECOMMENDED_ACTION_SERVICE_MAP = {
+    'computerized four wheel alignment': 'Computerized Four Wheel Alignment',
+    'wheel balancing / computerized wheel balancing': 'Wheel Balancing / Computerized Wheel Balancing',
+    'wheel balancing': 'Wheel Balancing / Computerized Wheel Balancing',
+    'cold patch vulcanizing and tire repair': 'Cold Patch Vulcanizing and Tire Repair',
+    'tire repair': 'Cold Patch Vulcanizing and Tire Repair',
+    'brake cleaning and adjustment / brake repair': 'Brake Cleaning and Adjustment / Brake Repair',
+    'brake cleaning / repair': 'Brake Cleaning and Adjustment / Brake Repair',
+    'oil change and engine tune-up': 'Oil Change and Engine Tune-Up',
+    'oil change / tune-up': 'Oil Change and Engine Tune-Up',
+    'auto diagnostic scanning / auto diagnostic scanner': 'Auto Diagnostic Scanning / Auto Diagnostic Scanner',
+    'diagnostic scanning': 'Auto Diagnostic Scanning / Auto Diagnostic Scanner',
+    'preventive maintenance check-up': 'Preventive Maintenance Check-Up'
+};
+
+function resolveRecommendedService(text) {
+    if (!text) return null;
+    const clean = String(text).replace(/^recommended:\s*/i, '').trim();
+    const lower = clean.toLowerCase();
+
+    if (RECOMMENDED_ACTION_SERVICE_MAP[lower]) {
+        return findService(RECOMMENDED_ACTION_SERVICE_MAP[lower]);
+    }
+
+    const directMatch = findService(clean);
+    if (directMatch) return directMatch;
+
+    return servicesCatalog.find((s) => s.name.toLowerCase() === lower) || null;
+}
 
 function money(value) {
     return Number(value || 0).toLocaleString('en-PH', { maximumFractionDigits: 0 });
@@ -661,9 +916,126 @@ function updateItemDatalist() {
     }).join('');
 }
 
+function renderRequiredServicesList() {
+    const container = document.getElementById('requiredServicesList');
+    const search = document.getElementById('requiredServicesSearch');
+    if (!container) return;
+
+    const query = normalizePickerText(search?.value || '');
+    const requiredKeys = new Set(
+        quoteLines
+            .filter((l) => l.kind === 'service' && l.is_required)
+            .map((l) => l.picker_key)
+    );
+
+    const filtered = servicesCatalog.filter((service) => {
+        const text = `${service.name} ${service.category || ''}`;
+        return !query || normalizePickerText(text).includes(query);
+    });
+
+    if (!filtered.length) {
+        container.innerHTML = '<div class="quote-tech-empty">No matching catalog services</div>';
+        return;
+    }
+
+    container.innerHTML = filtered.map((service) => {
+        const pickerKey = `service:${normalizePickerText(service.name)}`;
+        const checked = requiredKeys.has(pickerKey) ? 'checked' : '';
+        const itemClass = checked ? 'quote-tech-item is-checked' : 'quote-tech-item';
+        return `
+            <label class="${itemClass}">
+                <span class="quote-tech-item-left">
+                    <input type="checkbox" class="required-service-checkbox" value="${escapeHtml(service.name)}" ${checked}>
+                    <span class="quote-tech-item-info">
+                        <strong class="quote-tech-item-name">${escapeHtml(service.name)}</strong>
+                        <small class="quote-tech-item-meta">${escapeHtml(service.category || 'Service')}</small>
+                    </span>
+                </span>
+                <span class="quote-tech-item-price">&#8369;${money(service.price)}</span>
+            </label>
+        `;
+    }).join('');
+}
+
+function renderStep1RecommendedItemsList() {
+    const container = document.getElementById('recommendedItemsList');
+    const search = document.getElementById('recommendedItemsSearch');
+    if (!container) return;
+
+    const query = normalizePickerText(search?.value || '');
+    const recommendedKeys = new Set(
+        quoteLines
+            .filter((l) => l.kind !== 'service' && l.is_recommended)
+            .map((l) => l.picker_key)
+    );
+
+    const branchItems = inventoryItems.filter((item) =>
+        Number(item.branch_id) === currentBranchId && Number(item.quantity || 0) > 0
+    );
+
+    const filtered = branchItems.filter((item) => {
+        const text = `${item.name} ${item.brand || ''} ${item.size || ''} ${item.group || ''} ${item.category || ''}`;
+        return !query || normalizePickerText(text).includes(query);
+    });
+
+    if (!filtered.length) {
+        container.innerHTML = '<div class="quote-tech-empty">No in-stock branch items found</div>';
+        return;
+    }
+
+    container.innerHTML = filtered.slice(0, 50).map((item) => {
+        const pickerKey = `inventory:${item.id}`;
+        const checked = recommendedKeys.has(pickerKey) ? 'checked' : '';
+        const itemClass = checked ? 'quote-tech-item is-checked' : 'quote-tech-item';
+        const meta = [item.brand, item.size, item.group].filter(Boolean).join(' • ');
+        return `
+            <label class="${itemClass}">
+                <span class="quote-tech-item-left">
+                    <input type="checkbox" class="step1-recommended-item-checkbox" value="${item.id}" ${checked}>
+                    <span class="quote-tech-item-info">
+                        <strong class="quote-tech-item-name">${escapeHtml(item.name)}</strong>
+                        <small class="quote-tech-item-meta">${escapeHtml(meta || 'In-Stock')}</small>
+                    </span>
+                </span>
+                <span class="quote-tech-item-price">
+                    &#8369;${money(item.unit_price)}
+                    <small style="display:block;font-size:11px;color:#64748b;text-align:right;">Stock ${item.quantity}</small>
+                </span>
+            </label>
+        `;
+    }).join('');
+}
+
+function renderStep1Pickers() {
+    renderRequiredServicesList();
+    renderStep1RecommendedItemsList();
+}
+
+function syncStep1RequiredServiceCheckbox(serviceName, isChecked) {
+    const norm = normalizePickerText(serviceName);
+    document.querySelectorAll('.required-service-checkbox').forEach((cb) => {
+        if (normalizePickerText(cb.value) === norm) {
+            cb.checked = isChecked;
+            const parent = cb.closest('.quote-tech-item');
+            if (parent) parent.classList.toggle('is-checked', isChecked);
+        }
+    });
+}
+
+function syncStep1RecommendedItemCheckbox(itemId, isChecked) {
+    document.querySelectorAll('.step1-recommended-item-checkbox').forEach((cb) => {
+        if (String(cb.value) === String(itemId)) {
+            cb.checked = isChecked;
+            const parent = cb.closest('.quote-tech-item');
+            if (parent) parent.classList.toggle('is-checked', isChecked);
+        }
+    });
+}
+
 function renderPickerLists() {
     renderServicePickerList();
     renderItemPickerList();
+    renderStep1Pickers();
 }
 
 function getServiceRecommendationText() {
@@ -955,11 +1327,77 @@ function setServiceOperationStep(step) {
     }
 }
 
+function syncStep1ToQuoteLines() {
+    // 1. Sync checked Required Services from Step 1
+    const requiredBoxes = document.querySelectorAll('.required-service-checkbox:checked');
+    requiredBoxes.forEach((cb) => {
+        const serviceName = cb.value;
+        const pickerKey = `service:${normalizePickerText(serviceName)}`;
+        optedOutKeys.delete(pickerKey);
+        const existing = quoteLines.find((l) => l.picker_key === pickerKey);
+        if (existing) {
+            existing.is_required = true;
+            existing.is_recommended = false;
+        } else {
+            addServiceFromCatalog(serviceName, { is_required: true, is_recommended: false });
+        }
+    });
+
+    // 2. Sync checked Recommended Actions from Step 1 presets
+    const recGroup = document.querySelector('.inspection-preset-group[data-preset-target="inspection_recommendations"]');
+    if (recGroup) {
+        const checkedRecs = recGroup.querySelectorAll('input[type="checkbox"]:checked');
+        checkedRecs.forEach((cb) => {
+            const matchedService = resolveRecommendedService(cb.value);
+            if (matchedService) {
+                const pickerKey = `service:${normalizePickerText(matchedService.name)}`;
+                if (!optedOutKeys.has(pickerKey)) {
+                    const existing = quoteLines.find((l) => l.picker_key === pickerKey);
+                    if (!existing) {
+                        addServiceFromCatalog(matchedService.name, { is_required: false, is_recommended: true });
+                    }
+                }
+            }
+        });
+    }
+
+    // Also check lines in inspection_recommendations textarea in case typed manually
+    const recText = document.getElementById('inspection_recommendations')?.value || '';
+    if (recText) {
+        recText.split('\n').map((l) => l.trim()).filter(Boolean).forEach((line) => {
+            const matchedService = resolveRecommendedService(line);
+            if (matchedService) {
+                const pickerKey = `service:${normalizePickerText(matchedService.name)}`;
+                if (!optedOutKeys.has(pickerKey)) {
+                    const existing = quoteLines.find((l) => l.picker_key === pickerKey);
+                    if (!existing) {
+                        addServiceFromCatalog(matchedService.name, { is_required: false, is_recommended: true });
+                    }
+                }
+            }
+        });
+    }
+
+    // 3. Sync checked Recommended Items from Step 1
+    const recItemBoxes = document.querySelectorAll('.step1-recommended-item-checkbox:checked');
+    recItemBoxes.forEach((cb) => {
+        const itemId = cb.value;
+        const pickerKey = `inventory:${itemId}`;
+        if (!optedOutKeys.has(pickerKey)) {
+            const existing = quoteLines.find((l) => l.picker_key === pickerKey);
+            if (!existing) {
+                addItemFromInventory(itemId, { is_required: false, is_recommended: true });
+            }
+        }
+    });
+}
+
 function continueToQuotation() {
     if (!validateServiceInspection(true)) {
         return;
     }
 
+    syncStep1ToQuoteLines();
     setServiceOperationStep(2);
     const firstQuoteSection = document.querySelector('.quote-step-two');
     if (firstQuoteSection) {
@@ -1003,7 +1441,14 @@ function addLine(type, overrides = {}) {
         ? `service:${normalizePickerText(name)}`
         : `custom_item:${normalizePickerText(name)}`);
 
-    if (name && quoteLines.some((line) => line.picker_key === pickerKey)) {
+    const existingLine = quoteLines.find((line) => line.picker_key === pickerKey);
+    if (existingLine) {
+        if (overrides.is_required) {
+            existingLine.is_required = true;
+            existingLine.is_recommended = false;
+        } else if (overrides.is_recommended && !existingLine.is_required) {
+            existingLine.is_recommended = true;
+        }
         renderLines();
         return;
     }
@@ -1024,12 +1469,14 @@ function addLine(type, overrides = {}) {
         picker_key: pickerKey,
         inventory_item_id: overrides.inventory_item_id || '',
         inventory_branch_id: overrides.inventory_branch_id || '',
-        inventory_quantity: Number(overrides.inventory_quantity || 0)
+        inventory_quantity: Number(overrides.inventory_quantity || 0),
+        is_required: Boolean(overrides.is_required || false),
+        is_recommended: Boolean(overrides.is_recommended || false)
     });
     renderLines();
 }
 
-function addServiceFromCatalog(serviceName) {
+function addServiceFromCatalog(serviceName, options = {}) {
     const service = findService(serviceName);
     const name = service ? service.name : String(serviceName || '').trim();
     if (!name) return;
@@ -1042,11 +1489,13 @@ function addServiceFromCatalog(serviceName) {
         description: service ? String(service.description || '') : '',
         is_variable_price: service ? Number(service.is_variable_price || 0) : 0,
         category: service ? (service.category || 'Service') : 'Service',
-        picker_key: `service:${normalizePickerText(name)}`
+        picker_key: `service:${normalizePickerText(name)}`,
+        is_required: Boolean(options.is_required || false),
+        is_recommended: Boolean(options.is_recommended || false)
     });
 }
 
-function addItemFromInventory(itemId) {
+function addItemFromInventory(itemId, options = {}) {
     const item = inventoryItems.find((entry) => String(entry.id) === String(itemId));
     if (!item) return;
 
@@ -1059,7 +1508,9 @@ function addItemFromInventory(itemId) {
         picker_key: `inventory:${item.id}`,
         inventory_item_id: item.id,
         inventory_branch_id: item.branch_id,
-        inventory_quantity: Number(item.quantity || 0)
+        inventory_quantity: Number(item.quantity || 0),
+        is_required: Boolean(options.is_required || false),
+        is_recommended: Boolean(options.is_recommended || false)
     });
 }
 
@@ -1090,13 +1541,54 @@ function addTypedItem() {
 }
 
 function removeLine(lineId) {
-    quoteLines = quoteLines.filter((line) => line.id !== lineId);
+    const line = quoteLines.find((l) => l.id === lineId);
+    if (line) {
+        if (line.is_recommended && !line.is_required) {
+            optedOutKeys.add(line.picker_key);
+        }
+        if (line.is_required) {
+            syncStep1RequiredServiceCheckbox(line.name, false);
+        }
+        if (line.kind !== 'service' && line.inventory_item_id) {
+            syncStep1RecommendedItemCheckbox(line.inventory_item_id, false);
+        }
+    }
+    quoteLines = quoteLines.filter((l) => l.id !== lineId);
     renderLines();
+    renderStep1Pickers();
+    renderPickerLists();
 }
 
 function removeLineByPickerKey(pickerKey) {
-    quoteLines = quoteLines.filter((line) => line.picker_key !== pickerKey);
+    const line = quoteLines.find((l) => l.picker_key === pickerKey);
+    if (line) {
+        if (line.is_recommended && !line.is_required) {
+            optedOutKeys.add(pickerKey);
+        }
+        if (line.is_required) {
+            syncStep1RequiredServiceCheckbox(line.name, false);
+        }
+        if (line.kind !== 'service' && line.inventory_item_id) {
+            syncStep1RecommendedItemCheckbox(line.inventory_item_id, false);
+        }
+    }
+    quoteLines = quoteLines.filter((l) => l.picker_key !== pickerKey);
     renderLines();
+    renderStep1Pickers();
+    renderPickerLists();
+}
+
+function declineRecommendedLine(lineId) {
+    const line = quoteLines.find((l) => l.id === lineId);
+    if (!line) return;
+    optedOutKeys.add(line.picker_key);
+    if (line.kind !== 'service' && line.inventory_item_id) {
+        syncStep1RecommendedItemCheckbox(line.inventory_item_id, false);
+    }
+    quoteLines = quoteLines.filter((l) => l.id !== lineId);
+    renderLines();
+    renderStep1Pickers();
+    renderPickerLists();
 }
 
 function findService(name) {
@@ -1238,15 +1730,26 @@ function renderLines() {
     quoteLines.forEach((line) => {
         const total = Number(line.quantity || 0) * Number(line.unit_price || 0);
         const hint = lineHint(line);
+        const statusBadge = line.is_required
+            ? '<span class="quote-badge-required"><i class="fas fa-exclamation-circle"></i> Required</span>'
+            : (line.is_recommended
+                ? '<span class="quote-badge-recommended"><i class="fas fa-check-circle"></i> Recommended (Optional)</span>'
+                : '');
+        const optDeclineControl = (line.is_recommended && !line.is_required)
+            ? `<label class="quote-opt-checkbox" title="Uncheck to decline recommendation" for="opt_avail_${line.id}"><input type="checkbox" id="opt_avail_${line.id}" checked onchange="declineRecommendedLine('${line.id}')"> <span>Avail</span></label>`
+            : '';
 
         if (line.kind === 'service') {
             hasServices = true;
             serviceRows.insertAdjacentHTML('beforeend', `
                 <article class="quote-line-row service-row">
-                    <label class="quote-line-name">
-                        <span>Selected Service</span>
-                        <input value="${escapeHtml(line.name)}" maxlength="150" data-text-format="first-letter" placeholder="Service name..." onchange="updateLine('${line.id}', 'name', this.value)">
-                    </label>
+                    <div class="quote-line-name">
+                        <div class="quote-line-name-header">
+                            <label for="line_name_${line.id}">Selected Service ${statusBadge}</label>
+                            ${optDeclineControl}
+                        </div>
+                        <input id="line_name_${line.id}" value="${escapeHtml(line.name)}" maxlength="150" data-text-format="first-letter" placeholder="Service name..." onchange="updateLine('${line.id}', 'name', this.value)">
+                    </div>
                     ${lineControl(line, 'Quantity', 'quantity')}
                     ${lineControl(line, 'Service Labor', 'unit_price')}
                     ${lineTotal(total)}
@@ -1258,11 +1761,14 @@ function renderLines() {
             hasItems = true;
             itemRows.insertAdjacentHTML('beforeend', `
                 <article class="quote-line-row item-row">
-                    <label class="quote-line-name">
-                        <span>Selected Item</span>
-                        <input value="${escapeHtml(line.name)}" maxlength="255" data-text-format="first-letter" placeholder="Item name..." onchange="updateLine('${line.id}', 'name', this.value)">
+                    <div class="quote-line-name">
+                        <div class="quote-line-name-header">
+                            <label for="line_name_${line.id}">Selected Item ${statusBadge}</label>
+                            ${optDeclineControl}
+                        </div>
+                        <input id="line_name_${line.id}" value="${escapeHtml(line.name)}" maxlength="255" data-text-format="first-letter" placeholder="Item name..." onchange="updateLine('${line.id}', 'name', this.value)">
                         ${sourceSelect(line)}
-                    </label>
+                    </div>
                     ${lineControl(line, 'Quantity', 'quantity')}
                     ${lineControl(line, 'Price Per Piece', 'unit_price')}
                     ${lineTotal(total)}
@@ -1450,6 +1956,41 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('servicePickerSearch').addEventListener('search', renderServicePickerList);
     document.getElementById('itemPickerSearch').addEventListener('input', renderItemPickerList);
     document.getElementById('itemPickerSearch').addEventListener('search', renderItemPickerList);
+    document.getElementById('requiredServicesSearch')?.addEventListener('input', renderRequiredServicesList);
+    document.getElementById('requiredServicesSearch')?.addEventListener('search', renderRequiredServicesList);
+    document.getElementById('recommendedItemsSearch')?.addEventListener('input', renderStep1RecommendedItemsList);
+    document.getElementById('recommendedItemsSearch')?.addEventListener('search', renderStep1RecommendedItemsList);
+
+    document.getElementById('requiredServicesList')?.addEventListener('change', (event) => {
+        if (!event.target.classList.contains('required-service-checkbox')) return;
+        const serviceName = event.target.value;
+        const pickerKey = `service:${normalizePickerText(serviceName)}`;
+
+        if (event.target.checked) {
+            optedOutKeys.delete(pickerKey);
+            addServiceFromCatalog(serviceName, { is_required: true, is_recommended: false });
+        } else {
+            quoteLines = quoteLines.filter((l) => l.picker_key !== pickerKey);
+            renderLines();
+        }
+        renderStep1Pickers();
+    });
+
+    document.getElementById('recommendedItemsList')?.addEventListener('change', (event) => {
+        if (!event.target.classList.contains('step1-recommended-item-checkbox')) return;
+        const itemId = event.target.value;
+        const pickerKey = `inventory:${itemId}`;
+
+        if (event.target.checked) {
+            optedOutKeys.delete(pickerKey);
+            addItemFromInventory(itemId, { is_required: false, is_recommended: true });
+        } else {
+            quoteLines = quoteLines.filter((l) => l.picker_key !== pickerKey);
+            renderLines();
+        }
+        renderStep1Pickers();
+    });
+
     ['inspection_complaint', 'inspection_findings', 'inspection_recommendations'].forEach((fieldId) => {
         const field = document.getElementById(fieldId);
         if (field) {
@@ -1475,6 +2016,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 .join('\n')
                 .trim();
             field.value = [customText, ...selected].filter(Boolean).join('\n');
+
+            if (group.dataset.presetTarget === 'inspection_recommendations') {
+                const matchedService = resolveRecommendedService(event.target.value);
+                if (matchedService) {
+                    const pickerKey = `service:${normalizePickerText(matchedService.name)}`;
+                    if (event.target.checked) {
+                        optedOutKeys.delete(pickerKey);
+                        const existing = quoteLines.find((l) => l.picker_key === pickerKey);
+                        if (!existing) {
+                            addServiceFromCatalog(matchedService.name, { is_required: false, is_recommended: true });
+                        }
+                    } else {
+                        const existing = quoteLines.find((l) => l.picker_key === pickerKey);
+                        if (existing && existing.is_recommended && !existing.is_required) {
+                            quoteLines = quoteLines.filter((l) => l.picker_key !== pickerKey);
+                            renderLines();
+                            renderStep1Pickers();
+                        }
+                    }
+                }
+            }
+
             renderPickerLists();
         });
     });
@@ -1496,7 +2059,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const serviceName = event.target.value;
         const pickerKey = `service:${normalizePickerText(serviceName)}`;
         if (event.target.checked) {
-            addServiceFromCatalog(serviceName);
+            optedOutKeys.delete(pickerKey);
+            const isRec = Boolean(resolveRecommendedService(serviceName));
+            addServiceFromCatalog(serviceName, { is_recommended: isRec });
         } else {
             removeLineByPickerKey(pickerKey);
         }
@@ -1507,6 +2072,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const itemId = event.target.value;
         const pickerKey = `inventory:${itemId}`;
         if (event.target.checked) {
+            optedOutKeys.delete(pickerKey);
             addItemFromInventory(itemId);
         } else {
             removeLineByPickerKey(pickerKey);
@@ -1514,9 +2080,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('continueToQuotationBtn').addEventListener('click', continueToQuotation);
 
-    document.querySelector('.service-step[data-step="1"]').addEventListener('click', () => setServiceOperationStep(1));
+    document.querySelector('.service-step[data-step="1"]').addEventListener('click', () => {
+        setServiceOperationStep(1);
+        renderStep1Pickers();
+    });
     document.querySelector('.service-step[data-step="2"]').addEventListener('click', () => {
         if (validateServiceInspection(true)) {
+            syncStep1ToQuoteLines();
             setServiceOperationStep(2);
         }
     });
@@ -1532,6 +2102,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     renderLines();
+    renderStep1Pickers();
 
     if (customerSelect.value) {
         syncCustomerSearchFromSelection();
