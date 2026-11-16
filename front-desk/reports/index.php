@@ -2048,25 +2048,34 @@ if (!function_exists('front_reports_format_tat_minutes')) {
 <?php require_once '../../includes/header.php'; ?>
 <?php require_once '../../includes/sidebar.php'; ?>
 
-<main class="reports-page frontdesk-reports-page">
-    <header class="reports-hero">
-        <div>
-            <h1>Reports</h1>
-            <p><?php echo esc_html($branch_label); ?> performance and activity records</p>
-        </div>
-        <div class="reports-hero-actions no-print">
-            <a href="<?php echo esc_attr($export_url); ?>" class="reports-action-btn reports-export-btn">
-                <i class="fas fa-download"></i>
-                <span>Export CSV</span>
-            </a>
-            <button type="button" class="reports-action-btn reports-print-btn" onclick="window.print()">
-                <i class="fas fa-print"></i>
-                <span>Print Report</span>
-            </button>
-        </div>
-    </header>
+<?php
+$reports_print_css_file = dirname(__DIR__, 2) . '/assets/css/reports-print.css';
+$reports_print_css_version = is_file($reports_print_css_file) ? filemtime($reports_print_css_file) : time();
+$company_name = !empty($sidebar_company_name) ? $sidebar_company_name : 'Highway Tires';
+?>
+<link rel="stylesheet" href="<?php echo APP_URL; ?>/assets/css/reports-print.css?v=<?php echo (int) $reports_print_css_version; ?>">
 
-    <section class="reports-filter-card hw-filter-card">
+<main class="reports-page frontdesk-reports-page">
+    <!-- SCREEN VIEW (Interactive Web Dashboard - Hidden in Print) -->
+    <div class="reports-screen-view">
+        <header class="reports-hero">
+            <div>
+                <h1>Reports</h1>
+                <p><?php echo esc_html($branch_label); ?> performance and activity records</p>
+            </div>
+            <div class="reports-hero-actions no-print">
+                <a href="<?php echo esc_attr($export_url); ?>" class="reports-action-btn reports-export-btn">
+                    <i class="fas fa-download"></i>
+                    <span>Export CSV</span>
+                </a>
+                <button type="button" class="reports-action-btn reports-print-btn" onclick="window.print()">
+                    <i class="fas fa-print"></i>
+                    <span>Print Report</span>
+                </button>
+            </div>
+        </header>
+
+    <section class="reports-filter-card hw-filter-card no-print">
         <h2 class="visually-hidden">Filters</h2>
         <form method="GET" class="reports-filter-form front-reports-filter-form reports-detail-filter-form hw-filter-toolbar">
             <div class="hw-filter-cluster">
@@ -2211,7 +2220,7 @@ if (!function_exists('front_reports_format_tat_minutes')) {
         </div>
     </section>
 
-    <section class="reports-detail-tabs" aria-label="Detailed report type">
+    <section class="reports-detail-tabs no-print" aria-label="Detailed report type">
         <?php foreach ($report_tab_options as $tab_value => $tab_option): ?>
             <a class="reports-detail-tab <?php echo $report_tab === $tab_value ? 'active' : ''; ?>"
                href="<?php echo esc_attr(front_reports_detail_url($tab_value, $date_from, $date_to, 'all', $search_filter)); ?>#detailed-report">
@@ -2300,7 +2309,7 @@ if (!function_exists('front_reports_format_tat_minutes')) {
                         <?php endif; ?>
                     </p>
                 </div>
-                <form method="get" action="./#most-frequently-availed-services" class="reports-inspection-toggle-form" style="display: inline-flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 12px;">
+                <form method="get" action="./#most-frequently-availed-services" class="reports-inspection-toggle-form no-print" style="display: inline-flex; align-items: center; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 12px;">
                     <input type="hidden" name="report" value="services">
                     <input type="hidden" name="date_from" value="<?php echo esc_attr($date_from); ?>">
                     <input type="hidden" name="date_to" value="<?php echo esc_attr($date_to); ?>">
@@ -2397,8 +2406,15 @@ if (!function_exists('front_reports_format_tat_minutes')) {
                     Showing <?php echo (int) $detail_showing_from; ?>-<?php echo (int) $detail_showing_to; ?>
                     of <?php echo (int) $detail_total_records; ?> <?php echo esc_html($active_report['noun']); ?>
                 </p>
+                <div class="reports-print-table-notice print-only">
+                    <?php if ($detail_total_records > $detail_per_page): ?>
+                        <span>Note: Detailed records reflect current displayed page (records <?php echo (int) $detail_showing_from; ?>–<?php echo (int) $detail_showing_to; ?> of <?php echo number_format($detail_total_records); ?> <?php echo esc_html($active_report['noun']); ?>). Complete records are available via CSV export.</span>
+                    <?php else: ?>
+                        <span>Displaying all <?php echo number_format($detail_total_records); ?> <?php echo esc_html($active_report['noun']); ?>.</span>
+                    <?php endif; ?>
+                </div>
             </div>
-            <form class="records-page-size-form reports-page-size-form" method="get" action="./#detailed-report">
+            <form class="records-page-size-form reports-page-size-form no-print" method="get" action="./#detailed-report">
                 <input type="hidden" name="report" value="<?php echo esc_attr($report_tab); ?>">
                 <input type="hidden" name="date_from" value="<?php echo esc_attr($date_from); ?>">
                 <input type="hidden" name="date_to" value="<?php echo esc_attr($date_to); ?>">
@@ -2788,7 +2804,7 @@ if (!function_exists('front_reports_format_tat_minutes')) {
             <?php endif; ?>
         </div>
         <?php if ($detail_total_pages > 1): ?>
-            <nav class="records-pagination reports-detail-pagination" aria-label="Detailed report pages">
+            <nav class="records-pagination reports-detail-pagination no-print" aria-label="Detailed report pages">
                 <ul class="pagination justify-content-center">
                     <?php if ($detail_page > 1): ?>
                         <li class="page-item">
@@ -2817,7 +2833,7 @@ if (!function_exists('front_reports_format_tat_minutes')) {
     </section>
 
     <?php if ($report_tab === 'services'): ?>
-        <details class="reports-support-details reports-service-analytics" id="service-analytics">
+        <details class="reports-support-details reports-service-analytics no-print" id="service-analytics">
             <summary class="reports-support-summary">
                 <span class="reports-support-title"><i class="fas fa-chart-line"></i><strong>Service Analytics</strong></span>
                 <span class="reports-support-count">2 charts</span>
@@ -3004,7 +3020,7 @@ if (!function_exists('front_reports_format_tat_minutes')) {
     <?php endif; ?>
 
     <?php if ($has_inventory_access && $report_tab === 'items'): ?>
-        <details class="reports-support-details reports-inventory-analytics" id="inventory-analytics">
+        <details class="reports-support-details reports-inventory-analytics no-print" id="inventory-analytics">
             <summary class="reports-support-summary">
                 <span class="reports-support-title"><i class="fas fa-boxes-stacked"></i><strong>Inventory Movement Analytics</strong></span>
                 <span class="reports-support-count"><?php echo number_format((int) ($inventory_summary['stock_in_units'] + $inventory_summary['stock_out_units'])); ?> units moved</span>
@@ -3128,7 +3144,7 @@ if (!function_exists('front_reports_format_tat_minutes')) {
 
     <?php if ($report_tab === 'services'): ?>
         <?php $front_recent_count = count($recent_quotations) + count($recent_jobs); ?>
-        <details class="reports-support-details reports-recent-activity" id="recent-activity">
+        <details class="reports-support-details reports-recent-activity no-print" id="recent-activity">
             <summary class="reports-support-summary">
                 <span class="reports-support-title"><i class="fas fa-clock-rotate-left"></i><strong>Recent Activity</strong></span>
                 <span class="reports-support-count"><?php echo number_format($front_recent_count); ?> records</span>
@@ -3198,6 +3214,441 @@ if (!function_exists('front_reports_format_tat_minutes')) {
             </div>
         </details>
     <?php endif; ?>
+    </div> <!-- END .reports-screen-view -->
+
+    <!-- ==========================================
+         DEDICATED PRINT-ONLY BUSINESS REPORT
+         ========================================== -->
+    <div class="reports-print-document">
+        <!-- 1. Header -->
+        <header class="print-doc-header">
+            <div class="print-doc-brand">
+                <h1 class="print-doc-company"><?php echo esc_html($company_name); ?></h1>
+                <span class="print-doc-system">Automotive Service Operations and Decision Support System</span>
+            </div>
+            <div class="print-doc-title-row">
+                <h2 class="print-doc-title"><?php echo esc_html($active_report['label'] ?? 'Reports'); ?> Report</h2>
+                <span class="print-doc-branch"><?php echo esc_html($branch_label ?? 'Main Branch'); ?></span>
+            </div>
+            <table class="print-doc-meta-table">
+                <tbody>
+                    <tr>
+                        <td class="meta-label">Reporting Period:</td>
+                        <td class="meta-value"><?php echo esc_html($report_range_label); ?> (<?php echo esc_html($date_from); ?> to <?php echo esc_html($date_to); ?>)</td>
+                        <td class="meta-label">Status Filter:</td>
+                        <td class="meta-value"><?php echo esc_html($active_status_label); ?></td>
+                    </tr>
+                    <tr>
+                        <td class="meta-label">Date Generated:</td>
+                        <td class="meta-value"><?php echo date('F d, Y h:i A'); ?></td>
+                        <td class="meta-label">Prepared By:</td>
+                        <td class="meta-value"><?php echo esc_html($user['name'] ?? 'Staff'); ?> (Front Desk)</td>
+                    </tr>
+                    <?php if ($report_tab === 'services'): ?>
+                    <tr>
+                        <td class="meta-label">Service Inspection:</td>
+                        <td class="meta-value"><?php echo $include_inspection ? 'Included in popularity ranking' : 'Excluded from ranking (Standard Baseline)'; ?></td>
+                        <td class="meta-label"><?php echo !empty($search_filter) ? 'Search Query:' : 'Scope:'; ?></td>
+                        <td class="meta-value"><?php echo !empty($search_filter) ? '&ldquo;' . esc_html($search_filter) . '&rdquo;' : 'Distinct completed Job Orders'; ?></td>
+                    </tr>
+                    <?php elseif (!empty($search_filter)): ?>
+                    <tr>
+                        <td class="meta-label">Search Query:</td>
+                        <td class="meta-value" colspan="3">&ldquo;<?php echo esc_html($search_filter); ?>&rdquo;</td>
+                    </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </header>
+
+        <!-- 2. Compact Summary Table (replaces dashboard KPI cards) -->
+        <section class="print-doc-section">
+            <h3 class="print-doc-section-title">Executive Summary</h3>
+            <table class="print-summary-table">
+                <?php if ($report_tab === 'items'): ?>
+                    <thead>
+                        <tr>
+                            <th>Inventory Sales Value</th>
+                            <th>Stock-Out Units Sold</th>
+                            <th>Customer Tagged</th>
+                            <th>Walk-in / Untagged</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="kpi-value"><?php echo front_reports_money($inventory_sales_summary['sales_value'] ?? 0); ?></td>
+                            <td class="kpi-value"><?php echo number_format((int) ($inventory_sales_summary['sales_units'] ?? 0)); ?></td>
+                            <td class="kpi-value"><?php echo number_format((int) ($inventory_sales_summary['tagged_rows'] ?? 0)); ?></td>
+                            <td class="kpi-value"><?php echo number_format((int) ($inventory_sales_summary['walk_in_rows'] ?? 0)); ?></td>
+                        </tr>
+                    </tbody>
+                <?php else: ?>
+                    <thead>
+                        <tr>
+                            <th>Approved Revenue</th>
+                            <th>Service Operations</th>
+                            <th>Job Orders</th>
+                            <th>Customer Visits</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="kpi-value"><?php echo front_reports_money($quote_stats['approved_value'] ?? 0); ?></td>
+                            <td class="kpi-value"><?php echo number_format((int) ($quote_stats['total_quotes'] ?? 0)); ?></td>
+                            <td class="kpi-value"><?php echo number_format((int) ($job_stats['total_jobs'] ?? 0)); ?></td>
+                            <td class="kpi-value"><?php echo number_format((int) $visit_count); ?></td>
+                        </tr>
+                    </tbody>
+                <?php endif; ?>
+            </table>
+        </section>
+
+        <!-- 3. Most Frequently Availed Services (Services report only) -->
+        <?php if ($report_tab === 'services'): ?>
+            <section class="print-doc-section">
+                <div class="print-doc-section-header">
+                    <h3 class="print-doc-section-title">Most Frequently Availed Services</h3>
+                    <span class="print-doc-section-subtitle">Ranked by distinct completed Job Orders (<?php echo $include_inspection ? 'Including Service Inspection' : 'Excluding Baseline Inspection'; ?>)</span>
+                </div>
+                <?php if (empty($top_availed_services)): ?>
+                    <div class="print-doc-empty">No completed service records found for the selected period.</div>
+                <?php else: ?>
+                    <table class="print-data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 7%; text-align: center;">Rank</th>
+                                <th style="width: 35%; text-align: left;">Service Name</th>
+                                <th style="width: 18%; text-align: left;">Category</th>
+                                <th style="width: 14%; text-align: right;">Times Availed</th>
+                                <th style="width: 12%; text-align: right;">Share of Total</th>
+                                <th style="width: 14%; text-align: right;">Total Revenue</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($top_availed_services as $index => $row): ?>
+                                <?php
+                                $rank = $index + 1;
+                                $times_availed = (int) ($row['times_availed'] ?? 0);
+                                $total_units = (int) ($row['total_units'] ?? $times_availed);
+                                $share_pct = $total_service_availments > 0 ? round(($times_availed / $total_service_availments) * 100, 1) : 0;
+                                $cat_label = trim((string) ($row['category'] ?? 'Service')) ?: 'Service';
+                                ?>
+                                <tr>
+                                    <td style="text-align: center; font-weight: bold;">#<?php echo $rank; ?></td>
+                                    <td>
+                                        <strong><?php echo esc_html($row['service_name']); ?></strong>
+                                        <?php if ($row['service_name'] === 'Service Inspection'): ?>
+                                            <span class="print-subtext">(Standard intake inspection)</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?php echo esc_html($cat_label); ?></td>
+                                    <td style="text-align: right;">
+                                        <strong><?php echo number_format($times_availed); ?></strong>
+                                        <?php if ($total_units > $times_availed): ?>
+                                            <span class="print-subtext">(<?php echo number_format($total_units); ?> units)</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td style="text-align: right; font-weight: bold;"><?php echo number_format($share_pct, 1); ?>%</td>
+                                    <td style="text-align: right; font-weight: bold;"><?php echo front_reports_money((float) ($row['total_revenue'] ?? 0)); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php endif; ?>
+            </section>
+        <?php endif; ?>
+
+        <!-- 4. Detailed Records Table -->
+        <section class="print-doc-section">
+            <div class="print-doc-section-header">
+                <h3 class="print-doc-section-title"><?php echo esc_html($active_report['label']); ?> — Detailed Records</h3>
+                <span class="print-doc-section-subtitle">
+                    <?php if ($detail_total_records > $detail_per_page): ?>
+                        Displaying current displayed page (records <?php echo (int) $detail_showing_from; ?>–<?php echo (int) $detail_showing_to; ?> of <?php echo number_format($detail_total_records); ?> <?php echo esc_html($active_report['noun']); ?>). Complete records can be exported via CSV.
+                    <?php else: ?>
+                        Displaying all <?php echo number_format($detail_total_records); ?> <?php echo esc_html($active_report['noun']); ?>.
+                    <?php endif; ?>
+                </span>
+            </div>
+
+            <?php if ($report_tab === 'services'): ?>
+                <table class="print-data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 10%;">Date</th>
+                            <th style="width: 22%;">Customer &amp; Vehicle</th>
+                            <th style="width: 34%;">Services Availed</th>
+                            <th style="width: 12%;">Reference</th>
+                            <th style="width: 10%;">Status</th>
+                            <th style="width: 12%; text-align: right;">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($detail_records)): ?>
+                            <tr><td colspan="6" class="print-doc-empty">No service records found for this filter.</td></tr>
+                        <?php else: ?>
+                            <?php foreach ($detail_records as $service): ?>
+                                <?php
+                                $vehicle_label = front_reports_vehicle_label($service);
+                                $services_summary = !empty($service['service_names']) ? $service['service_names'] : 'General service';
+                                ?>
+                                <tr>
+                                    <td><?php echo esc_html(front_reports_short_date($service['service_date'] ?? '')); ?></td>
+                                    <td>
+                                        <strong><?php echo esc_html($service['customer_name'] ?? '-'); ?></strong>
+                                        <?php if (!empty($service['customer_phone'])): ?>
+                                            <span class="print-subtext"><?php echo esc_html($service['customer_phone']); ?></span>
+                                        <?php endif; ?>
+                                        <span class="print-subtext"><?php echo esc_html($vehicle_label); ?></span>
+                                    </td>
+                                    <td><?php echo esc_html($services_summary); ?></td>
+                                    <td>
+                                        <?php if (!empty($service['quotation_number'])): ?>
+                                            <div>SO: <?php echo esc_html($service['quotation_number']); ?></div>
+                                        <?php endif; ?>
+                                        <?php if (!empty($service['job_number'])): ?>
+                                            <div>JO: <?php echo esc_html($service['job_number']); ?></div>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?php echo esc_html(front_reports_status_label($service['report_status'] ?? 'pending')); ?></td>
+                                    <td style="text-align: right; font-weight: bold;"><?php echo front_reports_money($service['total_amount'] ?? 0); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+
+            <?php elseif ($report_tab === 'items'): ?>
+                <table class="print-data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 10%;">Date</th>
+                            <th style="width: 20%;">Item</th>
+                            <th style="width: 18%;">Details</th>
+                            <th style="width: 14%; text-align: right;">Qty / Sales Value</th>
+                            <th style="width: 14%;">Customer</th>
+                            <th style="width: 12%;">Vehicle</th>
+                            <th style="width: 12%;">Reference</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($detail_records)): ?>
+                            <tr><td colspan="7" class="print-doc-empty">No inventory sales found for this filter.</td></tr>
+                        <?php else: ?>
+                            <?php foreach ($detail_records as $movement): ?>
+                                <?php
+                                $vehicle_label = front_reports_inventory_vehicle_label($movement);
+                                $movement_value = ((float) ($movement['unit_price'] ?? 0)) * abs((int) ($movement['quantity'] ?? 0));
+                                $tagged_customer_name = trim((string) ($movement['tagged_customer_name'] ?? ''));
+                                if ($tagged_customer_name === '') {
+                                    $tagged_customer_name = app_inventory_transaction_tag_empty_label($movement['reference_type'] ?? '', $movement['transaction_type'] ?? '');
+                                }
+                                $refs = [];
+                                if (!empty($movement['tagged_job_number'])) $refs[] = 'JO: ' . $movement['tagged_job_number'];
+                                if (!empty($movement['tagged_quotation_number'])) $refs[] = 'SO: ' . $movement['tagged_quotation_number'];
+                                ?>
+                                <tr>
+                                    <td><?php echo esc_html(format_date($movement['created_at'] ?? '', 'M d, Y')); ?></td>
+                                    <td>
+                                        <strong><?php echo esc_html(app_display_item_name($movement['item_name'] ?? '-', $movement['category'] ?? null)); ?></strong>
+                                        <span class="print-subtext"><?php echo esc_html(front_reports_category_label($movement['category'] ?? '')); ?></span>
+                                    </td>
+                                    <td><?php echo esc_html(front_reports_product_detail_text($movement)); ?></td>
+                                    <td style="text-align: right;">
+                                        <strong><?php echo number_format(abs((int) ($movement['quantity'] ?? 0))); ?> pcs</strong>
+                                        <span class="print-subtext"><?php echo front_reports_money($movement_value); ?></span>
+                                    </td>
+                                    <td>
+                                        <strong><?php echo esc_html($tagged_customer_name); ?></strong>
+                                        <?php if (!empty($movement['tagged_customer_phone'])): ?>
+                                            <span class="print-subtext"><?php echo esc_html($movement['tagged_customer_phone']); ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?php echo esc_html($vehicle_label !== '' ? $vehicle_label : '-'); ?></td>
+                                    <td><?php echo !empty($refs) ? esc_html(implode(' / ', $refs)) : '-'; ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+
+            <?php elseif ($report_tab === 'vehicle_history'): ?>
+                <table class="print-data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 14%;">Vehicle</th>
+                            <th style="width: 16%;">Current Owner</th>
+                            <th style="width: 12%;">Home Branch</th>
+                            <th style="width: 12%;">Last Visited Branch</th>
+                            <th style="width: 10%;">Ownership</th>
+                            <th style="width: 12%;">Activity</th>
+                            <th style="width: 12%; text-align: right;">Sales Value</th>
+                            <th style="width: 12%;">Last Visit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($detail_records)): ?>
+                            <tr><td colspan="8" class="print-doc-empty">No vehicle history records found for this filter.</td></tr>
+                        <?php else: ?>
+                            <?php foreach ($detail_records as $record): ?>
+                                <?php
+                                $owner_count = max(1, (int) ($record['owner_count'] ?? 1));
+                                ?>
+                                <tr>
+                                    <td><strong><?php echo esc_html(front_reports_vehicle_label($record)); ?></strong></td>
+                                    <td>
+                                        <strong><?php echo esc_html($record['customer_name'] ?? '-'); ?></strong>
+                                        <?php if (!empty($record['customer_phone'])): ?>
+                                            <span class="print-subtext"><?php echo esc_html($record['customer_phone']); ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?php echo esc_html($record['branch_name'] ?? '-'); ?></td>
+                                    <td><?php echo esc_html($record['last_visited_branch'] ?? '-'); ?></td>
+                                    <td><?php echo number_format($owner_count); ?> owner<?php echo $owner_count === 1 ? '' : 's'; ?></td>
+                                    <td>
+                                        <div><?php echo number_format((int) ($record['service_count'] ?? 0)); ?> services</div>
+                                        <span class="print-subtext"><?php echo number_format((int) ($record['items_given_count'] ?? 0)); ?> sales</span>
+                                    </td>
+                                    <td style="text-align: right; font-weight: bold;"><?php echo front_reports_money($record['sales_value'] ?? 0); ?></td>
+                                    <td><?php echo esc_html(front_reports_short_date($record['last_visit_date'] ?? '')); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+
+            <?php elseif ($report_tab === 'stock_movement'): ?>
+                <table class="print-data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 10%;">Date</th>
+                            <th style="width: 12%;">Branch</th>
+                            <th style="width: 10%;">Type</th>
+                            <th style="width: 22%;">Item</th>
+                            <th style="width: 16%;">Details</th>
+                            <th style="width: 8%; text-align: right;">Qty</th>
+                            <th style="width: 12%;">Tagged To</th>
+                            <th style="width: 10%;">Reference</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($detail_records)): ?>
+                            <tr><td colspan="8" class="print-doc-empty">No stock movement records found for this filter.</td></tr>
+                        <?php else: ?>
+                            <?php foreach ($detail_records as $movement): ?>
+                                <?php
+                                $tagged_customer_name = trim((string) ($movement['tagged_customer_name'] ?? ''));
+                                if ($tagged_customer_name === '') {
+                                    $tagged_customer_name = app_inventory_transaction_tag_empty_label($movement['reference_type'] ?? '', $movement['transaction_type'] ?? '');
+                                }
+                                $refs = [];
+                                if (!empty($movement['tagged_job_number'])) $refs[] = 'JO: ' . $movement['tagged_job_number'];
+                                if (!empty($movement['tagged_quotation_number'])) $refs[] = 'SO: ' . $movement['tagged_quotation_number'];
+                                ?>
+                                <tr>
+                                    <td><?php echo esc_html(format_date($movement['created_at'] ?? '', 'M d, Y')); ?></td>
+                                    <td><?php echo esc_html($branch_label); ?></td>
+                                    <td><?php echo esc_html(front_reports_movement_type_label($movement['transaction_type'] ?? '')); ?></td>
+                                    <td>
+                                        <strong><?php echo esc_html(app_display_item_name($movement['item_name'] ?? '-', $movement['category'] ?? null)); ?></strong>
+                                        <span class="print-subtext"><?php echo esc_html(front_reports_category_label($movement['category'] ?? '')); ?></span>
+                                    </td>
+                                    <td><?php echo esc_html(front_reports_product_detail_text($movement)); ?></td>
+                                    <td style="text-align: right; font-weight: bold;"><?php echo number_format(abs((int) ($movement['quantity'] ?? 0))); ?></td>
+                                    <td><?php echo esc_html($tagged_customer_name); ?></td>
+                                    <td><?php echo !empty($refs) ? esc_html(implode(' / ', $refs)) : '-'; ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+
+            <?php elseif ($report_tab === 'archives'): ?>
+                <table class="print-data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 10%;">Archived Date</th>
+                            <th style="width: 12%;">Branch</th>
+                            <th style="width: 10%;">Record Type</th>
+                            <th style="width: 14%;">Record</th>
+                            <th style="width: 15%;">Customer / Owner</th>
+                            <th style="width: 14%;">Vehicle</th>
+                            <th style="width: 11%;">Archived By</th>
+                            <th style="width: 14%;">Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($detail_records)): ?>
+                            <tr><td colspan="8" class="print-doc-empty">No archived records found for this filter.</td></tr>
+                        <?php else: ?>
+                            <?php foreach ($detail_records as $record): ?>
+                                <tr>
+                                    <td><?php echo esc_html(app_format_datetime_pht($record['archived_at'] ?? '', 'M d, Y')); ?></td>
+                                    <td><?php echo esc_html($record['branch_name'] ?? $branch_label); ?></td>
+                                    <td><?php echo esc_html(front_reports_archive_type_label($record['archive_type'] ?? '')); ?></td>
+                                    <td>
+                                        <strong><?php echo esc_html($record['record_label'] ?? '-'); ?></strong>
+                                        <span class="print-subtext"><?php echo esc_html(front_reports_status_label($record['original_status'] ?? '')); ?></span>
+                                    </td>
+                                    <td><?php echo esc_html($record['customer_name'] ?? '-'); ?></td>
+                                    <td><?php echo esc_html(front_reports_vehicle_label($record)); ?></td>
+                                    <td><?php echo esc_html($record['archived_by_name'] ?? '-'); ?></td>
+                                    <td><?php echo esc_html(trim((string) ($record['archive_reason'] ?? '')) !== '' ? $record['archive_reason'] : '-'); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+
+            <?php else: ?>
+                <!-- Customer & Vehicle Report -->
+                <table class="print-data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 16%;">Vehicle</th>
+                            <th style="width: 18%;">Current Owner</th>
+                            <th style="width: 16%;">Last Visited Branch</th>
+                            <th style="width: 11%; text-align: center;">Services</th>
+                            <th style="width: 13%; text-align: center;">Inventory Sales</th>
+                            <th style="width: 13%; text-align: right;">Sales Value</th>
+                            <th style="width: 13%; text-align: center;">Last Visit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($detail_records)): ?>
+                            <tr><td colspan="7" class="print-doc-empty">No customer and vehicle records found for this filter.</td></tr>
+                        <?php else: ?>
+                            <?php foreach ($detail_records as $record): ?>
+                                <tr>
+                                    <td><strong><?php echo esc_html(front_reports_vehicle_label($record)); ?></strong></td>
+                                    <td>
+                                        <strong><?php echo esc_html($record['customer_name'] ?? '-'); ?></strong>
+                                        <?php if (!empty($record['customer_phone'])): ?>
+                                            <span class="print-subtext"><?php echo esc_html($record['customer_phone']); ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?php echo esc_html($record['last_visited_branch'] ?? '-'); ?></td>
+                                    <td style="text-align: center;"><?php echo number_format((int) ($record['service_count'] ?? 0)); ?></td>
+                                    <td style="text-align: center;"><?php echo number_format((int) ($record['items_given_count'] ?? 0)); ?></td>
+                                    <td style="text-align: right; font-weight: bold;"><?php echo front_reports_money($record['sales_value'] ?? 0); ?></td>
+                                    <td style="text-align: center;"><?php echo esc_html(front_reports_short_date($record['last_visit_date'] ?? '')); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+        </section>
+
+        <!-- 5. Document Footer -->
+        <footer class="print-doc-footer">
+            <div class="print-doc-footer-row">
+                <span>HWTIRES Automotive Service Operations &bull; Internal Business Report</span>
+                <span>Branch: <?php echo esc_html($branch_label ?? ''); ?></span>
+                <span>Printed: <?php echo date('Y-m-d H:i'); ?></span>
+            </div>
+        </footer>
+    </div>
 </main>
 
 <?php require_once '../../includes/footer.php'; ?>

@@ -1,0 +1,303 @@
+/**
+ * HWTIRES - Reports Print Stylesheet
+ * Safe, isolated, professional print document presentation for Admin and Front Desk reports.
+ */
+
+/* On screen: completely suppress the print document */
+.reports-print-document {
+    display: none !important;
+}
+
+@media print {
+    /* 1. Page & Base Setup */
+    @page {
+        size: A4 landscape;
+        margin: 10mm 12mm;
+    }
+
+    html, body {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+        font-size: 9.5pt !important;
+        line-height: 1.35 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* 2. Hide entire screen dashboard, sidebar, header, and web navigation */
+    .reports-screen-view,
+    .sidebar,
+    .header,
+    .topbar,
+    .navbar,
+    .reports-hero,
+    .reports-filter-card,
+    .hw-filter-card,
+    .reports-detail-tabs,
+    .reports-summary-grid,
+    .records-pagination,
+    .reports-page-size-form,
+    .reports-support-details,
+    .no-print {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+    }
+
+    .main-content,
+    .content,
+    .page-content,
+    .reports-page {
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        border: none !important;
+        box-shadow: none !important;
+        display: block !important;
+    }
+
+    /* 3. Display the dedicated print document */
+    .reports-print-document {
+        display: block !important;
+        visibility: visible !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        color: #0f172a !important;
+    }
+
+    /* 4. Professional Document Header */
+    .print-doc-header {
+        margin-bottom: 12px !important;
+        padding-bottom: 6px !important;
+        border-bottom: 2px solid #0f172a !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    .print-doc-brand {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: baseline !important;
+        margin-bottom: 3px !important;
+    }
+
+    .print-doc-company {
+        font-size: 16pt !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.5px !important;
+        text-transform: uppercase !important;
+        color: #0f172a !important;
+        margin: 0 !important;
+    }
+
+    .print-doc-system {
+        font-size: 9pt !important;
+        color: #475467 !important;
+        font-weight: 500 !important;
+    }
+
+    .print-doc-title-row {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: baseline !important;
+        margin-bottom: 6px !important;
+    }
+
+    .print-doc-title {
+        font-size: 13pt !important;
+        font-weight: 700 !important;
+        color: #0f172a !important;
+        margin: 0 !important;
+    }
+
+    .print-doc-branch {
+        font-size: 11pt !important;
+        font-weight: 600 !important;
+        color: #1e293b !important;
+    }
+
+    /* Metadata Table */
+    .print-doc-meta-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        background: #f8fafc !important;
+        border: 1px solid #cbd5e1 !important;
+        margin-top: 4px !important;
+    }
+
+    .print-doc-meta-table td {
+        padding: 3.5px 7px !important;
+        font-size: 8.5pt !important;
+        border: 1px solid #e2e8f0 !important;
+        vertical-align: middle !important;
+    }
+
+    .print-doc-meta-table td.meta-label {
+        font-weight: 600 !important;
+        color: #475467 !important;
+        width: 15% !important;
+        background: #f1f5f9 !important;
+        white-space: nowrap !important;
+    }
+
+    .print-doc-meta-table td.meta-value {
+        font-weight: 600 !important;
+        color: #0f172a !important;
+        width: 35% !important;
+    }
+
+    /* 5. Document Sections */
+    .print-doc-section {
+        margin-bottom: 12px !important;
+        break-inside: auto !important;
+        page-break-inside: auto !important;
+    }
+
+    .print-doc-section-header {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: baseline !important;
+        margin-bottom: 5px !important;
+        padding-bottom: 3px !important;
+        border-bottom: 1px solid #cbd5e1 !important;
+    }
+
+    .print-doc-section-title {
+        font-size: 10pt !important;
+        font-weight: 700 !important;
+        color: #0f172a !important;
+        margin: 0 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.3px !important;
+    }
+
+    .print-doc-section-subtitle {
+        font-size: 8pt !important;
+        color: #475467 !important;
+        font-style: italic !important;
+    }
+
+    /* 6. Compact Summary Table (replaces dashboard KPI cards) */
+    .print-summary-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        margin-bottom: 10px !important;
+        background: #ffffff !important;
+        border: 1.5px solid #0f172a !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    .print-summary-table th {
+        background: #f1f5f9 !important;
+        color: #1e293b !important;
+        font-size: 8pt !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.4px !important;
+        padding: 5px 8px !important;
+        border: 1px solid #cbd5e1 !important;
+        text-align: center !important;
+        width: 25% !important;
+    }
+
+    .print-summary-table td.kpi-value {
+        padding: 6px 8px !important;
+        font-size: 12.5pt !important;
+        font-weight: 800 !important;
+        color: #0f172a !important;
+        text-align: center !important;
+        border: 1px solid #cbd5e1 !important;
+        background: #ffffff !important;
+    }
+
+    /* 7. Data Tables (Ranking & Detailed Records) */
+    .print-data-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-size: 8.5pt !important;
+        margin-bottom: 8px !important;
+        background: #ffffff !important;
+        table-layout: fixed !important;
+    }
+
+    .print-data-table thead {
+        display: table-header-group !important;
+    }
+
+    .print-data-table tr {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+    }
+
+    .print-data-table th {
+        background: #f1f5f9 !important;
+        color: #1e293b !important;
+        font-weight: 700 !important;
+        font-size: 8pt !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.3px !important;
+        padding: 4px 6px !important;
+        border: 1px solid #cbd5e1 !important;
+        vertical-align: middle !important;
+        word-wrap: break-word !important;
+    }
+
+    .print-data-table td {
+        padding: 4px 6px !important;
+        border: 1px solid #e2e8f0 !important;
+        color: #0f172a !important;
+        vertical-align: top !important;
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
+    }
+
+    .print-data-table tbody tr:nth-child(even) {
+        background: #f8fafc !important;
+    }
+
+    .print-subtext {
+        display: block !important;
+        font-size: 7.5pt !important;
+        color: #64748b !important;
+        font-weight: normal !important;
+        margin-top: 1px !important;
+    }
+
+    .print-doc-empty {
+        padding: 8px !important;
+        text-align: center !important;
+        color: #64748b !important;
+        font-style: italic !important;
+        font-size: 8.5pt !important;
+        border: 1px dashed #cbd5e1 !important;
+        margin: 4px 0 !important;
+    }
+
+    /* 8. Document Footer */
+    .print-doc-footer {
+        margin-top: 10px !important;
+        padding-top: 4px !important;
+        border-top: 1px solid #cbd5e1 !important;
+        font-size: 7.5pt !important;
+        color: #64748b !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    .print-doc-footer-row {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+    }
+}
