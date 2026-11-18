@@ -256,6 +256,10 @@ if (!function_exists('service_status_apply_job_status')) {
         $sms_result = null;
         if ($status === 'completed') {
             $sms_result = service_status_sync_completed_job_records($pdo, $job_order_id, $user);
+            // HWTIRES Revision 4: Activate pending inventory warranties on job order completion
+            if (function_exists('job_order_activate_inventory_warranties')) {
+                job_order_activate_inventory_warranties($pdo, $job_order_id);
+            }
         } elseif ($was_completed && $allow_completed_reopen) {
             service_status_reopen_completed_job_records($pdo, $job_order_id);
         }

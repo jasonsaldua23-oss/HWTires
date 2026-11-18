@@ -256,7 +256,14 @@ if (!function_exists('job_order_apply_inventory_line_consumption')) {
             return ['applied' => false, 'count' => 0, 'message' => 'Inventory already deducted for this task'];
         }
 
-        $lock_stmt = $pdo->prepare("SELECT id, item_name, quantity FROM inventory_items WHERE id = ? FOR UPDATE");
+        $select_cols = ['id', 'item_name', 'quantity'];
+        $w_cols = ['has_warranty', 'warranty_duration', 'warranty_unit', 'warranty_coverage', 'warranty_conditions'];
+        foreach ($w_cols as $wc) {
+            if (app_column_exists('inventory_items', $wc)) {
+                $select_cols[] = $wc;
+            }
+        }
+        $lock_stmt = $pdo->prepare("SELECT " . implode(', ', $select_cols) . " FROM inventory_items WHERE id = ? FOR UPDATE");
         $lock_stmt->execute([$inventory_item_id]);
         $locked_item = $lock_stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -309,6 +316,58 @@ if (!function_exists('job_order_apply_inventory_line_consumption')) {
             $tag_value = $tag_value !== null ? intval($tag_value) : null;
             $transaction_columns[] = $tag_column;
             $transaction_values[] = $tag_value && $tag_value > 0 ? $tag_value : null;
+        }
+
+        // HWTIRES Revision 4: Job Order inventory line consumption warranty snapshot
+        $cat_has = array_key_exists('has_warranty', $locked_item) && $locked_item['has_warranty'] !== null
+            ? (int) $locked_item['has_warranty']
+            : null;
+
+        $snapshot_has = null;
+        $snapshot_duration = null;
+        $snapshot_unit = null;
+        $snapshot_coverage = null;
+        $snapshot_conditions = null;
+        $snapshot_start_date = null;
+        $snapshot_expiry_date = null;
+
+        if ($cat_has === 1) {
+            $snapshot_has = 1;
+            $snapshot_duration = !empty($locked_item['warranty_duration']) ? (int) $locked_item['warranty_duration'] : null;
+            $snapshot_unit = !empty($locked_item['warranty_unit']) ? (string) $locked_item['warranty_unit'] : null;
+            $snapshot_coverage = !empty($locked_item['warranty_coverage']) ? (string) $locked_item['warranty_coverage'] : null;
+            $snapshot_conditions = !empty($locked_item['warranty_conditions']) ? (string) $locked_item['warranty_conditions'] : null;
+
+            // If Job Order is already completed (late consumption), activate immediately on transaction date;
+            // Otherwise leave dates NULL until Job Order completion event.
+            $is_already_completed = strtolower((string) ($job['status'] ?? '')) === 'completed';
+            if ($is_already_completed) {
+                $snapshot_start_date = date('Y-m-d');
+                if ($snapshot_duration && $snapshot_duration > 0 && in_array($snapshot_unit, ['days', 'months', 'years'], true)) {
+                    if (function_exists('app_calculate_warranty_expiry_date')) {
+                        $snapshot_expiry_date = app_calculate_warranty_expiry_date($snapshot_start_date, $snapshot_duration, $snapshot_unit);
+                    }
+                }
+            }
+        } elseif ($cat_has === 0) {
+            $snapshot_has = 0;
+        }
+
+        $warranty_map = [
+            'warranty_snapshot_has' => $snapshot_has,
+            'warranty_duration' => $snapshot_duration,
+            'warranty_unit' => $snapshot_unit,
+            'warranty_coverage' => $snapshot_coverage,
+            'warranty_conditions' => $snapshot_conditions,
+            'warranty_start_date' => $snapshot_start_date,
+            'warranty_expiry_date' => $snapshot_expiry_date,
+        ];
+
+        foreach ($warranty_map as $w_col => $w_val) {
+            if (app_column_exists('inventory_transactions', $w_col)) {
+                $transaction_columns[] = $w_col;
+                $transaction_values[] = $w_val;
+            }
         }
 
         $transaction_stmt = $pdo->prepare("
@@ -395,6 +454,90 @@ if (!function_exists('job_order_apply_inventory_consumption_for_task')) {
 
             throw $e;
         }
+    }
+}
+
+if (!function_exists('job_order_activate_inventory_warranties')) {
+    /**
+     * HWTIRES Revision 4: Idempotent Warranty Activation on Job Order Completion
+     */
+    function job_order_activate_inventory_warranties(PDO $pdo, $job_order_id, ?string $completion_date = null) {
+        $job_order_id = (int) $job_order_id;
+        if ($job_order_id <= 0) {
+            return 0;
+        }
+
+        // Verify that the job order exists and is completed
+        $job_stmt = $pdo->prepare("SELECT id, status, actual_end_time, job_date FROM job_orders WHERE id = ?");
+        $job_stmt->execute([$job_order_id]);
+        $job = $job_stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$job || strtolower((string) ($job['status'] ?? '')) !== 'completed') {
+            return 0;
+        }
+
+        // Determine verified completion date
+        $start_date = null;
+        if ($completion_date !== null && preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($completion_date))) {
+            $start_date = trim($completion_date);
+        } elseif (!empty($job['actual_end_time'])) {
+            $candidate = substr((string) $job['actual_end_time'], 0, 10);
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $candidate)) {
+                $start_date = $candidate;
+            }
+        }
+
+        if ($start_date === null) {
+            $start_date = date('Y-m-d');
+        }
+
+        // Check if required columns exist in inventory_transactions
+        if (!function_exists('app_column_exists') || !app_column_exists('inventory_transactions', 'warranty_snapshot_has')) {
+            return 0;
+        }
+
+        // Locate only the qualifying pending warranty transactions for this job order
+        $pending_stmt = $pdo->prepare("
+            SELECT id, warranty_duration, warranty_unit
+            FROM inventory_transactions
+            WHERE job_order_id = ?
+              AND LOWER(REPLACE(transaction_type, ' ', '_')) = 'stock_out'
+              AND (reference_type IN ('job_order', 'job_order_item') OR reference_type IS NULL)
+              AND warranty_snapshot_has = 1
+              AND warranty_start_date IS NULL
+              AND warranty_duration > 0
+              AND warranty_unit IN ('days', 'months', 'years')
+        ");
+        $pending_stmt->execute([$job_order_id]);
+        $pending_items = $pending_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if (empty($pending_items)) {
+            return 0;
+        }
+
+        $update_stmt = $pdo->prepare("
+            UPDATE inventory_transactions
+            SET warranty_start_date = ?,
+                warranty_expiry_date = ?
+            WHERE id = ?
+              AND warranty_start_date IS NULL
+        ");
+
+        $activated_count = 0;
+        foreach ($pending_items as $item) {
+            $expiry_date = function_exists('app_calculate_warranty_expiry_date')
+                ? app_calculate_warranty_expiry_date($start_date, (int) $item['warranty_duration'], (string) $item['warranty_unit'])
+                : null;
+
+            if (!empty($expiry_date)) {
+                $update_stmt->execute([$start_date, $expiry_date, (int) $item['id']]);
+                if ($update_stmt->rowCount() > 0) {
+                    $activated_count++;
+                }
+            }
+        }
+
+        return $activated_count;
     }
 }
 

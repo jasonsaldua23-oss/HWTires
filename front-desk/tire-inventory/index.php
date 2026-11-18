@@ -5,6 +5,7 @@
 
 require_once '../../includes/config.php';
 require_once '../../includes/forecasting.php';
+require_once '../../includes/line-item-display.php';
 session_name(SESSION_NAME);
 session_start();
 
@@ -92,6 +93,14 @@ if (!function_exists('front_inventory_item_detail_lines')) {
         }
 
         $lines[] = ['label' => 'Mfg Date', 'value' => $manufacturing_date !== '' ? format_date($manufacturing_date, 'M d, Y') : '-'];
+
+        if (function_exists('app_catalog_warranty_state')) {
+            $w_state = app_catalog_warranty_state($item);
+            $lines[] = ['label' => 'Warranty', 'value' => $w_state['summary']];
+            if ($w_state['state'] === 'applicable' && !empty($w_state['conditions'])) {
+                $lines[] = ['label' => 'Warranty Terms', 'value' => $w_state['conditions']];
+            }
+        }
 
         return $lines;
     }

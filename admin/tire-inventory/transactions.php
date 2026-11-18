@@ -5,6 +5,7 @@
 
 require_once '../../includes/config.php';
 require_once '../../includes/record-filters.php';
+require_once '../../includes/line-item-display.php';
 session_name(SESSION_NAME);
 session_start();
 
@@ -413,6 +414,11 @@ if (!function_exists('inventory_transaction_direct_sale_vehicle_label')) {
                                     <div class="inventory-item-cell">
                                         <strong><?php echo esc_html(app_display_item_name($transaction['item_name'], $transaction['category'] ?? null)); ?></strong>
                                         <small><?php echo esc_html(trim(($transaction['brand'] ?? '') . ' ' . ($transaction['size'] ?? ''))); ?></small>
+                                        <?php if (app_is_customer_facing_transaction($transaction)): ?>
+                                            <div class="mt-1">
+                                                <?php echo app_transaction_warranty_badge($transaction); ?>
+                                            </div>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                                 <td>

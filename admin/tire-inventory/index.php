@@ -4,6 +4,7 @@
  */
 
 require_once '../../includes/config.php';
+require_once '../../includes/line-item-display.php';
 session_name(SESSION_NAME);
 session_start();
 
@@ -85,6 +86,11 @@ if (!function_exists('inventory_item_detail_lines')) {
         }
 
         $lines[] = ['label' => 'Mfg Date', 'value' => $manufacturing_date !== '' ? format_date($manufacturing_date, 'M d, Y') : '-'];
+
+        if (function_exists('app_catalog_warranty_state')) {
+            $w_state = app_catalog_warranty_state($item);
+            $lines[] = ['label' => 'Warranty', 'value' => $w_state['summary']];
+        }
 
         return $lines;
     }
@@ -1111,7 +1117,8 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
     align-content: flex-start !important;
 }
 .inventory-modal-body .product-type-option,
-.inventory-modal-body .form-check {
+.inventory-modal-body .form-check,
+#editWarrantyModal .form-check {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -1120,7 +1127,9 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
     cursor: pointer;
 }
 .inventory-modal-body input[type="radio"],
-.inventory-modal-body .form-check-input[type="radio"] {
+.inventory-modal-body .form-check-input[type="radio"],
+#editWarrantyModal input[type="radio"],
+#editWarrantyModal .form-check-input[type="radio"] {
     appearance: auto !important;
     -webkit-appearance: radio !important;
     -moz-appearance: radio !important;
@@ -1143,15 +1152,20 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
     vertical-align: middle !important;
 }
 .inventory-modal-body input[type="radio"]:checked,
-.inventory-modal-body .form-check-input[type="radio"]:checked {
+.inventory-modal-body .form-check-input[type="radio"]:checked,
+#editWarrantyModal input[type="radio"]:checked,
+#editWarrantyModal .form-check-input[type="radio"]:checked {
     border-color: var(--primary-color, #14b8a6) !important;
     accent-color: var(--primary-color, #14b8a6) !important;
 }
 .inventory-modal-body input[type="radio"]:focus,
-.inventory-modal-body .form-check-input[type="radio"]:focus {
+.inventory-modal-body .form-check-input[type="radio"]:focus,
+#editWarrantyModal input[type="radio"]:focus,
+#editWarrantyModal .form-check-input[type="radio"]:focus {
     box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.25) !important;
 }
-.inventory-modal-body .form-check-label {
+.inventory-modal-body .form-check-label,
+#editWarrantyModal .form-check-label {
     margin-bottom: 0;
     cursor: pointer;
     font-size: 14px;
@@ -1850,6 +1864,24 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                                                 <i class="fas fa-sliders me-1"></i> Correct Stock
                                             </button>
                                             <button type="button"
+                                                    class="btn btn-sm btn-outline-info js-edit-warranty-btn"
+                                                    data-item-id="<?php echo (int) $item['id']; ?>"
+                                                    data-item-name="<?php echo esc_attr(app_display_item_name($item['item_name'], $category)); ?>"
+                                                    data-brand="<?php echo esc_attr($item['brand'] ?: 'Unbranded'); ?>"
+                                                    data-size="<?php echo esc_attr($item['size'] ?: ''); ?>"
+                                                    data-sku="<?php echo esc_attr($item['sku'] ?? ''); ?>"
+                                                    data-category="<?php echo esc_attr($category); ?>"
+                                                    data-branch-id="<?php echo $branch_id; ?>"
+                                                    data-branch-name="<?php echo esc_attr($branch_label); ?>"
+                                                    data-has-warranty="<?php echo is_null($item['has_warranty'] ?? null) ? '' : (int) $item['has_warranty']; ?>"
+                                                    data-duration="<?php echo esc_attr($item['warranty_duration'] ?? ''); ?>"
+                                                    data-unit="<?php echo esc_attr($item['warranty_unit'] ?? ''); ?>"
+                                                    data-coverage="<?php echo esc_attr($item['warranty_coverage'] ?? ''); ?>"
+                                                    data-conditions="<?php echo esc_attr($item['warranty_conditions'] ?? ''); ?>"
+                                                    title="Edit item warranty terms">
+                                                <i class="fas fa-shield-alt me-1"></i> Warranty
+                                            </button>
+                                            <button type="button"
                                                     class="btn btn-sm btn-outline-danger js-archive-item-btn"
                                                     data-item-id="<?php echo (int) $item['id']; ?>"
                                                     data-item-name="<?php echo esc_attr(app_display_item_name($item['item_name'], $category)); ?>"
@@ -2142,6 +2174,77 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                         <span>Description <small class="text-muted fw-normal">(Optional)</small></span>
                         <textarea name="description" id="add_description" rows="2" maxlength="1000" data-text-format="first-letter" placeholder="Optional item description or technical specs"></textarea>
                     </label>
+
+                    <!-- Warranty Terms Section -->
+                    <div class="mt-3 p-3 rounded-3 border bg-light" id="addWarrantySection">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                            <span class="fw-bold text-dark" style="font-size: 13px;">
+                                <i class="fas fa-shield-alt text-primary me-1"></i> Warranty Terms
+                            </span>
+                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" id="add_warranty_status_badge" style="font-size: 11px;">
+                                Not Specified
+                            </span>
+                        </div>
+                        <div class="small text-muted mb-2" style="font-size: 11.5px;">
+                            Specify whether this product carries a customer warranty policy.
+                        </div>
+
+                        <!-- 3-State Radio Options -->
+                        <div class="d-flex flex-wrap gap-3 mb-2 p-2 bg-white rounded border">
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" type="radio" name="has_warranty" id="add_warranty_null" value="" checked>
+                                <label class="form-check-label text-dark small" for="add_warranty_null">
+                                    <span class="fw-semibold">Not Specified</span> <span class="text-muted">(Default)</span>
+                                </label>
+                            </div>
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" type="radio" name="has_warranty" id="add_warranty_none" value="0">
+                                <label class="form-check-label text-dark small" for="add_warranty_none">
+                                    <span class="fw-semibold text-danger">No Warranty</span> <span class="text-muted">(Exempt)</span>
+                                </label>
+                            </div>
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" type="radio" name="has_warranty" id="add_warranty_yes" value="1">
+                                <label class="form-check-label text-dark small" for="add_warranty_yes">
+                                    <span class="fw-semibold text-success"><i class="fas fa-check-circle me-1"></i>Warranty Applicable</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Applicable Warranty Fields -->
+                        <div id="addWarrantyDetailsContainer" class="d-none border-top pt-2 mt-2">
+                            <div class="row g-2 mb-2">
+                                <div class="col-md-6">
+                                    <label class="d-block mb-0">
+                                        <span class="text-muted d-block mb-1" style="font-size: 11.5px;">Duration <span class="text-danger">*</span></span>
+                                        <input type="number" name="warranty_duration" id="add_warranty_duration" class="form-control form-control-sm" min="1" max="120" placeholder="e.g., 12">
+                                    </label>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="d-block mb-0">
+                                        <span class="text-muted d-block mb-1" style="font-size: 11.5px;">Unit <span class="text-danger">*</span></span>
+                                        <select name="warranty_unit" id="add_warranty_unit" class="form-select form-select-sm">
+                                            <option value="months" selected>Months</option>
+                                            <option value="years">Years</option>
+                                            <option value="days">Days</option>
+                                        </select>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <label class="d-block mb-0">
+                                    <span class="text-muted d-block mb-1" style="font-size: 11.5px;">Coverage Scope <span class="text-danger">*</span></span>
+                                    <input type="text" name="warranty_coverage" id="add_warranty_coverage" class="form-control form-control-sm" maxlength="255" placeholder="e.g., Factory defect only, treadwear separation">
+                                </label>
+                            </div>
+                            <div>
+                                <label class="d-block mb-0">
+                                    <span class="text-muted d-block mb-1" style="font-size: 11.5px;">Conditions & Exclusions <small class="text-muted fw-normal">(Optional)</small></span>
+                                    <textarea name="warranty_conditions" id="add_warranty_conditions" class="form-control form-control-sm" rows="2" maxlength="2000" placeholder="e.g., Excludes punctures, improper inflation, and road hazard damage"></textarea>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Initial Delivery Section (Optional) -->
@@ -2416,8 +2519,256 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
     </div>
 </div>
 
+<!-- Edit Warranty Terms Modal -->
+<div class="modal fade" id="editWarrantyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" method="POST" action="../../api/inventory-api.php" id="editWarrantyForm">
+            <input type="hidden" name="action" value="update_warranty_terms">
+            <input type="hidden" name="csrf_token" value="<?php echo generate_csrf_token(); ?>">
+            <input type="hidden" name="redirect" value="<?php echo esc_attr($_SERVER['REQUEST_URI'] ?? '/hwtires/admin/tire-inventory/index.php'); ?>">
+            <input type="hidden" name="item_id" id="edit_warranty_item_id" value="">
+
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+                    <i class="fas fa-shield-alt text-info"></i> Edit Warranty Terms
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body inventory-modal-body">
+                <!-- Target Item Summary Banner -->
+                <div class="p-3 bg-light rounded-3 border mb-3">
+                    <div class="fw-bold text-dark mb-1" id="edit_warranty_item_name" style="font-size: 14.5px;">-</div>
+                    <div class="d-flex flex-wrap gap-2 text-muted small" id="edit_warranty_item_meta">
+                        <!-- Populated by JS -->
+                    </div>
+                    <div class="small text-muted mt-2 border-top pt-2" style="font-size: 11.5px;">
+                        <i class="fas fa-info-circle text-primary me-1"></i> Modifies catalog warranty policy for future sales. Existing transaction snapshots and stock balances remain untouched.
+                    </div>
+                </div>
+
+                <!-- 3-State Radio Options Header & Badge -->
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                    <label class="form-label fw-bold text-dark mb-0" style="font-size: 13px;">
+                        <i class="fas fa-shield-alt text-primary me-1"></i> Warranty Policy Status
+                    </label>
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" id="edit_warranty_status_badge" style="font-size: 11px;">
+                        Not Specified
+                    </span>
+                </div>
+                <div class="small text-muted mb-2" style="font-size: 11.5px;">
+                    Specify whether this product carries a customer warranty policy.
+                </div>
+
+                <!-- 3-State Radio Options matching Add Product -->
+                <div class="d-flex flex-wrap gap-3 mb-3 p-2 bg-white rounded border">
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="radio" name="has_warranty" id="edit_warranty_null" value="">
+                        <label class="form-check-label text-dark small" for="edit_warranty_null">
+                            <span class="fw-semibold">Not Specified</span> <span class="text-muted">(Default)</span>
+                        </label>
+                    </div>
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="radio" name="has_warranty" id="edit_warranty_none" value="0">
+                        <label class="form-check-label text-dark small" for="edit_warranty_none">
+                            <span class="fw-semibold text-danger">No Warranty</span> <span class="text-muted">(Exempt)</span>
+                        </label>
+                    </div>
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="radio" name="has_warranty" id="edit_warranty_yes" value="1">
+                        <label class="form-check-label text-dark small" for="edit_warranty_yes">
+                            <span class="fw-semibold text-success"><i class="fas fa-check-circle me-1"></i>Warranty Applicable</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Applicable Warranty Fields -->
+                <div id="editWarrantyFieldsContainer" class="d-none border rounded p-3 bg-light">
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label text-dark small fw-semibold mb-1">Duration <span class="text-danger">*</span></label>
+                            <input type="number" name="warranty_duration" id="edit_warranty_duration" class="form-control form-control-sm" min="1" max="120" placeholder="e.g., 12">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-dark small fw-semibold mb-1">Unit <span class="text-danger">*</span></label>
+                            <select name="warranty_unit" id="edit_warranty_unit" class="form-select form-select-sm">
+                                <option value="months">Months</option>
+                                <option value="years">Years</option>
+                                <option value="days">Days</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label text-dark small fw-semibold mb-1">Coverage Scope <span class="text-danger">*</span></label>
+                        <input type="text" name="warranty_coverage" id="edit_warranty_coverage" class="form-control form-control-sm" maxlength="255" placeholder="e.g., Factory defect only, treadwear separation">
+                    </div>
+                    <div>
+                        <label class="form-label text-dark small fw-semibold mb-1">Conditions & Exclusions <small class="text-muted fw-normal">(Optional)</small></label>
+                        <textarea name="warranty_conditions" id="edit_warranty_conditions" class="form-control form-control-sm" rows="3" maxlength="2000" placeholder="e.g., Excludes punctures, improper wheel alignment, and road hazard damage"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-sm btn-info text-white fw-bold" id="editWarrantySubmitBtn">
+                    <i class="fas fa-save me-1"></i> Save Warranty Terms
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Edit Warranty Terms Modal handling
+    const editWarrantyModalEl = document.getElementById('editWarrantyModal');
+    const editWarrantyModal = editWarrantyModalEl ? new bootstrap.Modal(editWarrantyModalEl) : null;
+    const editWarrantyFields = document.getElementById('editWarrantyFieldsContainer');
+    const editWarrantyBadge = document.getElementById('edit_warranty_status_badge');
+    const editDuration = document.getElementById('edit_warranty_duration');
+    const editUnit = document.getElementById('edit_warranty_unit');
+    const editCoverage = document.getElementById('edit_warranty_coverage');
+    const editConditions = document.getElementById('edit_warranty_conditions');
+
+    function toggleEditWarrantyFields(val) {
+        if (!editWarrantyFields) return;
+        if (val === '1') {
+            editWarrantyFields.classList.remove('d-none');
+            if (editWarrantyBadge) {
+                editWarrantyBadge.className = 'badge bg-success-subtle text-success border border-success-subtle px-2 py-1';
+                editWarrantyBadge.textContent = 'Warranty Applicable';
+            }
+            if (editDuration) editDuration.required = true;
+            if (editUnit) editUnit.required = true;
+            if (editCoverage) editCoverage.required = true;
+        } else if (val === '0') {
+            editWarrantyFields.classList.add('d-none');
+            if (editWarrantyBadge) {
+                editWarrantyBadge.className = 'badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1';
+                editWarrantyBadge.textContent = 'No Warranty';
+            }
+            if (editDuration) editDuration.required = false;
+            if (editUnit) editUnit.required = false;
+            if (editCoverage) editCoverage.required = false;
+        } else {
+            editWarrantyFields.classList.add('d-none');
+            if (editWarrantyBadge) {
+                editWarrantyBadge.className = 'badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1';
+                editWarrantyBadge.textContent = 'Not Specified';
+            }
+            if (editDuration) editDuration.required = false;
+            if (editUnit) editUnit.required = false;
+            if (editCoverage) editCoverage.required = false;
+        }
+    }
+
+    document.querySelectorAll('#editWarrantyModal input[name="has_warranty"]').forEach(function(r) {
+        r.addEventListener('change', function() {
+            toggleEditWarrantyFields(this.value);
+        });
+    });
+
+    document.querySelectorAll('.js-edit-warranty-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const itemId = this.dataset.itemId || '';
+            const itemName = this.dataset.itemName || '';
+            const brand = this.dataset.brand || '';
+            const size = this.dataset.size || '';
+            const sku = this.dataset.sku || '';
+            const branchName = this.dataset.branchName || '';
+            const hasWarranty = this.dataset.hasWarranty;
+            const duration = this.dataset.duration || '';
+            const unit = this.dataset.unit || 'months';
+            const coverage = this.dataset.coverage || '';
+            const conditions = this.dataset.conditions || '';
+
+            const idEl = document.getElementById('edit_warranty_item_id');
+            const nameEl = document.getElementById('edit_warranty_item_name');
+            const metaEl = document.getElementById('edit_warranty_item_meta');
+
+            if (idEl) idEl.value = itemId;
+            if (nameEl) nameEl.textContent = itemName;
+
+            if (metaEl) {
+                const metaParts = [];
+                if (brand && brand !== 'Unbranded') metaParts.push('<span><strong>Brand:</strong> ' + brand + '</span>');
+                if (size) metaParts.push('<span><strong>Size:</strong> ' + size + '</span>');
+                if (sku) metaParts.push('<span><strong>SKU:</strong> ' + sku + '</span>');
+                if (branchName) metaParts.push('<span><strong>Branch:</strong> ' + branchName + '</span>');
+                metaEl.innerHTML = metaParts.join(' &bull; ');
+            }
+
+            if (hasWarranty === '1') {
+                const rYes = document.getElementById('edit_warranty_yes');
+                if (rYes) rYes.checked = true;
+                toggleEditWarrantyFields('1');
+            } else if (hasWarranty === '0') {
+                const rNone = document.getElementById('edit_warranty_none');
+                if (rNone) rNone.checked = true;
+                toggleEditWarrantyFields('0');
+            } else {
+                const rNull = document.getElementById('edit_warranty_null');
+                if (rNull) rNull.checked = true;
+                toggleEditWarrantyFields('');
+            }
+
+            if (editDuration) editDuration.value = duration;
+            if (editUnit) editUnit.value = unit || 'months';
+            if (editCoverage) editCoverage.value = coverage;
+            if (editConditions) editConditions.value = conditions;
+
+            if (editWarrantyModal) {
+                editWarrantyModal.show();
+            }
+        });
+    });
+
+    // Add Item Modal Warranty Toggle
+    const addWarrantyFields = document.getElementById('addWarrantyDetailsContainer');
+    const addWarrantyBadge = document.getElementById('add_warranty_status_badge');
+    const addDuration = document.getElementById('add_warranty_duration');
+    const addUnit = document.getElementById('add_warranty_unit');
+    const addCoverage = document.getElementById('add_warranty_coverage');
+
+    function toggleAddWarrantyFields(val) {
+        if (!addWarrantyFields) return;
+        if (val === '1') {
+            addWarrantyFields.classList.remove('d-none');
+            if (addWarrantyBadge) {
+                addWarrantyBadge.className = 'badge bg-success-subtle text-success border border-success-subtle px-2 py-1';
+                addWarrantyBadge.textContent = 'Warranty Applicable';
+            }
+            if (addDuration) addDuration.required = true;
+            if (addUnit) addUnit.required = true;
+            if (addCoverage) addCoverage.required = true;
+        } else if (val === '0') {
+            addWarrantyFields.classList.add('d-none');
+            if (addWarrantyBadge) {
+                addWarrantyBadge.className = 'badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1';
+                addWarrantyBadge.textContent = 'No Warranty';
+            }
+            if (addDuration) addDuration.required = false;
+            if (addUnit) addUnit.required = false;
+            if (addCoverage) addCoverage.required = false;
+        } else {
+            addWarrantyFields.classList.add('d-none');
+            if (addWarrantyBadge) {
+                addWarrantyBadge.className = 'badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1';
+                addWarrantyBadge.textContent = 'Not Specified';
+            }
+            if (addDuration) addDuration.required = false;
+            if (addUnit) addUnit.required = false;
+            if (addCoverage) addCoverage.required = false;
+        }
+    }
+
+    document.querySelectorAll('#addWarrantySection input[name="has_warranty"]').forEach(function(r) {
+        r.addEventListener('change', function() {
+            toggleAddWarrantyFields(this.value);
+        });
+    });
+
     const adjustModalEl = document.getElementById('adjustStockModal');
     const adjustModal = adjustModalEl ? new bootstrap.Modal(adjustModalEl) : null;
     const adjustForm = document.getElementById('adjustStockForm');

@@ -274,6 +274,36 @@ if (!function_exists('vehicle_profile_inventory_detail_fields')) {
             $fields[] = ['label' => 'Origin / Transfer', 'value' => $origin_branch];
         }
 
+        if (!empty($record['warranty_mixed'])) {
+            $fields[] = ['label' => 'Warranty Status', 'value' => 'Mixed Warranty Terms'];
+            if (!empty($record['warranty_item_details']) && is_array($record['warranty_item_details'])) {
+                $fields[] = [
+                    'label' => 'Item Warranty Terms',
+                    'value' => implode(' • ', $record['warranty_item_details']),
+                    'is_list' => true,
+                    'items' => $record['warranty_item_details'],
+                ];
+            }
+        } elseif (array_key_exists('warranty_snapshot_has', $record) && function_exists('app_transaction_warranty_state')) {
+            $w_state = app_transaction_warranty_state($record);
+            $fields[] = ['label' => 'Warranty Status', 'value' => $w_state['label']];
+            if ($w_state['formatted_duration'] !== '') {
+                $fields[] = ['label' => 'Warranty Term', 'value' => $w_state['formatted_duration']];
+            }
+            if (!empty($w_state['coverage'])) {
+                $fields[] = ['label' => 'Warranty Coverage', 'value' => $w_state['coverage']];
+            }
+            if (!empty($w_state['conditions'])) {
+                $fields[] = ['label' => 'Warranty Conditions', 'value' => $w_state['conditions']];
+            }
+            if (!empty($w_state['start_date'])) {
+                $fields[] = ['label' => 'Warranty Start', 'value' => vehicle_profile_short_date($w_state['start_date'])];
+            }
+            if (!empty($w_state['expiry_date'])) {
+                $fields[] = ['label' => 'Warranty Expiry', 'value' => vehicle_profile_short_date($w_state['expiry_date'])];
+            }
+        }
+
         $sku_lines = [];
         if (!empty($record['sku_lines']) && is_array($record['sku_lines'])) {
             $sku_lines = $record['sku_lines'];
@@ -1301,6 +1331,8 @@ if (!function_exists('vehicle_profile_group_item_sales')) {
                 $groups[$key]['meta_entries'] = [];
                 $groups[$key]['note_entries'] = [];
                 $groups[$key]['status_entries'] = [];
+                $groups[$key]['warranty_signatures'] = [];
+                $groups[$key]['warranty_items'] = [];
                 $groups[$key]['amount'] = 0;
                 $groups[$key]['record_count'] = 0;
             }
@@ -1317,6 +1349,55 @@ if (!function_exists('vehicle_profile_group_item_sales')) {
             vehicle_profile_unique_push($groups[$key]['meta_entries'], $record['meta_text'] ?? '');
             vehicle_profile_unique_push($groups[$key]['note_entries'], app_format_record_notes($record['notes'] ?? ''));
             vehicle_profile_unique_push($groups[$key]['status_entries'], vehicle_profile_status_label($record['record_status'] ?? ''));
+            if (array_key_exists('warranty_snapshot_has', $record) && function_exists('app_transaction_warranty_state')) {
+                $w_state = app_transaction_warranty_state($record);
+                $warranty_sig = implode('|', [
+                    (string) ($record['warranty_snapshot_has'] ?? 'NULL'),
+                    (string) ($record['warranty_duration'] ?? 'NULL'),
+                    strtolower(trim((string) ($record['warranty_unit'] ?? ''))),
+                    strtolower(trim((string) ($record['warranty_coverage'] ?? ''))),
+                    strtolower(trim((string) ($record['warranty_conditions'] ?? ''))),
+                    (string) ($record['warranty_start_date'] ?? 'NULL'),
+                    (string) ($record['warranty_expiry_date'] ?? 'NULL'),
+                    $w_state['state'] ?? '',
+                ]);
+                $groups[$key]['warranty_signatures'][] = $warranty_sig;
+
+                $rec_num = trim((string) ($record['record_number'] ?? ''));
+                $item_name = !empty($record['summary']) ? trim((string) $record['summary']) : (!empty($record['item_name']) ? trim((string) $record['item_name']) : $rec_num);
+                $prefix = $rec_num !== '' ? $rec_num . ' • ' . $item_name : $item_name;
+
+                if ($w_state['state'] === 'active') {
+                    $desc = $w_state['label'];
+                    $dur_exp = [];
+                    if (!empty($w_state['formatted_duration'])) {
+                        $dur_exp[] = $w_state['formatted_duration'];
+                    }
+                    if (!empty($w_state['expiry_date'])) {
+                        $dur_exp[] = 'Expires ' . vehicle_profile_short_date($w_state['expiry_date']);
+                    }
+                    if (!empty($dur_exp)) {
+                        $desc .= ' (' . implode(', ', $dur_exp) . ')';
+                    }
+                    if (!empty($w_state['coverage'])) {
+                        $desc .= ' — ' . ucwords(str_replace('_', ' ', $w_state['coverage']));
+                    }
+                } elseif ($w_state['state'] === 'expired') {
+                    $desc = $w_state['label'];
+                    if (!empty($w_state['expiry_date'])) {
+                        $desc .= ' (' . vehicle_profile_short_date($w_state['expiry_date']) . ')';
+                    }
+                } elseif ($w_state['state'] === 'pending_completion') {
+                    $desc = $w_state['label'];
+                    if (!empty($w_state['formatted_duration'])) {
+                        $desc .= ' (' . $w_state['formatted_duration'] . ')';
+                    }
+                } else {
+                    $desc = $w_state['label'];
+                }
+
+                $groups[$key]['warranty_items'][] = $prefix . ': ' . $desc;
+            }
         }
 
         foreach ($groups as &$group) {
@@ -1349,6 +1430,11 @@ if (!function_exists('vehicle_profile_group_item_sales')) {
             if (count($status_entries) > 1) {
                 $group['record_status'] = 'mixed';
             }
+            $w_sigs = $group['warranty_signatures'] ?? [];
+            if ($record_count > 1 && count(array_unique($w_sigs)) > 1) {
+                $group['warranty_mixed'] = true;
+                $group['warranty_item_details'] = $group['warranty_items'] ?? [];
+            }
 
             unset(
                 $group['record_numbers'],
@@ -1356,7 +1442,9 @@ if (!function_exists('vehicle_profile_group_item_sales')) {
                 $group['meta_entries'],
                 $group['note_entries'],
                 $group['status_entries'],
-                $group['record_count']
+                $group['record_count'],
+                $group['warranty_signatures'],
+                $group['warranty_items']
             );
         }
         unset($group);
@@ -1594,7 +1682,14 @@ try {
                q.notes,
                qi.item_lines,
                q.id AS quotation_id,
-               NULL AS job_order_id
+               NULL AS job_order_id,
+               NULL AS warranty_snapshot_has,
+               NULL AS warranty_duration,
+               NULL AS warranty_unit,
+               NULL AS warranty_coverage,
+               NULL AS warranty_conditions,
+               NULL AS warranty_start_date,
+               NULL AS warranty_expiry_date
         FROM quotations q
         LEFT JOIN branches b ON b.id = q.branch_id
         LEFT JOIN ($item_summary_sql) qi ON qi.quotation_id = q.id
@@ -1624,7 +1719,14 @@ try {
                jo.notes,
                qi.item_lines,
                jo.quotation_id,
-               jo.id AS job_order_id
+               jo.id AS job_order_id,
+               NULL AS warranty_snapshot_has,
+               NULL AS warranty_duration,
+               NULL AS warranty_unit,
+               NULL AS warranty_coverage,
+               NULL AS warranty_conditions,
+               NULL AS warranty_start_date,
+               NULL AS warranty_expiry_date
         FROM job_orders jo
         LEFT JOIN quotations q ON q.id = jo.quotation_id
         LEFT JOIN branches b ON b.id = jo.branch_id
@@ -1652,7 +1754,14 @@ try {
                sh.notes,
                qi.item_lines,
                sh.quotation_id,
-               sh.job_order_id
+               sh.job_order_id,
+               NULL AS warranty_snapshot_has,
+               NULL AS warranty_duration,
+               NULL AS warranty_unit,
+               NULL AS warranty_coverage,
+               NULL AS warranty_conditions,
+               NULL AS warranty_start_date,
+               NULL AS warranty_expiry_date
         FROM service_history sh
         LEFT JOIN branches b ON b.id = sh.branch_id
         LEFT JOIN ($item_summary_sql) qi ON qi.quotation_id = sh.quotation_id
@@ -1746,7 +1855,14 @@ try {
                        ' (', ABS(t.quantity), 'x)'
                    ) AS item_lines,
                    t.quotation_id,
-                   t.job_order_id
+                   t.job_order_id,
+                   t.warranty_snapshot_has,
+                   t.warranty_duration,
+                   t.warranty_unit,
+                   t.warranty_coverage,
+                   t.warranty_conditions,
+                   t.warranty_start_date,
+                   t.warranty_expiry_date
             FROM inventory_transactions t
             INNER JOIN inventory_items i ON i.id = t.item_id
             LEFT JOIN branches b ON b.id = i.branch_id

@@ -202,7 +202,7 @@ if (!function_exists('inventory_api_get_item')) {
 }
 
 if (!function_exists('inventory_api_log_transaction')) {
-    function inventory_api_log_transaction($item_id, $transaction_type, $quantity, $notes, $reference_type = null, $reference_id = null, array $tags = []) {
+    function inventory_api_log_transaction($item_id, $transaction_type, $quantity, $notes, $reference_type = null, $reference_id = null, array $tags = [], array $warranty_data = []) {
         global $pdo, $user;
 
         $columns = ['item_id', 'transaction_type', 'quantity', 'reference_type', 'reference_id', 'notes', 'created_by'];
@@ -224,6 +224,23 @@ if (!function_exists('inventory_api_log_transaction')) {
             $tag_value = $tags[$tag_column] !== null ? intval($tags[$tag_column]) : null;
             $columns[] = $tag_column;
             $values[] = $tag_value && $tag_value > 0 ? $tag_value : null;
+        }
+
+        $warranty_columns = [
+            'warranty_snapshot_has',
+            'warranty_duration',
+            'warranty_unit',
+            'warranty_coverage',
+            'warranty_conditions',
+            'warranty_start_date',
+            'warranty_expiry_date',
+        ];
+
+        foreach ($warranty_columns as $col) {
+            if (array_key_exists($col, $warranty_data) && app_column_exists('inventory_transactions', $col)) {
+                $columns[] = $col;
+                $values[] = $warranty_data[$col];
+            }
         }
 
         $placeholders = implode(', ', array_fill(0, count($columns), '?'));
@@ -577,6 +594,7 @@ if ($action === 'transfer_stock') {
 
 // Handle Stock Out
 if ($action === 'stock_out') {
+    $started_transaction = false;
     try {
         if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
             throw new Exception('Invalid security token');
@@ -615,6 +633,11 @@ if ($action === 'stock_out') {
             throw new Exception('Insufficient stock available. Current: ' . $old_quantity);
         }
 
+        if (!$pdo->inTransaction()) {
+            $pdo->beginTransaction();
+            $started_transaction = true;
+        }
+
         $new_quantity = $old_quantity - $quantity;
         $update_stmt = $pdo->prepare("UPDATE inventory_items SET quantity = ? WHERE id = ?");
         $update_stmt->execute([$new_quantity, $item_id]);
@@ -628,10 +651,69 @@ if ($action === 'stock_out') {
         }
         $final_notes = !empty($note_parts) ? implode(' | ', $note_parts) : ($notes ?: 'Manual stock out from Front Desk Inventory');
 
-        inventory_api_log_transaction($item_id, 'stock_out', $quantity, $final_notes, $reason_type ?: null, null, $tag_data);
+        // HWTIRES Revision 4: Customer warranty snapshot for direct sales
+        $warranty_data = [];
+        $is_customer_sale = ($reason_type === 'direct_sale') || ($reason_type === '' && (!empty($tag_data['customer_id']) || !empty($tag_data['vehicle_id'])));
+
+        if ($is_customer_sale) {
+            $cat_has = array_key_exists('has_warranty', $item) && $item['has_warranty'] !== null
+                ? (int) $item['has_warranty']
+                : null;
+
+            if ($cat_has === 1) {
+                $duration = !empty($item['warranty_duration']) ? (int) $item['warranty_duration'] : null;
+                $unit = !empty($item['warranty_unit']) ? (string) $item['warranty_unit'] : null;
+                $coverage = !empty($item['warranty_coverage']) ? (string) $item['warranty_coverage'] : null;
+                $conditions = !empty($item['warranty_conditions']) ? (string) $item['warranty_conditions'] : null;
+
+                $sale_date = date('Y-m-d');
+                $expiry_date = null;
+                if ($duration && $duration > 0 && in_array($unit, ['days', 'months', 'years'], true)) {
+                    if (function_exists('app_calculate_warranty_expiry_date')) {
+                        $expiry_date = app_calculate_warranty_expiry_date($sale_date, $duration, $unit);
+                    }
+                }
+
+                $warranty_data = [
+                    'warranty_snapshot_has' => 1,
+                    'warranty_duration' => $duration,
+                    'warranty_unit' => $unit,
+                    'warranty_coverage' => $coverage,
+                    'warranty_conditions' => $conditions,
+                    'warranty_start_date' => $sale_date,
+                    'warranty_expiry_date' => $expiry_date,
+                ];
+            } elseif ($cat_has === 0) {
+                $warranty_data = [
+                    'warranty_snapshot_has' => 0,
+                    'warranty_duration' => null,
+                    'warranty_unit' => null,
+                    'warranty_coverage' => null,
+                    'warranty_conditions' => null,
+                    'warranty_start_date' => null,
+                    'warranty_expiry_date' => null,
+                ];
+            } else {
+                $warranty_data = [
+                    'warranty_snapshot_has' => null,
+                    'warranty_duration' => null,
+                    'warranty_unit' => null,
+                    'warranty_coverage' => null,
+                    'warranty_conditions' => null,
+                    'warranty_start_date' => null,
+                    'warranty_expiry_date' => null,
+                ];
+            }
+        }
+
+        inventory_api_log_transaction($item_id, 'stock_out', $quantity, $final_notes, $reason_type ?: null, null, $tag_data, $warranty_data);
 
         if (!empty($tag_data['customer_id'])) {
             app_touch_customer_branch_record((int) $tag_data['customer_id'], (int) ($item['branch_id'] ?? 0), $user['id'] ?? null);
+        }
+
+        if ($started_transaction && $pdo->inTransaction()) {
+            $pdo->commit();
         }
 
         log_audit('inventory_items', 'stock_out', $item_id, ['quantity' => $old_quantity], [
@@ -643,6 +725,10 @@ if ($action === 'stock_out') {
 
         inventory_api_finish(true, 'Stock removed successfully', 200, ['quantity' => $new_quantity]);
     } catch (Exception $e) {
+        if ($started_transaction && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
         error_log('Stock out error: ' . $e->getMessage());
         inventory_api_finish(false, $e->getMessage(), 400);
     }
@@ -1073,6 +1159,52 @@ if ($action === 'add') {
         if (app_column_exists('inventory_items', 'manufacturing_date')) {
             $insert_columns[] = 'manufacturing_date';
             $insert_values[] = $manufacturing_date !== '' ? $manufacturing_date : null;
+        }
+
+        // Warranty terms processing for new item
+        $raw_has_warranty = trim((string) ($_POST['has_warranty'] ?? ''));
+        $has_warranty = null;
+        $warranty_duration = null;
+        $warranty_unit = null;
+        $warranty_coverage = null;
+        $warranty_conditions = null;
+
+        if ($raw_has_warranty === '1') {
+            $has_warranty = 1;
+            $warranty_duration = inventory_api_clean_int($_POST['warranty_duration'] ?? '', 'Warranty duration', 1, 120);
+            $raw_unit = strtolower(trim((string) ($_POST['warranty_unit'] ?? '')));
+            if (!in_array($raw_unit, ['days', 'months', 'years'], true)) {
+                throw new Exception('Please select a valid warranty unit (days, months, or years).');
+            }
+            $warranty_unit = $raw_unit;
+            $warranty_coverage = inventory_api_clean_text($_POST['warranty_coverage'] ?? '', 'Warranty coverage', 255, true);
+            $warranty_conditions = inventory_api_clean_text($_POST['warranty_conditions'] ?? '', 'Warranty conditions and exclusions', 2000, false) ?: null;
+        } elseif ($raw_has_warranty === '0') {
+            $has_warranty = 0;
+        } else {
+            // Null / Not Specified
+            $has_warranty = null;
+        }
+
+        if (app_column_exists('inventory_items', 'has_warranty')) {
+            $insert_columns[] = 'has_warranty';
+            $insert_values[] = $has_warranty;
+        }
+        if (app_column_exists('inventory_items', 'warranty_duration')) {
+            $insert_columns[] = 'warranty_duration';
+            $insert_values[] = $warranty_duration;
+        }
+        if (app_column_exists('inventory_items', 'warranty_unit')) {
+            $insert_columns[] = 'warranty_unit';
+            $insert_values[] = $warranty_unit;
+        }
+        if (app_column_exists('inventory_items', 'warranty_coverage')) {
+            $insert_columns[] = 'warranty_coverage';
+            $insert_values[] = $warranty_coverage;
+        }
+        if (app_column_exists('inventory_items', 'warranty_conditions')) {
+            $insert_columns[] = 'warranty_conditions';
+            $insert_values[] = $warranty_conditions;
         }
 
         $insert_columns = array_merge($insert_columns, [
@@ -1661,6 +1793,113 @@ if ($action === 'restore' || $action === 'reactivate') {
             $pdo->rollBack();
         }
         error_log('Restore inventory item error: ' . $e->getMessage());
+        inventory_api_finish(false, $e->getMessage(), 400);
+    }
+}
+
+if ($action === 'update_warranty_terms') {
+    try {
+        if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+            throw new Exception('Invalid security token');
+        }
+
+        if (($user['role'] ?? '') !== 'admin') {
+            throw new Exception('Only administrators can update product warranty terms.');
+        }
+
+        $item_id = intval($_POST['item_id'] ?? 0);
+        if ($item_id <= 0) {
+            throw new Exception('Invalid inventory item ID.');
+        }
+
+        $stmt = $pdo->prepare("
+            SELECT id, branch_id, item_name, category, brand, model, size, sku, has_warranty, warranty_duration, warranty_unit, warranty_coverage, warranty_conditions
+            FROM inventory_items
+            WHERE id = ?
+        ");
+        $stmt->execute([$item_id]);
+        $item = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$item) {
+            throw new Exception('Inventory item not found.');
+        }
+
+        if (!has_branch_access((int) $item['branch_id'])) {
+            throw new Exception('Unauthorized branch access.');
+        }
+
+        $raw_has_warranty = trim((string) ($_POST['has_warranty'] ?? ''));
+        $has_warranty = null;
+        $warranty_duration = null;
+        $warranty_unit = null;
+        $warranty_coverage = null;
+        $warranty_conditions = null;
+
+        if ($raw_has_warranty === '1') {
+            $has_warranty = 1;
+            $warranty_duration = inventory_api_clean_int($_POST['warranty_duration'] ?? '', 'Warranty duration', 1, 120);
+            $raw_unit = strtolower(trim((string) ($_POST['warranty_unit'] ?? '')));
+            if (!in_array($raw_unit, ['days', 'months', 'years'], true)) {
+                throw new Exception('Please select a valid warranty unit (days, months, or years).');
+            }
+            $warranty_unit = $raw_unit;
+            $warranty_coverage = inventory_api_clean_text($_POST['warranty_coverage'] ?? '', 'Warranty coverage', 255, true);
+            $warranty_conditions = inventory_api_clean_text($_POST['warranty_conditions'] ?? '', 'Warranty conditions and exclusions', 2000, false) ?: null;
+        } elseif ($raw_has_warranty === '0') {
+            $has_warranty = 0;
+        } else {
+            // Null / Not Specified
+            $has_warranty = null;
+        }
+
+        // Backward compatibility check for unmigrated database
+        if (!app_column_exists('inventory_items', 'has_warranty')) {
+            throw new Exception('Warranty schema is not yet available in the database.');
+        }
+
+        $pdo->beginTransaction();
+
+        $update_stmt = $pdo->prepare("
+            UPDATE inventory_items
+            SET has_warranty = ?,
+                warranty_duration = ?,
+                warranty_unit = ?,
+                warranty_coverage = ?,
+                warranty_conditions = ?,
+                updated_at = NOW()
+            WHERE id = ?
+        ");
+        $update_stmt->execute([
+            $has_warranty,
+            $warranty_duration,
+            $warranty_unit,
+            $warranty_coverage,
+            $warranty_conditions,
+            $item_id,
+        ]);
+
+        log_audit('inventory_items', 'update_warranty', $item_id, [
+            'has_warranty' => $item['has_warranty'] ?? null,
+            'warranty_duration' => $item['warranty_duration'] ?? null,
+            'warranty_unit' => $item['warranty_unit'] ?? null,
+            'warranty_coverage' => $item['warranty_coverage'] ?? null,
+            'warranty_conditions' => $item['warranty_conditions'] ?? null,
+        ], [
+            'has_warranty' => $has_warranty,
+            'warranty_duration' => $warranty_duration,
+            'warranty_unit' => $warranty_unit,
+            'warranty_coverage' => $warranty_coverage,
+            'warranty_conditions' => $warranty_conditions,
+        ]);
+
+        $pdo->commit();
+
+        inventory_api_finish(true, 'Warranty terms updated successfully.', 200, ['id' => $item_id]);
+    } catch (Exception $e) {
+        if ($pdo instanceof PDO && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log('Update warranty terms error: ' . $e->getMessage());
         inventory_api_finish(false, $e->getMessage(), 400);
     }
 }

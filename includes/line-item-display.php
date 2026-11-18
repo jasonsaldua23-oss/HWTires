@@ -99,7 +99,7 @@ if (!function_exists('app_line_item_load_inventory_items')) {
         }
 
         $inventory_columns = ['i.id', 'i.branch_id', 'b.name AS branch_name'];
-        foreach (['item_name', 'category', 'brand', 'model', 'size', 'sku', 'serial_number', 'manufacturing_date'] as $column) {
+        foreach (['item_name', 'category', 'brand', 'model', 'size', 'sku', 'serial_number', 'manufacturing_date', 'has_warranty', 'warranty_duration', 'warranty_unit', 'warranty_coverage', 'warranty_conditions'] as $column) {
             if (!function_exists('app_column_exists') || app_column_exists('inventory_items', $column)) {
                 $inventory_columns[] = 'i.' . $column;
             }
@@ -190,6 +190,18 @@ if (!function_exists('app_line_item_product_details')) {
         $line_note = app_line_item_plain_note($item);
         if ($line_note !== '') {
             $details[] = ['label' => 'Note', 'value' => $line_note];
+        }
+
+        if (!app_line_item_is_service($item) && !empty($inventory_item)) {
+            $cat_w = app_catalog_warranty_state($inventory_item);
+            if ($cat_w['state'] === 'applicable') {
+                $details[] = [
+                    'label' => 'Est. Warranty',
+                    'value' => $cat_w['formatted_duration'] . ($cat_w['coverage'] ? ' (' . $cat_w['coverage'] . ')' : '')
+                ];
+            } elseif ($cat_w['state'] === 'no_warranty') {
+                $details[] = ['label' => 'Warranty', 'value' => 'No Warranty'];
+            }
         }
 
         return $details;
@@ -335,6 +347,13 @@ if (!function_exists('app_line_item_load_linked_inventory_transactions')) {
         $job_order_id_expr = app_inventory_item_select_expr('inventory_transactions', 't', 'job_order_id', 'NULL');
         $quotation_item_id_expr = app_inventory_item_select_expr('inventory_transactions', 't', 'quotation_item_id', 'NULL');
         $notes_expr = app_inventory_item_select_expr('inventory_transactions', 't', 'notes', "''");
+        $warranty_has_expr = app_inventory_item_select_expr('inventory_transactions', 't', 'warranty_snapshot_has', 'NULL');
+        $warranty_dur_expr = app_inventory_item_select_expr('inventory_transactions', 't', 'warranty_duration', 'NULL');
+        $warranty_unit_expr = app_inventory_item_select_expr('inventory_transactions', 't', 'warranty_unit', 'NULL');
+        $warranty_cov_expr = app_inventory_item_select_expr('inventory_transactions', 't', 'warranty_coverage', 'NULL');
+        $warranty_cond_expr = app_inventory_item_select_expr('inventory_transactions', 't', 'warranty_conditions', 'NULL');
+        $warranty_start_expr = app_inventory_item_select_expr('inventory_transactions', 't', 'warranty_start_date', 'NULL');
+        $warranty_exp_expr = app_inventory_item_select_expr('inventory_transactions', 't', 'warranty_expiry_date', 'NULL');
 
         $branch_join = '';
         $branch_name_expr = "''";
@@ -382,7 +401,14 @@ if (!function_exists('app_line_item_load_linked_inventory_transactions')) {
                 {$job_order_id_expr} AS job_order_id,
                 {$quotation_item_id_expr} AS quotation_item_id,
                 {$quotation_number_expr} AS quotation_number,
-                {$job_number_expr} AS job_number
+                {$job_number_expr} AS job_number,
+                {$warranty_has_expr} AS warranty_snapshot_has,
+                {$warranty_dur_expr} AS warranty_duration,
+                {$warranty_unit_expr} AS warranty_unit,
+                {$warranty_cov_expr} AS warranty_coverage,
+                {$warranty_cond_expr} AS warranty_conditions,
+                {$warranty_start_expr} AS warranty_start_date,
+                {$warranty_exp_expr} AS warranty_expiry_date
             FROM inventory_transactions t
             INNER JOIN inventory_items i ON i.id = t.item_id
             {$branch_join}
@@ -494,7 +520,7 @@ if (!function_exists('app_inventory_transaction_table_html')) {
         $html .= '<div class="table-responsive">';
         $html .= '<table class="table table-bordered table-sm mb-0 service-operation-items-table linked-inventory-table">';
         $html .= '<thead><tr>';
-        $html .= '<th>Product</th><th>Item Details</th><th class="text-end">Qty</th><th class="text-end">Unit Price</th><th class="text-end">Total</th>';
+        $html .= '<th>Product</th><th>Item Details</th><th>Warranty</th><th class="text-end">Qty</th><th class="text-end">Unit Price</th><th class="text-end">Total</th>';
         $html .= '</tr></thead><tbody>';
 
         foreach ($rows as $row) {
@@ -524,7 +550,17 @@ if (!function_exists('app_inventory_transaction_table_html')) {
                 $html .= '<div class="record-line-item-meta">' . implode(' &bull; ', $meta_parts) . '</div>';
             }
             $html .= '</td>';
+            $warranty_badge = app_transaction_warranty_badge($row);
+            $w_state = app_transaction_warranty_state($row);
+            $warranty_extra = '';
+            if (!empty($w_state['coverage'])) {
+                $warranty_extra .= '<div class="record-line-item-meta">' . esc_html($w_state['coverage']) . '</div>';
+            }
+            if (!empty($w_state['conditions'])) {
+                $warranty_extra .= '<div class="record-line-item-meta text-muted" style="font-size: 10px;">' . esc_html($w_state['conditions']) . '</div>';
+            }
             $html .= '<td>' . ($details !== '' ? esc_html($details) : '-') . '</td>';
+            $html .= '<td>' . $warranty_badge . $warranty_extra . '</td>';
             $html .= '<td class="text-end">' . esc_html($qty) . '</td>';
             $html .= '<td class="text-end">' . esc_html($unit_price) . '</td>';
             $html .= '<td class="text-end"><strong>' . esc_html($line_total) . '</strong></td>';
@@ -532,7 +568,7 @@ if (!function_exists('app_inventory_transaction_table_html')) {
         }
 
         $html .= '</tbody>';
-        $html .= '<tfoot><tr><th colspan="4" class="text-end">Inventory Issued Value:</th><th class="text-end">' . esc_html(format_currency($total)) . '</th></tr></tfoot>';
+        $html .= '<tfoot><tr><th colspan="5" class="text-end">Inventory Issued Value:</th><th class="text-end">' . esc_html(format_currency($total)) . '</th></tr></tfoot>';
         $html .= '</table></div>';
 
         if ($is_panel) {
@@ -587,3 +623,389 @@ if (!function_exists('app_quotation_calculate_totals')) {
     }
 }
 
+/**
+ * HWTIRES Revision 4: Shared Warranty Helpers
+ */
+
+if (!function_exists('app_format_warranty_duration')) {
+    function app_format_warranty_duration($duration, $unit): string {
+        $d = (int) $duration;
+        $u = strtolower(trim((string) $unit));
+        if ($d <= 0 || !in_array($u, ['days', 'months', 'years'], true)) {
+            return '';
+        }
+
+        if ($d === 1) {
+            if ($u === 'days') return '1 Day';
+            if ($u === 'months') return '1 Month';
+            if ($u === 'years') return '1 Year';
+        }
+
+        return $d . ' ' . ucfirst($u);
+    }
+}
+
+if (!function_exists('app_calculate_warranty_expiry_date')) {
+    function app_calculate_warranty_expiry_date(?string $start_date, $duration, $unit): ?string {
+        $start_date = trim((string) $start_date);
+        $d = (int) $duration;
+        $u = strtolower(trim((string) $unit));
+
+        if ($start_date === '' || $start_date === '0000-00-00' || $d <= 0 || !in_array($u, ['days', 'months', 'years'], true)) {
+            return null;
+        }
+
+        try {
+            $dt = DateTime::createFromFormat('Y-m-d', $start_date);
+            if (!$dt || $dt->format('Y-m-d') !== $start_date) {
+                return null;
+            }
+
+            $year = (int) $dt->format('Y');
+            $month = (int) $dt->format('m');
+            $day = (int) $dt->format('d');
+
+            if ($u === 'days') {
+                $dt->modify('+' . $d . ' days');
+                return $dt->format('Y-m-d');
+            }
+
+            if ($u === 'months') {
+                $total_months = ($month - 1) + $d;
+                $target_year = $year + intdiv($total_months, 12);
+                $target_month = ($total_months % 12) + 1;
+                $max_days = function_exists('cal_days_in_month')
+                    ? cal_days_in_month(CAL_GREGORIAN, $target_month, $target_year)
+                    : (int) (new DateTime(sprintf('%04d-%02d-01', $target_year, $target_month)))->format('t');
+                $target_day = min($day, $max_days);
+                return sprintf('%04d-%02d-%02d', $target_year, $target_month, $target_day);
+            }
+
+            if ($u === 'years') {
+                $target_year = $year + $d;
+                $max_days = function_exists('cal_days_in_month')
+                    ? cal_days_in_month(CAL_GREGORIAN, $month, $target_year)
+                    : (int) (new DateTime(sprintf('%04d-%02d-01', $target_year, $month)))->format('t');
+                $target_day = min($day, $max_days);
+                return sprintf('%04d-%02d-%02d', $target_year, $month, $target_day);
+            }
+
+            return null;
+        } catch (Exception $e) {
+            return null;
+        }
+    }
+}
+
+if (!function_exists('app_catalog_warranty_state')) {
+    function app_catalog_warranty_state(array $item): array {
+        $has = isset($item['has_warranty']) && $item['has_warranty'] !== null && $item['has_warranty'] !== ''
+            ? (int) $item['has_warranty']
+            : null;
+
+        $duration = isset($item['warranty_duration']) && $item['warranty_duration'] !== null && $item['warranty_duration'] !== ''
+            ? (int) $item['warranty_duration']
+            : null;
+
+        $unit = !empty($item['warranty_unit']) ? strtolower(trim((string) $item['warranty_unit'])) : null;
+        $coverage = !empty($item['warranty_coverage']) ? trim((string) $item['warranty_coverage']) : null;
+        $conditions = !empty($item['warranty_conditions']) ? trim((string) $item['warranty_conditions']) : null;
+
+        if ($has === 1) {
+            $state = 'applicable';
+            $label = 'Warranty Applicable';
+            $formatted_duration = app_format_warranty_duration($duration, $unit);
+            $summary = $formatted_duration !== ''
+                ? ($formatted_duration . ($coverage ? ' (' . $coverage . ')' : ''))
+                : 'Warranty Applicable';
+        } elseif ($has === 0) {
+            $state = 'no_warranty';
+            $label = 'No Warranty';
+            $formatted_duration = '';
+            $summary = 'No Warranty';
+            $duration = null;
+            $unit = null;
+            $coverage = null;
+            $conditions = null;
+        } else {
+            $state = 'not_specified';
+            $label = 'Warranty Not Specified';
+            $formatted_duration = '';
+            $summary = 'Not Specified';
+            $duration = null;
+            $unit = null;
+            $coverage = null;
+            $conditions = null;
+        }
+
+        return [
+            'has_warranty' => $has,
+            'state' => $state,
+            'label' => $label,
+            'duration' => $duration,
+            'unit' => $unit,
+            'coverage' => $coverage,
+            'conditions' => $conditions,
+            'formatted_duration' => $formatted_duration,
+            'summary' => $summary,
+        ];
+    }
+}
+
+if (!function_exists('app_catalog_warranty_badge')) {
+    function app_catalog_warranty_badge(array $item, array $options = []): string {
+        $w = app_catalog_warranty_state($item);
+        $font_size = $options['font_size'] ?? '11px';
+
+        if ($w['state'] === 'applicable') {
+            $title = esc_attr($w['summary'] . ($w['conditions'] ? ' — ' . $w['conditions'] : ''));
+            return '<span class="badge bg-info-subtle text-info-emphasis border border-info-subtle px-2 py-1" style="font-size: ' . esc_attr($font_size) . ';" title="' . $title . '">'
+                . '<i class="fas fa-shield-alt me-1"></i>' . esc_html($w['formatted_duration'] ?: 'Applicable')
+                . '</span>';
+        }
+
+        if ($w['state'] === 'no_warranty') {
+            return '<span class="badge bg-light text-muted border px-2 py-1" style="font-size: ' . esc_attr($font_size) . ';">'
+                . 'No Warranty'
+                . '</span>';
+        }
+
+        return '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="font-size: ' . esc_attr($font_size) . ';">'
+            . 'Not Specified'
+            . '</span>';
+    }
+}
+
+if (!function_exists('app_transaction_warranty_state')) {
+    function app_transaction_warranty_state(array $trans, ?string $as_of_date = null): array {
+        $snapshot_has = isset($trans['warranty_snapshot_has']) && $trans['warranty_snapshot_has'] !== null && $trans['warranty_snapshot_has'] !== ''
+            ? (int) $trans['warranty_snapshot_has']
+            : null;
+
+        $duration = isset($trans['warranty_duration']) && $trans['warranty_duration'] !== null && $trans['warranty_duration'] !== ''
+            ? (int) $trans['warranty_duration']
+            : null;
+
+        $unit = !empty($trans['warranty_unit']) ? strtolower(trim((string) $trans['warranty_unit'])) : null;
+        $coverage = !empty($trans['warranty_coverage']) ? trim((string) $trans['warranty_coverage']) : null;
+        $conditions = !empty($trans['warranty_conditions']) ? trim((string) $trans['warranty_conditions']) : null;
+        $start_date = !empty($trans['warranty_start_date']) && $trans['warranty_start_date'] !== '0000-00-00'
+            ? trim((string) $trans['warranty_start_date'])
+            : null;
+        $expiry_date = !empty($trans['warranty_expiry_date']) && $trans['warranty_expiry_date'] !== '0000-00-00'
+            ? trim((string) $trans['warranty_expiry_date'])
+            : null;
+
+        $formatted_duration = app_format_warranty_duration($duration, $unit);
+
+        if ($snapshot_has === null) {
+            return [
+                'snapshot_has' => null,
+                'state' => 'not_recorded',
+                'label' => 'Warranty Not Recorded',
+                'duration' => null,
+                'unit' => null,
+                'coverage' => null,
+                'conditions' => null,
+                'start_date' => null,
+                'expiry_date' => null,
+                'formatted_duration' => '',
+                'summary' => 'Warranty Not Recorded',
+                'is_active' => false,
+                'is_expired' => false,
+                'is_pending' => false,
+            ];
+        }
+
+        if ($snapshot_has === 0) {
+            return [
+                'snapshot_has' => 0,
+                'state' => 'no_warranty',
+                'label' => 'Sold Without Warranty',
+                'duration' => null,
+                'unit' => null,
+                'coverage' => null,
+                'conditions' => null,
+                'start_date' => null,
+                'expiry_date' => null,
+                'formatted_duration' => '',
+                'summary' => 'Sold Without Warranty',
+                'is_active' => false,
+                'is_expired' => false,
+                'is_pending' => false,
+            ];
+        }
+
+        // snapshot_has === 1
+        if (empty($start_date)) {
+            return [
+                'snapshot_has' => 1,
+                'state' => 'pending_completion',
+                'label' => 'Pending Completion',
+                'duration' => $duration,
+                'unit' => $unit,
+                'coverage' => $coverage,
+                'conditions' => $conditions,
+                'start_date' => null,
+                'expiry_date' => null,
+                'formatted_duration' => $formatted_duration,
+                'summary' => 'Pending Job Order Completion',
+                'is_active' => false,
+                'is_expired' => false,
+                'is_pending' => true,
+            ];
+        }
+
+        if (empty($expiry_date)) {
+            $expiry_date = app_calculate_warranty_expiry_date($start_date, $duration, $unit);
+        }
+
+        if (empty($expiry_date)) {
+            return [
+                'snapshot_has' => 1,
+                'state' => 'pending_completion',
+                'label' => 'Pending Completion',
+                'duration' => $duration,
+                'unit' => $unit,
+                'coverage' => $coverage,
+                'conditions' => $conditions,
+                'start_date' => $start_date,
+                'expiry_date' => null,
+                'formatted_duration' => $formatted_duration,
+                'summary' => 'Pending Completion Date Calculation',
+                'is_active' => false,
+                'is_expired' => false,
+                'is_pending' => true,
+            ];
+        }
+
+        $check_date = $as_of_date ?: date('Y-m-d');
+        $is_expired = ($check_date > $expiry_date);
+        $formatted_expiry = function_exists('format_date') ? format_date($expiry_date, 'M d, Y') : $expiry_date;
+
+        if ($is_expired) {
+            return [
+                'snapshot_has' => 1,
+                'state' => 'expired',
+                'label' => 'Expired',
+                'duration' => $duration,
+                'unit' => $unit,
+                'coverage' => $coverage,
+                'conditions' => $conditions,
+                'start_date' => $start_date,
+                'expiry_date' => $expiry_date,
+                'formatted_duration' => $formatted_duration,
+                'summary' => 'Expired on ' . $formatted_expiry,
+                'is_active' => false,
+                'is_expired' => true,
+                'is_pending' => false,
+            ];
+        }
+
+        return [
+            'snapshot_has' => 1,
+            'state' => 'active',
+            'label' => 'Active',
+            'duration' => $duration,
+            'unit' => $unit,
+            'coverage' => $coverage,
+            'conditions' => $conditions,
+            'start_date' => $start_date,
+            'expiry_date' => $expiry_date,
+            'formatted_duration' => $formatted_duration,
+            'summary' => 'Active until ' . $formatted_expiry,
+            'is_active' => true,
+            'is_expired' => false,
+            'is_pending' => false,
+        ];
+    }
+}
+
+
+if (!function_exists('app_is_customer_facing_transaction')) {
+    function app_is_customer_facing_transaction(array $trans): bool {
+        $tx_type = strtolower(trim((string) ($trans['transaction_type'] ?? '')));
+        if ($tx_type !== 'stock_out') {
+            return false;
+        }
+
+        $ref_type = strtolower(trim((string) ($trans['reference_type'] ?? '')));
+        $notes = (string) ($trans['notes'] ?? '');
+
+        // 1. Explicit internal movement exclusions
+        $internal_refs = [
+            'damaged', 'defective', 'damage',
+            'internal_use', 'shop_use', 'internal',
+            'inter_branch_transfer', 'transfer', 'branch_transfer',
+            'adjustment', 'count_adjustment'
+        ];
+        if (in_array($ref_type, $internal_refs, true)) {
+            return false;
+        }
+
+        if (preg_match('/Reason:\s*(Damaged|Defective|Internal|Shop Use|Transfer|Adjustment)/i', $notes)) {
+            return false;
+        }
+
+        if (stripos($notes, 'received from') !== false || stripos($notes, 'transferred to') !== false) {
+            return false;
+        }
+
+        // 2. Verified customer sales and Job Order material installations
+        if (!empty($trans['job_order_id']) || in_array($ref_type, ['job_order', 'job_order_item'], true)) {
+            return true;
+        }
+
+        if (!empty($trans['quotation_id']) || $ref_type === 'quotation') {
+            return true;
+        }
+
+        if (in_array($ref_type, ['direct_sale', 'counter_sale', 'walk_in', 'sale'], true) || stripos($notes, 'Reason: Direct Sale') !== false) {
+            return true;
+        }
+
+        // 3. Transactions with an explicit recorded warranty snapshot (0 or 1)
+        if (isset($trans['warranty_snapshot_has']) && $trans['warranty_snapshot_has'] !== null && $trans['warranty_snapshot_has'] !== '') {
+            return true;
+        }
+
+        // 4. Default: Suppress non-customer transactions
+        return false;
+    }
+}
+
+if (!function_exists('app_transaction_warranty_badge')) {
+    function app_transaction_warranty_badge(array $trans, array $options = []): string {
+        $w = app_transaction_warranty_state($trans, $options['as_of_date'] ?? null);
+        $font_size = $options['font_size'] ?? '11px';
+
+        if ($w['state'] === 'active') {
+            $title = esc_attr($w['summary'] . ($w['coverage'] ? ' (' . $w['coverage'] . ')' : ''));
+            return '<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: ' . esc_attr($font_size) . ';" title="' . $title . '">'
+                . '<i class="fas fa-shield-alt me-1"></i>Active (' . esc_html($w['summary']) . ')'
+                . '</span>';
+        }
+
+        if ($w['state'] === 'expired') {
+            return '<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" style="font-size: ' . esc_attr($font_size) . ';">'
+                . '<i class="fas fa-clock-rotate-left me-1"></i>' . esc_html($w['summary'])
+                . '</span>';
+        }
+
+        if ($w['state'] === 'pending_completion') {
+            return '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1" style="font-size: ' . esc_attr($font_size) . ';">'
+                . '<i class="fas fa-clock me-1"></i>Pending Completion'
+                . '</span>';
+        }
+
+        if ($w['state'] === 'no_warranty') {
+            return '<span class="badge bg-light text-muted border px-2 py-1" style="font-size: ' . esc_attr($font_size) . ';">'
+                . 'No Warranty'
+                . '</span>';
+        }
+
+        return '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="font-size: ' . esc_attr($font_size) . ';">'
+            . 'Not Recorded'
+            . '</span>';
+    }
+}

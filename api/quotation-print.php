@@ -113,6 +113,16 @@ try {
     $issued_inventory_items = app_line_item_load_linked_inventory_transactions($pdo, [
         'quotation_id' => $quotation_id,
     ]);
+    $issued_by_quote_item = [];
+    foreach ($issued_inventory_items as $trans) {
+        $q_item_id = (int) ($trans['quotation_item_id'] ?? 0);
+        if ($q_item_id <= 0 && ($trans['reference_type'] ?? '') === 'job_order_item') {
+            $q_item_id = (int) ($trans['reference_id'] ?? 0);
+        }
+        if ($q_item_id > 0) {
+            $issued_by_quote_item[$q_item_id] = $trans;
+        }
+    }
 
     $labor_cost = (float) ($quotation['labor_cost'] ?? 0);
     $quote_totals = app_quotation_calculate_totals($items, $issued_inventory_items ?? [], $labor_cost);
@@ -143,6 +153,35 @@ try {
             $receipt_height += 11 + (max(0, (int) ceil($name_length / 30) - 1) * 4);
             if ($detail_length > 0) {
                 $receipt_height += 4;
+            }
+            $is_service_line = app_line_item_is_service($item);
+            if (!$is_service_line) {
+                $item_id = (int) ($item['id'] ?? 0);
+                $linked_trans = $issued_by_quote_item[$item_id] ?? null;
+                $inv_meta = app_line_item_meta($item);
+                $inv_id = (int) ($inv_meta['inventory_item_id'] ?? 0);
+                $inv_item = $inv_id > 0 ? ($inventory_items_by_id[$inv_id] ?? []) : ($inventory_items_by_id['name:' . strtolower(trim((string) ($item['item_name'] ?? '')))] ?? []);
+                $warranty_calc_text = '';
+                if ($linked_trans) {
+                    $w = app_transaction_warranty_state($linked_trans);
+                    if ($w['snapshot_has'] === 1) {
+                        $warranty_calc_text = $w['summary'];
+                    } elseif ($w['snapshot_has'] === 0) {
+                        $warranty_calc_text = 'Sold Without Warranty';
+                    } else {
+                        $warranty_calc_text = 'Warranty Not Recorded';
+                    }
+                } elseif (!empty($inv_item)) {
+                    $cat_w = app_catalog_warranty_state($inv_item);
+                    if ($cat_w['has_warranty'] === 1) {
+                        $warranty_calc_text = 'Est. Warranty: ' . $cat_w['summary'];
+                    } elseif ($cat_w['has_warranty'] === 0) {
+                        $warranty_calc_text = 'Warranty: No Warranty';
+                    }
+                }
+                if ($warranty_calc_text !== '') {
+                    $receipt_height += 5 + (max(0, (int) ceil(strlen($warranty_calc_text) / 32) - 1) * 3);
+                }
             }
         }
     }
@@ -193,9 +232,47 @@ try {
             $detail_html = $detail_text !== ''
                 ? '<br><span style="font-weight:normal;color:#64748B;font-size:7px;">' . quote_pdf_text($detail_text) . '</span>'
                 : '';
+
+            $warranty_text = '';
+            if (!$is_service_line) {
+                $item_id = (int) ($item['id'] ?? 0);
+                $linked_trans = $issued_by_quote_item[$item_id] ?? null;
+                $inv_meta = app_line_item_meta($item);
+                $inv_id = (int) ($inv_meta['inventory_item_id'] ?? 0);
+                $inv_item = $inv_id > 0 ? ($inventory_items_by_id[$inv_id] ?? []) : ($inventory_items_by_id['name:' . strtolower(trim((string) ($item['item_name'] ?? '')))] ?? []);
+
+                if ($linked_trans) {
+                    $w = app_transaction_warranty_state($linked_trans);
+                    if ($w['snapshot_has'] === 1) {
+                        if ($w['state'] === 'active') {
+                            $warranty_text = 'Warranty: Active until ' . date('M d, Y', strtotime($w['expiry_date'])) . ' (' . $w['formatted_duration'] . ($w['coverage'] ? ', ' . $w['coverage'] : '') . ')';
+                        } elseif ($w['state'] === 'expired') {
+                            $warranty_text = 'Warranty: Expired on ' . date('M d, Y', strtotime($w['expiry_date'])) . ' (' . $w['formatted_duration'] . ')';
+                        } else {
+                            $warranty_text = 'Warranty: ' . $w['formatted_duration'] . ' (Pending Job Order Completion)' . ($w['coverage'] ? ' - ' . $w['coverage'] : '');
+                        }
+                    } elseif ($w['snapshot_has'] === 0) {
+                        $warranty_text = 'Warranty: Sold Without Warranty';
+                    } else {
+                        $warranty_text = 'Warranty: Not Recorded';
+                    }
+                } elseif (!empty($inv_item)) {
+                    $cat_w = app_catalog_warranty_state($inv_item);
+                    if ($cat_w['has_warranty'] === 1) {
+                        $warranty_text = 'Est. Warranty: ' . $cat_w['formatted_duration'] . ($cat_w['coverage'] ? ' (' . $cat_w['coverage'] . ')' : '');
+                    } elseif ($cat_w['has_warranty'] === 0) {
+                        $warranty_text = 'Warranty: No Warranty';
+                    }
+                }
+            }
+
+            $warranty_html = $warranty_text !== ''
+                ? '<br><span style="font-weight:normal;color:#0284C7;font-size:7px;">' . quote_pdf_text($warranty_text) . '</span>'
+                : '';
+
             $rows_html .= '
                 <tr>
-                    <td colspan="2" style="padding-top:4px;font-weight:bold;">' . quote_pdf_text(app_display_item_name($item['item_name'] ?? '-', $item['item_type'] ?? null)) . $detail_html . '</td>
+                    <td colspan="2" style="padding-top:4px;font-weight:bold;">' . quote_pdf_text(app_display_item_name($item['item_name'] ?? '-', $item['item_type'] ?? null)) . $detail_html . $warranty_html . '</td>
                 </tr>
                 <tr>
                     <td style="padding-bottom:4px;border-bottom:1px dashed #CBD5E1;color:#475569;">

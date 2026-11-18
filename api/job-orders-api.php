@@ -338,6 +338,16 @@ if ($action === 'update_status') {
             ");
             $mark_done->execute([$user['id'] ?? null, $job_order_id]);
 
+            if (app_column_exists('job_orders', 'actual_end_time')) {
+                $end_stmt = $pdo->prepare("UPDATE job_orders SET actual_end_time = COALESCE(actual_end_time, NOW()) WHERE id = ?");
+                $end_stmt->execute([$job_order_id]);
+            }
+
+            // HWTIRES Revision 4: Activate pending inventory warranties on job order completion
+            if (function_exists('job_order_activate_inventory_warranties')) {
+                job_order_activate_inventory_warranties($pdo, $job_order_id);
+            }
+
             try {
                 $details_stmt = $pdo->prepare("
                     SELECT jo.*, q.total_amount AS quotation_total, v.last_mileage

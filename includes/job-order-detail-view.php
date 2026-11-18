@@ -135,6 +135,16 @@ try {
         'job_order_id' => $job_order_id,
         'quotation_id' => (int) ($job_order['quotation_id'] ?? 0),
     ]);
+    $issued_by_quote_item = [];
+    foreach ($issued_inventory_items as $trans) {
+        $q_item_id = (int) ($trans['quotation_item_id'] ?? 0);
+        if ($q_item_id <= 0 && ($trans['reference_type'] ?? '') === 'job_order_item') {
+            $q_item_id = (int) ($trans['reference_id'] ?? 0);
+        }
+        if ($q_item_id > 0) {
+            $issued_by_quote_item[$q_item_id] = $trans;
+        }
+    }
 } catch (Exception $e) {
     error_log('Job order view error: ' . $e->getMessage());
     set_flash_message('Error loading job order', 'error');
@@ -347,7 +357,8 @@ $notes = trim((string) ($job_order['notes'] ?? ''));
                         <tr>
                             <th>Item Description &amp; Details</th>
                             <th style="width: 20%;">Category</th>
-                            <th class="text-end" style="width: 15%;">Quantity</th>
+                            <th style="width: 25%;">Warranty</th>
+                            <th class="text-end" style="width: 12%;">Quantity</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -357,10 +368,41 @@ $notes = trim((string) ($job_order['notes'] ?? ''));
                             $inv_item_meta = app_line_item_meta($item);
                             $inv_item_record = !empty($inv_item_meta['inventory_item_id']) ? ($inventory_items_by_id[$inv_item_meta['inventory_item_id']] ?? []) : [];
                             $category_badge_text = app_line_item_type_label($item, $inv_item_record, $item['category'] ?? 'General');
+                            $is_service = app_line_item_is_service($item);
                             ?>
                             <tr>
                                 <td><?php echo app_line_item_description_html($item, $inventory_items_by_id, ['include_type' => true]); ?></td>
                                 <td><span class="job-detail-chip"><?php echo esc_html($category_badge_text); ?></span></td>
+                                <td>
+                                    <?php if ($is_service): ?>
+                                        <span class="text-muted small">N/A (Service)</span>
+                                    <?php else: ?>
+                                        <?php
+                                        $linked_trans = $issued_by_quote_item[(int) ($item['id'] ?? 0)] ?? null;
+                                        if ($linked_trans) {
+                                            echo app_transaction_warranty_badge($linked_trans);
+                                            $w_trans_state = app_transaction_warranty_state($linked_trans);
+                                            if (!empty($w_trans_state['coverage'])) {
+                                                echo '<div class="small text-muted mt-1">' . esc_html($w_trans_state['coverage']) . '</div>';
+                                            }
+                                            if (!empty($w_trans_state['conditions'])) {
+                                                echo '<div class="small text-muted" style="font-size: 10px;">' . esc_html($w_trans_state['conditions']) . '</div>';
+                                            }
+                                        } else {
+                                            $cat_state = app_catalog_warranty_state($inv_item_record);
+                                            if ($cat_state['state'] === 'applicable') {
+                                                echo '<span class="badge bg-light text-muted border px-2 py-1" style="font-size: 11px;" title="Catalog estimate - material not yet deducted">'
+                                                    . '<i class="fas fa-shield-alt me-1"></i>Est: ' . esc_html($cat_state['formatted_duration'] ?: 'Applicable')
+                                                    . '</span>';
+                                            } elseif ($cat_state['state'] === 'no_warranty') {
+                                                echo '<span class="badge bg-light text-muted border px-2 py-1" style="font-size: 11px;">No Warranty</span>';
+                                            } else {
+                                                echo '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="font-size: 11px;" title="No stock-out transaction is linked to this quotation line.">Issuance Not Linked</span>';
+                                            }
+                                        }
+                                        ?>
+                                    <?php endif; ?>
+                                </td>
                                 <td class="text-end"><strong><?php echo $quantity; ?></strong></td>
                             </tr>
                         <?php endforeach; ?>
@@ -368,6 +410,14 @@ $notes = trim((string) ($job_order['notes'] ?? ''));
                 </table>
             </div>
         </section>
+    <?php endif; ?>
+
+    <?php if (!empty($issued_inventory_items)): ?>
+        <?php echo app_inventory_transaction_table_html($issued_inventory_items, [
+            'container' => 'section',
+            'title' => 'Materials & Parts Consumed',
+            'subtitle' => 'Stock-out inventory products issued and recorded for this job order with frozen warranty snapshots.',
+        ]); ?>
     <?php endif; ?>
 
     <?php if ($notes !== ''): ?>
