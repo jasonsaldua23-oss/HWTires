@@ -176,97 +176,28 @@ try {
     $update_stmt = $pdo->prepare("UPDATE quotations SET labor_cost = ?, parts_cost = ?, tires_cost = ?, tax_amount = 0, total_amount = ?, updated_at = NOW() WHERE id = ?");
     $update_stmt->execute([$labor_cost, $parts_cost, $tires_cost, $total_amount, $quotation_id]);
 
-    // Inventory adjustments: if there are existing stock_out transactions for this quotation,
-    // reverse them for old items and reapply for new items to match current quotation.
-    $stockout_check = $pdo->prepare("SELECT COUNT(*) FROM inventory_transactions WHERE reference_type = 'quotation' AND reference_id = ? AND LOWER(REPLACE(transaction_type, ' ', '_')) = 'stock_out'");
+    // Safeguard: Verify no historical quotation-level stock-out transactions exist.
+    // In standard HWTIRES workflows, quotation creation and editing do not deduct inventory;
+    // material consumption is strictly owned by Job Orders.
+    // If historical stock-out records exist, automatic restoration and re-deduction are prohibited
+    // to prevent inventory corruption and FIFO batch disparity. Manual reconciliation is required.
+    $stockout_check = $pdo->prepare("
+        SELECT id
+        FROM inventory_transactions
+        WHERE reference_type = 'quotation'
+          AND reference_id = ?
+          AND LOWER(REPLACE(transaction_type, ' ', '_')) = 'stock_out'
+        LIMIT 1
+        FOR UPDATE
+    ");
     $stockout_check->execute([$quotation_id]);
-    $stockout_count = (int) $stockout_check->fetchColumn();
+    $has_stock_out = (bool) $stockout_check->fetchColumn();
 
-    if ($stockout_count > 0) {
-        // Reverse old stock outs
-        foreach ($old_items as $oit) {
-            $otype = strtolower((string) ($oit['item_type'] ?? ''));
-            $source = strtolower((string) ($oit['source'] ?? ''));
-            if (!in_array($otype, ['part', 'tire'], true) || in_array($source, ['external', 'customer_supplied'], true)) {
-                continue;
-            }
-
-            $meta = [];
-            $notes = trim((string) ($oit['notes'] ?? ''));
-            if ($notes !== '' && $notes[0] === '{') {
-                $decoded = json_decode($notes, true);
-                if (is_array($decoded)) $meta = $decoded;
-            }
-
-            $inventory_item_id = (int) ($meta['inventory_item_id'] ?? 0);
-            if ($inventory_item_id <= 0) continue;
-
-            $qty = max(1, (int) ($oit['quantity'] ?? 1));
-            // Increase inventory back
-            $pdo->prepare("UPDATE inventory_items SET quantity = quantity + ? WHERE id = ?")->execute([$qty, $inventory_item_id]);
-            // Insert stock_in transaction note
-            quotation_edit_log_inventory_transaction($pdo,
-                $inventory_item_id,
-                'stock_in',
-                $qty,
-                'quotation',
-                $quotation_id,
-                'Quotation edit restore: ' . ($quotation['quotation_number'] ?? ('QT#' . $quotation_id)),
-                $user['id'] ?? null,
-                [
-                    'customer_id' => $quotation['customer_id'] ?? null,
-                    'vehicle_id' => $quotation['vehicle_id'] ?? null,
-                    'quotation_id' => $quotation_id,
-                    'quotation_item_id' => $oit['id'] ?? null,
-                ]
-            );
-        }
-
-        // Apply stock outs for remaining items
-        foreach ($new_items as $nit) {
-            $ntype = strtolower((string) ($nit['item_type'] ?? ''));
-            $source = strtolower((string) ($nit['source'] ?? ''));
-            if (!in_array($ntype, ['part', 'tire'], true) || in_array($source, ['external', 'customer_supplied'], true)) {
-                continue;
-            }
-
-            $meta = [];
-            $notes = trim((string) ($nit['notes'] ?? ''));
-            if ($notes !== '' && $notes[0] === '{') {
-                $decoded = json_decode($notes, true);
-                if (is_array($decoded)) $meta = $decoded;
-            }
-
-            $inventory_item_id = (int) ($meta['inventory_item_id'] ?? 0);
-            if ($inventory_item_id <= 0) continue;
-
-            $qty = max(1, (int) ($nit['quantity'] ?? 1));
-
-            // Lock and check availability
-            $lock_stmt = $pdo->prepare("SELECT i.id, i.item_name, i.quantity FROM inventory_items i WHERE i.id = ? LIMIT 1 FOR UPDATE");
-            $lock_stmt->execute([$inventory_item_id]);
-            $inv = $lock_stmt->fetch(PDO::FETCH_ASSOC);
-            if (!$inv) throw new Exception('Inventory item not found for ' . ($nit['item_name'] ?? 'item'));
-            $available = (int) ($inv['quantity'] ?? 0);
-            if ($available < $qty) throw new Exception('Insufficient stock for ' . ($inv['item_name'] ?? 'item') . '. Available: ' . $available . ', required: ' . $qty);
-
-            $pdo->prepare("UPDATE inventory_items SET quantity = quantity - ? WHERE id = ?")->execute([$qty, $inventory_item_id]);
-            quotation_edit_log_inventory_transaction($pdo,
-                $inventory_item_id,
-                'stock_out',
-                $qty,
-                'quotation',
-                $quotation_id,
-                'Quotation edit applied: ' . ($quotation['quotation_number'] ?? ('QT#' . $quotation_id)),
-                $user['id'] ?? null,
-                [
-                    'customer_id' => $quotation['customer_id'] ?? null,
-                    'vehicle_id' => $quotation['vehicle_id'] ?? null,
-                    'quotation_id' => $quotation_id,
-                    'quotation_item_id' => $nit['id'] ?? null,
-                ]
-            );
-        }
+    if ($has_stock_out) {
+        throw new Exception(
+            "Cannot edit quotation #{$quotation_id}: Historical quotation-level stock-out transactions exist. " .
+            "Automatic inventory adjustment during quotation edit is disabled to prevent inventory discrepancies. Manual inventory reconciliation is required."
+        );
     }
 
     $pdo->commit();

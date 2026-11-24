@@ -256,65 +256,54 @@ if (!function_exists('quotation_apply_inventory_deduction')) {
 }
 
 if (!function_exists('quotation_reverse_inventory_deduction')) {
+    /**
+     * Reversal safeguard for quotation archival / deletion.
+     *
+     * In standard HWTIRES workflows, quotation creation and approval do not deduct inventory;
+     * actual material consumption is exclusively owned by Job Orders.
+     *
+     * To prevent phantom inventory restoration:
+     * - If no historical quotation-level stock_out exists: return 0 without touching inventory.
+     * - If historical quotation-level stock_out exists: fail closed with an Exception requiring
+     *   manual reconciliation, rolling back caller archive/delete to prevent unverified inventory changes.
+     *
+     * @param PDO $pdo
+     * @param array $quotation
+     * @param array $items
+     * @return int
+     * @throws Exception
+     */
     function quotation_reverse_inventory_deduction(PDO $pdo, array $quotation, array $items) {
         $quotation_id = (int) ($quotation['id'] ?? 0);
         if ($quotation_id <= 0) {
             throw new Exception('Invalid quotation for inventory restore');
         }
 
-        $restored_stmt = $pdo->prepare("\n            SELECT COUNT(*)\n            FROM inventory_transactions\n            WHERE reference_type = 'quotation'\n              AND reference_id = ?\n              AND transaction_type = 'stock_in'\n        ");
-        $restored_stmt->execute([$quotation_id]);
-        if ((int) $restored_stmt->fetchColumn() > 0) {
+        // Check if any quotation-level stock_out transaction was ever recorded for this quotation
+        $stockout_stmt = $pdo->prepare("
+            SELECT id
+            FROM inventory_transactions
+            WHERE reference_type = 'quotation'
+              AND reference_id = ?
+              AND LOWER(REPLACE(transaction_type, ' ', '_')) = 'stock_out'
+            LIMIT 1
+        ");
+        $stockout_stmt->execute([$quotation_id]);
+        $has_stock_out = (bool) $stockout_stmt->fetchColumn();
+
+        if (!$has_stock_out) {
+            // Normal workflow: quotations never deduct stock. No stock was ever issued,
+            // so restoring inventory would create phantom stock. Return 0 cleanly.
             return 0;
         }
 
-        $restored_count = 0;
-        foreach ($items as $item) {
-            $item_type = strtolower((string) ($item['item_type'] ?? ''));
-            $source = strtolower((string) ($item['source'] ?? ''));
-
-            if (!in_array($item_type, ['part', 'tire'], true) || in_array($source, ['external', 'customer_supplied'], true)) {
-                continue;
-            }
-
-            $meta = quotation_item_inventory_meta($item);
-            $inventory_item_id = (int) ($meta['inventory_item_id'] ?? 0);
-            if ($inventory_item_id <= 0) {
-                continue;
-            }
-
-            $quantity = max(1, (int) ($item['quantity'] ?? 1));
-            $lock_stmt = $pdo->prepare("\n                SELECT i.id, i.item_name, i.quantity, i.branch_id\n                FROM inventory_items i\n                INNER JOIN branches b ON b.id = i.branch_id\n                WHERE i.id = ?\n                  AND i.status = 'active'\n                  AND b.status = 'active'\n                  AND b.has_inventory = 1\n                LIMIT 1 FOR UPDATE\n            ");
-            $lock_stmt->execute([$inventory_item_id]);
-            $inventory_item = $lock_stmt->fetch(PDO::FETCH_ASSOC);
-
-            if (!$inventory_item) {
-                continue;
-            }
-
-            $update_stmt = $pdo->prepare("UPDATE inventory_items SET quantity = quantity + ? WHERE id = ?");
-            $update_stmt->execute([$quantity, (int) $inventory_item['id']]);
-
-            quotation_log_inventory_transaction($pdo,
-                (int) $inventory_item['id'],
-                'stock_in',
-                $quantity,
-                'quotation',
-                $quotation_id,
-                'Quotation archived: ' . ($quotation['quotation_number'] ?? ('QT #' . $quotation_id)),
-                $quotation['created_by'] ?? null,
-                [
-                    'customer_id' => $quotation['customer_id'] ?? null,
-                    'vehicle_id' => $quotation['vehicle_id'] ?? null,
-                    'quotation_id' => $quotation_id,
-                    'quotation_item_id' => $item['id'] ?? null,
-                ]
-            );
-
-            $restored_count++;
-        }
-
-        return $restored_count;
+        // Fail-closed guard: Historical quotation-level stock_out records exist.
+        // Unverified automatic restoration based on quotation_items is prohibited to prevent
+        // inventory corruption and FIFO batch disparity. Manual reconciliation is required.
+        throw new Exception(
+            "Cannot archive or delete quotation #{$quotation_id}: Historical quotation-level stock-out transactions exist. " .
+            "Automatic restoration is disabled to prevent inventory discrepancies. Manual inventory reconciliation is required."
+        );
     }
 }
 

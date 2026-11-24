@@ -46,6 +46,7 @@ if (!function_exists('transfer_log_inventory_transaction')) {
             VALUES (" . implode(', ', array_fill(0, count($columns), '?')) . ")
         ");
         $stmt->execute($values);
+        return (int) $pdo->lastInsertId();
     }
 }
 
@@ -272,16 +273,42 @@ try {
              * Approve transfer request (by donor branch)
              * POST: transfer_id, approved_quantity
              */
-            $transfer_id = (int) ($_POST['transfer_id'] ?? 0);
-            $approved_qty = (int) ($_POST['approved_quantity'] ?? 0);
-
-            if (!$transfer_id || $approved_qty <= 0) {
+            $raw_transfer_id = $_POST['transfer_id'] ?? null;
+            if ($raw_transfer_id === null || is_array($raw_transfer_id) || is_object($raw_transfer_id) || !preg_match('/^[1-9]\d*$/', trim((string) $raw_transfer_id))) {
                 throw new Exception('Invalid parameters');
             }
+            $transfer_id = (int) $raw_transfer_id;
 
-            // Get transfer request
+            // Strict raw validation for approved_quantity before integer casting
+            $raw_approved_qty = $_POST['approved_quantity'] ?? null;
+            if ($raw_approved_qty === null || is_array($raw_approved_qty) || is_object($raw_approved_qty)) {
+                throw new Exception('Invalid approved quantity');
+            }
+
+            $str_approved_qty = trim((string) $raw_approved_qty);
+            if ($str_approved_qty === '' || !preg_match('/^[0-9]+$/', $str_approved_qty)) {
+                throw new Exception('Approved quantity must be a positive whole number');
+            }
+
+            $normalized_qty_str = ltrim($str_approved_qty, '0');
+            if ($normalized_qty_str === '') {
+                throw new Exception('Approved quantity must be greater than zero');
+            }
+
+            $max_signed_int_str = '2147483647';
+            if (strlen($normalized_qty_str) > strlen($max_signed_int_str) ||
+                (strlen($normalized_qty_str) === strlen($max_signed_int_str) && strcmp($normalized_qty_str, $max_signed_int_str) > 0)) {
+                throw new Exception('Approved quantity exceeds maximum allowable integer limit (2147483647)');
+            }
+
+            $approved_qty = (int) $normalized_qty_str;
+
+            // Begin transaction BEFORE reading and locking the request
+            $pdo->beginTransaction();
+
+            // Lock transfer request row FOR UPDATE
             $stmt = $pdo->prepare("
-                SELECT * FROM inter_branch_transfer_requests WHERE id = ?
+                SELECT * FROM inter_branch_transfer_requests WHERE id = ? FOR UPDATE
             ");
             $stmt->execute([$transfer_id]);
             $transfer = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -290,24 +317,33 @@ try {
                 throw new Exception('Transfer request not found');
             }
 
-            // Verify user is from donor branch
-            if ($user['branch_id'] != $transfer['donor_branch_id'] && $user['role'] !== 'admin') {
+            // Verify user is from donor branch or admin
+            if ((int) ($user['branch_id'] ?? 0) !== (int) ($transfer['donor_branch_id'] ?? 0) && ($user['role'] ?? '') !== 'admin') {
                 throw new Exception('Only donor branch can approve transfers');
             }
 
-            if ($approved_qty > $transfer['requested_quantity']) {
+            // Status validation: only 'pending' or 'approved' requests may be approved
+            $current_status = strtolower(trim((string) ($transfer['status'] ?? 'pending')));
+            if (in_array($current_status, ['shipped', 'received', 'cancelled'], true)) {
+                throw new Exception("Transfer request #{$transfer_id} cannot be approved because its status is '{$current_status}'");
+            }
+
+            if (!in_array($current_status, ['pending', 'approved'], true)) {
+                throw new Exception("Transfer request #{$transfer_id} is not eligible for approval (current status: '{$current_status}')");
+            }
+
+            $requested_quantity = (int) ($transfer['requested_quantity'] ?? 0);
+            if ($approved_qty > $requested_quantity) {
                 throw new Exception('Approved quantity cannot exceed requested quantity');
             }
 
-            // Update transfer request
-            $pdo->beginTransaction();
-
-            $stmt = $pdo->prepare("
+            // Concurrency-guarded update: ensure row is still in an approvable state
+            $update_stmt = $pdo->prepare("
                 UPDATE inter_branch_transfer_requests
                 SET approved_quantity = ?, status = 'approved', approved_by = ?
-                WHERE id = ?
+                WHERE id = ? AND status IN ('pending', 'approved')
             ");
-            $stmt->execute([$approved_qty, $user['id'], $transfer_id]);
+            $update_stmt->execute([$approved_qty, $user['id'], $transfer_id]);
 
             // Notify both branches
             $title = "Transfer Approved: {$transfer['item_name']}";
@@ -338,7 +374,8 @@ try {
             }
 
             log_audit('inter_branch_transfer_requests', 'UPDATE', $transfer_id,
-                      ['approved_quantity' => 0], ['approved_quantity' => $approved_qty]);
+                      ['status' => $current_status, 'approved_quantity' => (int) ($transfer['approved_quantity'] ?? 0)],
+                      ['status' => 'approved', 'approved_quantity' => $approved_qty]);
 
             $pdo->commit();
 
@@ -363,18 +400,10 @@ try {
 
             $pdo->beginTransaction();
 
+            // 1. Lock the relevant transfer request with FOR UPDATE
             $stmt = $pdo->prepare("
                 SELECT
                     tr.*,
-                    donor_item.quantity AS donor_quantity,
-                    donor_item.item_name AS donor_item_name,
-                    donor_item.category AS donor_category,
-                    donor_item.brand AS donor_brand,
-                    donor_item.size AS donor_size,
-                    donor_item.description AS donor_description,
-                    donor_item.sku AS donor_sku,
-                    donor_item.reorder_level AS donor_reorder_level,
-                    donor_item.unit_price AS donor_unit_price,
                     rb.name AS requesting_branch_name,
                     rb.has_inventory AS requesting_has_inventory,
                     db.name AS donor_branch_name,
@@ -383,7 +412,6 @@ try {
                     q.vehicle_id,
                     jo.id AS job_order_id
                 FROM inter_branch_transfer_requests tr
-                INNER JOIN inventory_items donor_item ON donor_item.id = tr.item_id
                 INNER JOIN branches rb ON rb.id = tr.requesting_branch_id
                 INNER JOIN branches db ON db.id = tr.donor_branch_id
                 LEFT JOIN customers c ON c.id = tr.customer_id
@@ -399,6 +427,7 @@ try {
                 throw new Exception('Transfer request not found');
             }
 
+            // 2. Validate caller authorization and transfer status
             $is_admin = in_array($user['role'] ?? '', ['admin', 'owner', 'admin_owner'], true);
             if (!$is_admin && (int) ($user['branch_id'] ?? 0) !== (int) $transfer['donor_branch_id']) {
                 throw new Exception('Only the donor branch can mark this request as transferred');
@@ -425,29 +454,85 @@ try {
                 throw new Exception('This transfer request can no longer be shipped');
             }
 
+            $donor_item_id = (int) ($transfer['item_id'] ?? 0);
+            $donor_branch_id = (int) ($transfer['donor_branch_id'] ?? 0);
+            if ($donor_item_id <= 0 || $donor_branch_id <= 0) {
+                throw new Exception('Invalid transfer item or donor branch configuration');
+            }
+
+            // 3. Validate approved/requested shipment quantity as a positive integer within signed 32-bit INT bounds
             $transfer_qty = (int) ($transfer['approved_quantity'] ?? 0);
             if ($transfer_qty <= 0) {
                 $transfer_qty = (int) ($transfer['requested_quantity'] ?? 0);
             }
 
-            if ($transfer_qty <= 0) {
+            $max_signed_int = 2147483647;
+            if ($transfer_qty <= 0 || $transfer_qty > $max_signed_int) {
                 throw new Exception('Transfer quantity is invalid');
             }
 
-            if ((int) $transfer['donor_quantity'] < $transfer_qty) {
-                throw new Exception('Not enough stock in the donor branch to complete this transfer');
+            // 4. Lock the donor inventory item with FOR UPDATE
+            $item_stmt = $pdo->prepare("
+                SELECT id, item_name, branch_id, quantity, status
+                FROM inventory_items
+                WHERE id = ?
+                FOR UPDATE
+            ");
+            $item_stmt->execute([$donor_item_id]);
+            $donor_item = $item_stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$donor_item) {
+                throw new Exception("Donor inventory item #{$donor_item_id} not found");
             }
 
-            // Deduct from donor branch inventory
-            $stmt = $pdo->prepare("
+            if (($donor_item['status'] ?? '') !== 'active') {
+                throw new Exception("Donor inventory item #{$donor_item_id} is not active (status: '{$donor_item['status']}')");
+            }
+
+            if ((int) $donor_item['branch_id'] !== $donor_branch_id) {
+                throw new Exception("Donor item branch mismatch: item belongs to branch #{$donor_item['branch_id']}, not donor branch #{$donor_branch_id}");
+            }
+
+            if (!array_key_exists('quantity', $donor_item) || $donor_item['quantity'] === null) {
+                throw new Exception("Donor inventory item #{$donor_item_id} has NULL quantity in inventory_items");
+            }
+
+            $donor_old_quantity = (int) $donor_item['quantity'];
+            if ($donor_old_quantity < 0) {
+                throw new Exception("Donor inventory item #{$donor_item_id} has invalid negative quantity ({$donor_old_quantity})");
+            }
+
+            if ($donor_old_quantity < $transfer_qty) {
+                throw new Exception('Not enough stock in the donor branch to complete this transfer. Current stock: ' . $donor_old_quantity);
+            }
+
+            $donor_new_quantity = $donor_old_quantity - $transfer_qty;
+
+            // 5. Shared FIFO activation check
+            $is_fifo_active = app_is_fifo_active();
+
+            // Pre-issuance FIFO parity & anomaly verification (when FIFO is active in future)
+            if ($is_fifo_active) {
+                require_once __DIR__ . '/../includes/fifo-inventory.php';
+
+                $pre_recon = fifo_reconcile_item_stock($pdo, $donor_item_id, $donor_branch_id);
+                if (!$pre_recon['is_reconciled']) {
+                    throw new Exception('Pre-shipment FIFO parity reconciliation failed: ' . implode('; ', $pre_recon['reconciliation_errors']));
+                }
+
+                fifo_verify_pre_issuance($pdo, $donor_item_id, $donor_branch_id, $transfer_qty);
+            }
+
+            // Deduct from donor branch aggregate inventory
+            $update_stmt = $pdo->prepare("
                 UPDATE inventory_items
-                SET quantity = quantity - ?
+                SET quantity = ?
                 WHERE id = ? AND branch_id = ?
             ");
-            $stmt->execute([
-                $transfer_qty,
-                $transfer['item_id'],
-                $transfer['donor_branch_id']
+            $update_stmt->execute([
+                $donor_new_quantity,
+                $donor_item_id,
+                $donor_branch_id
             ]);
 
             $transfer_tags = [
@@ -457,15 +542,45 @@ try {
                 'quotation_id' => $transfer['quotation_id'] ?? null,
             ];
 
-            // Create stock_out transaction for donor branch
-            transfer_log_inventory_transaction($pdo, $user,
-                $transfer['item_id'],
+            $shipment_notes = "Item request {$transfer['request_number']} transferred to {$transfer['requesting_branch_name']}";
+
+            // Create stock_out transaction for donor branch and capture inserted transaction ID
+            $donor_tx_id = transfer_log_inventory_transaction(
+                $pdo,
+                $user,
+                $donor_item_id,
                 'stock_out',
                 $transfer_qty,
                 $transfer_id,
-                "Item request {$transfer['request_number']} transferred to {$transfer['requesting_branch_name']}",
+                $shipment_notes,
                 $transfer_tags
             );
+
+            if (!$donor_tx_id || $donor_tx_id <= 0) {
+                $donor_tx_id = (int) $pdo->lastInsertId();
+            }
+
+            if ($donor_tx_id <= 0) {
+                throw new Exception('Failed to record stock-out inventory transaction for transfer shipment');
+            }
+
+            // Allocate donor FIFO batches (when FIFO is active in future)
+            if ($is_fifo_active) {
+                fifo_allocate_for_transaction(
+                    $pdo,
+                    $donor_tx_id,
+                    $donor_item_id,
+                    $donor_branch_id,
+                    $transfer_qty,
+                    $shipment_notes
+                );
+
+                // Post-shipment FIFO parity reconciliation check
+                $post_recon = fifo_reconcile_item_stock($pdo, $donor_item_id, $donor_branch_id);
+                if (!$post_recon['is_reconciled']) {
+                    throw new Exception('Post-shipment FIFO parity reconciliation failed: ' . implode('; ', $post_recon['reconciliation_errors']));
+                }
+            }
 
             // Update transfer status to shipped (in transit)
             $stmt = $pdo->prepare("
@@ -495,7 +610,8 @@ try {
             ]);
 
             $notify_title = "Branch Transfer In Transit";
-            $notify_message = "{$transfer['item_name']} (Qty: {$transfer_qty}) was shipped from {$transfer['donor_branch_name']} to {$transfer['requesting_branch_name']}. Please receive it when it arrives.";
+            $item_display_name = trim((string) ($donor_item['item_name'] ?? $transfer['item_name'] ?? 'Inventory item'));
+            $notify_message = "{$item_display_name} (Qty: {$transfer_qty}) was shipped from {$transfer['donor_branch_name']} to {$transfer['requesting_branch_name']}. Please receive it when it arrives.";
             $receiver_url = "/hwtires/front-desk/tire-inventory/?transfer_request={$transfer_id}#incoming-branch-transfers";
 
             foreach ($notify_users_stmt->fetchAll(PDO::FETCH_ASSOC) as $notify_user) {
@@ -570,12 +686,14 @@ try {
 
             $is_admin = in_array($user['role'] ?? '', ['admin', 'owner', 'admin_owner'], true);
             $user_branch_id = (int) ($user['branch_id'] ?? 0);
+            $requesting_branch_id = (int) ($transfer['requesting_branch_id'] ?? 0);
+            $donor_branch_id = (int) ($transfer['donor_branch_id'] ?? 0);
 
-            if (!$is_admin && $user_branch_id !== (int) $transfer['requesting_branch_id']) {
+            if (!$is_admin && $user_branch_id !== $requesting_branch_id) {
                 throw new Exception('Only the receiving branch can accept this transfer');
             }
 
-            if (!$is_admin && $user_branch_id === (int) $transfer['donor_branch_id']) {
+            if (!$is_admin && $user_branch_id === $donor_branch_id) {
                 throw new Exception('Donor branch cannot accept its own transfer');
             }
 
@@ -597,6 +715,11 @@ try {
                 $transfer_qty = (int) ($transfer['requested_quantity'] ?? 0);
             }
 
+            $max_signed_int = 2147483647;
+            if ($transfer_qty <= 0 || $transfer_qty > $max_signed_int) {
+                throw new Exception('Transfer quantity is invalid');
+            }
+
             $transfer_tags = [
                 'customer_id' => $transfer['customer_id'] ?? null,
                 'vehicle_id' => $transfer['vehicle_id'] ?? null,
@@ -604,10 +727,15 @@ try {
                 'quotation_id' => $transfer['quotation_id'] ?? null,
             ];
 
+            $is_fifo_active = app_is_fifo_active();
+            if ($is_fifo_active) {
+                require_once __DIR__ . '/../includes/fifo-inventory.php';
+            }
+
             // If the requesting branch has inventory, add stock
             if ((int) ($transfer['requesting_has_inventory'] ?? 0) === 1) {
                 $destination_stmt = $pdo->prepare("
-                    SELECT id
+                    SELECT id, item_name, branch_id, quantity, status
                     FROM inventory_items
                     WHERE branch_id = ?
                       AND item_name = ?
@@ -619,24 +747,49 @@ try {
                     FOR UPDATE
                 ");
                 $destination_stmt->execute([
-                    $transfer['requesting_branch_id'],
+                    $requesting_branch_id,
                     $transfer['donor_item_name'],
                     $transfer['donor_category'],
                     $transfer['donor_brand'],
                     $transfer['donor_size']
                 ]);
-                $destination_item_id = (int) ($destination_stmt->fetchColumn() ?: 0);
+                $dest_item = $destination_stmt->fetch(PDO::FETCH_ASSOC);
 
-                if ($destination_item_id > 0) {
+                if ($dest_item) {
+                    $destination_item_id = (int) $dest_item['id'];
+
+                    if (!array_key_exists('quantity', $dest_item) || $dest_item['quantity'] === null) {
+                        throw new Exception("Destination inventory item #{$destination_item_id} has NULL quantity in inventory_items");
+                    }
+
+                    $dest_old_quantity = (int) $dest_item['quantity'];
+                    if ($dest_old_quantity < 0) {
+                        throw new Exception("Destination inventory item #{$destination_item_id} has invalid negative quantity ({$dest_old_quantity})");
+                    }
+
+                    if ($dest_old_quantity > $max_signed_int - $transfer_qty) {
+                        throw new Exception("Transfer receipt of {$transfer_qty} units would exceed maximum allowable integer limit ({$max_signed_int})");
+                    }
+
+                    $dest_new_quantity = $dest_old_quantity + $transfer_qty;
+
+                    // Pre-receipt parity check on existing item (when FIFO is active in future)
+                    if ($is_fifo_active) {
+                        $pre_recon = fifo_reconcile_item_stock($pdo, $destination_item_id, $requesting_branch_id);
+                        if (!$pre_recon['is_reconciled']) {
+                            throw new Exception('Pre-receipt FIFO parity reconciliation failed: ' . implode('; ', $pre_recon['reconciliation_errors']));
+                        }
+                    }
+
                     $stock_in_stmt = $pdo->prepare("
                         UPDATE inventory_items
-                        SET quantity = quantity + ?
+                        SET quantity = ?, last_restock_date = CURDATE()
                         WHERE id = ? AND branch_id = ?
                     ");
                     $stock_in_stmt->execute([
-                        $transfer_qty,
+                        $dest_new_quantity,
                         $destination_item_id,
-                        $transfer['requesting_branch_id']
+                        $requesting_branch_id
                     ]);
                 } else {
                     $insert_item_stmt = $pdo->prepare("
@@ -645,7 +798,7 @@ try {
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', CURDATE())
                     ");
                     $insert_item_stmt->execute([
-                        $transfer['requesting_branch_id'],
+                        $requesting_branch_id,
                         $transfer['donor_item_name'],
                         $transfer['donor_category'],
                         $transfer['donor_brand'],
@@ -656,16 +809,52 @@ try {
                         $transfer['donor_unit_price']
                     ]);
                     $destination_item_id = (int) $pdo->lastInsertId();
+
+                    if ($destination_item_id <= 0) {
+                        throw new Exception('Failed to create new destination inventory item');
+                    }
                 }
 
-                transfer_log_inventory_transaction($pdo, $user,
+                $shipment_received_note = "Item request {$transfer['request_number']} received from {$transfer['donor_branch_name']}";
+
+                $dest_tx_id = transfer_log_inventory_transaction($pdo, $user,
                     $destination_item_id,
                     'stock_in',
                     $transfer_qty,
                     $transfer_id,
-                    "Item request {$transfer['request_number']} received from {$transfer['donor_branch_name']}",
+                    $shipment_received_note,
                     $transfer_tags
                 );
+
+                if (!$dest_tx_id || $dest_tx_id <= 0) {
+                    $dest_tx_id = (int) $pdo->lastInsertId();
+                }
+
+                if ($dest_tx_id <= 0) {
+                    throw new Exception('Failed to record stock-in inventory transaction for transfer receipt');
+                }
+
+                // Create destination FIFO batch and reconcile parity (when FIFO is active in future)
+                if ($is_fifo_active) {
+                    $received_at = date('Y-m-d H:i:s');
+                    $source_ref = 'XFER-REQ-' . trim((string) ($transfer['request_number'] ?? ''));
+                    fifo_create_batch($pdo, [
+                        'item_id' => $destination_item_id,
+                        'branch_id' => $requesting_branch_id,
+                        'source_type' => 'transfer_receipt',
+                        'source_id' => $dest_tx_id,
+                        'source_sequence' => 1,
+                        'source_ref' => $source_ref,
+                        'initial_quantity' => $transfer_qty,
+                        'received_at' => $received_at,
+                        'is_legacy' => 0,
+                    ]);
+
+                    $post_recon = fifo_reconcile_item_stock($pdo, $destination_item_id, $requesting_branch_id);
+                    if (!$post_recon['is_reconciled']) {
+                        throw new Exception('Post-receipt FIFO parity reconciliation failed: ' . implode('; ', $post_recon['reconciliation_errors']));
+                    }
+                }
             }
 
             // Update status to received
@@ -689,7 +878,7 @@ try {
                 WHERE branch_id = ?
                   AND status = 'active'
             ");
-            $donor_users_stmt->execute([(int) $transfer['donor_branch_id']]);
+            $donor_users_stmt->execute([$donor_branch_id]);
             $received_title = "Branch Transfer Received";
             $received_message = "{$transfer['donor_item_name']} (Qty: {$transfer_qty}) has been received by {$transfer['requesting_branch_name']}.";
             $donor_action_url = "/hwtires/front-desk/tire-inventory/?transfer_request={$transfer_id}#requested-items";
@@ -939,14 +1128,15 @@ try {
              * Restores stock to donor branch once goods physically arrive back.
              * POST: transfer_id
              */
-            $transfer_id = (int) ($_POST['transfer_id'] ?? 0);
-
-            if (!$transfer_id) {
+            $raw_transfer_id = $_POST['transfer_id'] ?? null;
+            if ($raw_transfer_id === null || is_array($raw_transfer_id) || is_object($raw_transfer_id) || !preg_match('/^[1-9]\d*$/', trim((string) $raw_transfer_id))) {
                 throw new Exception('Invalid transfer ID');
             }
+            $transfer_id = (int) $raw_transfer_id;
 
             $pdo->beginTransaction();
 
+            // 1. Lock the transfer request row with FOR UPDATE
             $stmt = $pdo->prepare("
                 SELECT tr.*, rb.name AS requesting_branch_name, db.name AS donor_branch_name
                 FROM inter_branch_transfer_requests tr
@@ -962,15 +1152,24 @@ try {
                 throw new Exception('Transfer request not found');
             }
 
+            // 2. Caller authorization check
             $is_admin = in_array($user['role'] ?? '', ['admin', 'owner', 'admin_owner'], true);
             $user_branch_id = (int) ($user['branch_id'] ?? 0);
+            $donor_branch_id = (int) ($transfer['donor_branch_id'] ?? 0);
+            $requesting_branch_id = (int) ($transfer['requesting_branch_id'] ?? 0);
 
-            if (!$is_admin && $user_branch_id !== (int) $transfer['donor_branch_id']) {
+            if (!$is_admin && $user_branch_id !== $donor_branch_id) {
                 throw new Exception('Only the donor branch can confirm receipt of returned stock');
             }
 
-            if (!$is_admin && $user_branch_id === (int) $transfer['requesting_branch_id']) {
+            if (!$is_admin && $user_branch_id === $requesting_branch_id) {
                 throw new Exception('Receiving branch cannot confirm return for the donor branch');
+            }
+
+            // 3. Expected cancelled status and [RETURN_PENDING] marker check
+            $current_status = strtolower(trim((string) ($transfer['status'] ?? '')));
+            if ($current_status !== 'cancelled') {
+                throw new Exception("Transfer request #{$transfer_id} cannot be confirmed for return because its status is '{$current_status}' (expected 'cancelled')");
             }
 
             $notes = (string) ($transfer['notes'] ?? '');
@@ -978,6 +1177,7 @@ try {
                 throw new Exception('This transfer does not have a pending return to confirm');
             }
 
+            // 4. Idempotent check for [RETURNED]
             if (strpos($notes, '[RETURNED]') !== false) {
                 $pdo->commit();
                 $response['success'] = true;
@@ -986,32 +1186,204 @@ try {
                 break;
             }
 
+            // 5. Quantity validation
             $transfer_qty = (int) ($transfer['approved_quantity'] ?? 0);
             if ($transfer_qty <= 0) {
                 $transfer_qty = (int) ($transfer['requested_quantity'] ?? 0);
             }
 
-            // Restore donor stock
-            $stmt = $pdo->prepare("
+            $max_signed_int = 2147483647;
+            if ($transfer_qty <= 0 || $transfer_qty > $max_signed_int) {
+                throw new Exception('Transfer quantity is invalid');
+            }
+
+            $donor_item_id = (int) ($transfer['item_id'] ?? 0);
+            if ($donor_item_id <= 0 || $donor_branch_id <= 0) {
+                throw new Exception('Invalid transfer item or donor branch configuration');
+            }
+
+            // 6. Lock donor inventory item FOR UPDATE
+            $item_stmt = $pdo->prepare("
+                SELECT id, item_name, branch_id, quantity, status
+                FROM inventory_items
+                WHERE id = ?
+                FOR UPDATE
+            ");
+            $item_stmt->execute([$donor_item_id]);
+            $donor_item = $item_stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$donor_item) {
+                throw new Exception("Donor inventory item #{$donor_item_id} not found");
+            }
+
+            if (($donor_item['status'] ?? '') !== 'active') {
+                throw new Exception("Donor inventory item #{$donor_item_id} is not active (status: '{$donor_item['status']}')");
+            }
+
+            if ((int) $donor_item['branch_id'] !== $donor_branch_id) {
+                throw new Exception("Donor item branch mismatch: item belongs to branch #{$donor_item['branch_id']}, not donor branch #{$donor_branch_id}");
+            }
+
+            if (!array_key_exists('quantity', $donor_item) || $donor_item['quantity'] === null) {
+                throw new Exception("Donor inventory item #{$donor_item_id} has NULL quantity in inventory_items");
+            }
+
+            $donor_old_quantity = (int) $donor_item['quantity'];
+            if ($donor_old_quantity < 0) {
+                throw new Exception("Donor inventory item #{$donor_item_id} has invalid negative quantity ({$donor_old_quantity})");
+            }
+
+            if ($donor_old_quantity > $max_signed_int - $transfer_qty) {
+                throw new Exception("Stock restoration would exceed maximum allowable integer limit ({$max_signed_int})");
+            }
+
+            $donor_new_quantity = $donor_old_quantity + $transfer_qty;
+
+            // 7. Canonical FIFO activation check
+            $is_fifo_active = app_is_fifo_active();
+            $orig_shipment_tx_id = 0;
+
+            if ($is_fifo_active) {
+                require_once __DIR__ . '/../includes/fifo-inventory.php';
+
+                // Locate original donor shipment stock_out transaction using exact business identity
+                $shipment_tx_stmt = $pdo->prepare("
+                    SELECT id, item_id, quantity, reference_type, reference_id, created_at
+                    FROM inventory_transactions
+                    WHERE transaction_type = 'stock_out'
+                      AND reference_type = 'inter_branch_transfer'
+                      AND reference_id = ?
+                      AND item_id = ?
+                ");
+                $shipment_tx_stmt->execute([$transfer_id, $donor_item_id]);
+                $shipment_txs = $shipment_tx_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                if (empty($shipment_txs)) {
+                    throw new Exception("Original shipment stock-out transaction not found for transfer request #{$transfer_id} and item #{$donor_item_id}. Cannot safely determine FIFO allocation to reverse.");
+                }
+
+                if (count($shipment_txs) > 1) {
+                    throw new Exception("Ambiguous shipment history: multiple conflicting stock-out transactions found for transfer request #{$transfer_id}. Cannot safely determine FIFO allocation to reverse.");
+                }
+
+                $orig_shipment_tx = $shipment_txs[0];
+                $orig_shipment_tx_id = (int) ($orig_shipment_tx['id'] ?? 0);
+
+                // 1. Validate original shipment transaction quantity as a positive integer within signed INT bounds
+                $raw_orig_qty = $orig_shipment_tx['quantity'] ?? null;
+                if ($raw_orig_qty === null || !preg_match('/^[1-9]\d*$/', (string) $raw_orig_qty)) {
+                    throw new Exception("Original shipment transaction #{$orig_shipment_tx_id} has invalid non-positive quantity in inventory_transactions.");
+                }
+                $orig_shipment_qty = (int) $raw_orig_qty;
+                if ($orig_shipment_qty > $max_signed_int) {
+                    throw new Exception("Original shipment transaction #{$orig_shipment_tx_id} quantity exceeds maximum allowable integer limit ({$max_signed_int}).");
+                }
+
+                // 2. Require exact shipment and return quantity equality (reject partial and over-returns)
+                if ($orig_shipment_qty !== $transfer_qty) {
+                    throw new Exception("Return quantity mismatch for transfer request #{$transfer_id}: Confirmed return quantity ({$transfer_qty}) does not equal original shipment quantity ({$orig_shipment_qty}). Partial returns are not supported.");
+                }
+
+                // Verify original FIFO issuance allocations are present and belong to the donor item and branch
+                $alloc_check_stmt = $pdo->prepare("
+                    SELECT id, batch_id, item_id, branch_id, allocated_quantity
+                    FROM inventory_batch_allocations
+                    WHERE transaction_id = ?
+                      AND alloc_type = 'issuance'
+                ");
+                $alloc_check_stmt->execute([$orig_shipment_tx_id]);
+                $orig_allocs = $alloc_check_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                if (empty($orig_allocs)) {
+                    throw new Exception("Transfer request #{$transfer_id} was shipped prior to FIFO activation (shipment transaction #{$orig_shipment_tx_id} has no FIFO batch allocations). Automated FIFO reversal is prohibited; manual stock reconciliation is required.");
+                }
+
+                $total_original_alloc_qty = 0;
+                foreach ($orig_allocs as $alloc) {
+                    if ((int) $alloc['item_id'] !== $donor_item_id || (int) $alloc['branch_id'] !== $donor_branch_id) {
+                        throw new Exception("Allocation integrity mismatch: shipment transaction #{$orig_shipment_tx_id} allocation references item #{$alloc['item_id']} and branch #{$alloc['branch_id']}, expected item #{$donor_item_id} and branch #{$donor_branch_id}.");
+                    }
+
+                    $raw_alloc_qty = $alloc['allocated_quantity'] ?? null;
+                    if ($raw_alloc_qty === null || !preg_match('/^[1-9]\d*$/', (string) $raw_alloc_qty)) {
+                        throw new Exception("Issuance allocation line #{$alloc['id']} for shipment transaction #{$orig_shipment_tx_id} has invalid non-positive allocated quantity.");
+                    }
+                    $line_alloc_qty = (int) $raw_alloc_qty;
+                    if ($line_alloc_qty > $max_signed_int) {
+                        throw new Exception("Issuance allocation line #{$alloc['id']} allocated quantity exceeds maximum allowable integer limit ({$max_signed_int}).");
+                    }
+
+                    $total_original_alloc_qty += $line_alloc_qty;
+                    if ($total_original_alloc_qty > $max_signed_int) {
+                        throw new Exception("Total original allocation quantity exceeds maximum allowable integer limit ({$max_signed_int}).");
+                    }
+                }
+
+                // Require total original issuance allocations equal shipment quantity and full return quantity
+                if ($total_original_alloc_qty !== $orig_shipment_qty) {
+                    throw new Exception("Allocation integrity mismatch for transfer request #{$transfer_id}: Total original issuance allocations ({$total_original_alloc_qty}) do not equal shipment transaction quantity ({$orig_shipment_qty}).");
+                }
+
+                if ($total_original_alloc_qty !== $transfer_qty) {
+                    throw new Exception("Allocation integrity mismatch for transfer request #{$transfer_id}: Total original issuance allocations ({$total_original_alloc_qty}) do not equal return quantity ({$transfer_qty}).");
+                }
+
+                // Pre-return FIFO parity check
+                $pre_recon = fifo_reconcile_item_stock($pdo, $donor_item_id, $donor_branch_id);
+                if (!$pre_recon['is_reconciled']) {
+                    throw new Exception('Pre-return FIFO parity reconciliation failed: ' . implode('; ', $pre_recon['reconciliation_errors']));
+                }
+            }
+
+            // Restore donor aggregate inventory exactly once
+            $update_stmt = $pdo->prepare("
                 UPDATE inventory_items
-                SET quantity = quantity + ?
+                SET quantity = ?
                 WHERE id = ? AND branch_id = ?
             ");
-            $stmt->execute([
-                $transfer_qty,
-                $transfer['item_id'],
-                $transfer['donor_branch_id']
+            $update_stmt->execute([
+                $donor_new_quantity,
+                $donor_item_id,
+                $donor_branch_id
             ]);
 
-            // Log stock in restoration transaction
-            transfer_log_inventory_transaction($pdo, $user,
-                $transfer['item_id'],
+            // Log stock in restoration transaction and capture inserted ID
+            $return_tx_note = "Returned transfer stock confirmed from {$transfer['requesting_branch_name']}";
+            $return_tx_id = transfer_log_inventory_transaction(
+                $pdo,
+                $user,
+                $donor_item_id,
                 'stock_in',
                 $transfer_qty,
                 $transfer_id,
-                "Returned transfer stock confirmed from {$transfer['requesting_branch_name']}"
+                $return_tx_note
             );
 
+            if (!$return_tx_id || $return_tx_id <= 0) {
+                $return_tx_id = (int) $pdo->lastInsertId();
+            }
+
+            if ($return_tx_id <= 0) {
+                throw new Exception('Failed to record stock-in inventory transaction for transfer return');
+            }
+
+            // Reverse original FIFO allocations and verify post-return parity (when FIFO is active in future)
+            if ($is_fifo_active) {
+                fifo_reverse_allocation(
+                    $pdo,
+                    $return_tx_id,
+                    $orig_shipment_tx_id,
+                    $transfer_qty,
+                    $return_tx_note
+                );
+
+                $post_recon = fifo_reconcile_item_stock($pdo, $donor_item_id, $donor_branch_id);
+                if (!$post_recon['is_reconciled']) {
+                    throw new Exception('Post-return FIFO parity reconciliation failed: ' . implode('; ', $post_recon['reconciliation_errors']));
+                }
+            }
+
+            // Append [RETURNED] note to transfer request
             $return_note = "[RETURNED] Physical return confirmed by " . ($user['username'] ?? 'Storekeeper') . " on " . date('Y-m-d H:i:s');
             $new_notes = $notes . "\n" . $return_note;
 
@@ -1036,7 +1408,7 @@ try {
             throw new Exception('Invalid action: ' . $action);
     }
 
-} catch (Exception $e) {
+} catch (Throwable $e) {
     if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
         $pdo->rollBack();
     }

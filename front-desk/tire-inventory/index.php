@@ -2217,6 +2217,10 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                 <td colspan="8" class="inventory-table-empty"><?php echo esc_html($records_empty_message); ?></td>
                             </tr>
                         <?php else: ?>
+                            <?php
+                            $show_fifo_batches = function_exists('app_is_fifo_active') && app_is_fifo_active()
+                                && function_exists('app_table_exists') && app_table_exists('inventory_batches') && app_table_exists('inventory_batch_allocations');
+                            ?>
                             <?php foreach ($inventory as $item): ?>
                                 <?php
                                 $is_low_stock = (int) $item['quantity'] <= (int) $item['reorder_level'];
@@ -2312,6 +2316,19 @@ $redirect_url = '/hwtires/front-desk/tire-inventory/' . ($active_filter_url === 
                                                     title="Correct stock quantity based on physical count">
                                                 Correct Stock
                                             </button>
+                                            <?php if ($show_fifo_batches): ?>
+                                                <button type="button"
+                                                        class="inventory-action-btn js-view-fifo-batches"
+                                                        style="background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0;"
+                                                        data-id="<?php echo (int) $item['id']; ?>"
+                                                        data-name="<?php echo esc_attr(app_display_item_name($item['item_name'], $category)); ?>"
+                                                        data-branch-id="<?php echo (int) $row_branch_id; ?>"
+                                                        data-branch-name="<?php echo esc_attr($row_branch_label); ?>"
+                                                        data-current="<?php echo (int) $item['quantity']; ?>"
+                                                        title="View FIFO Batches & Allocation History">
+                                                    <i class="fas fa-layer-group me-1"></i> FIFO Batches
+                                                </button>
+                                            <?php endif; ?>
                                         </div>
                                     </td>
                                 </tr>
@@ -3839,4 +3856,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<?php if (!empty($show_fifo_batches)): ?>
+<?php include __DIR__ . '/../../includes/fifo-batch-modal.php'; ?>
+<?php endif; ?>
 <?php require_once '../../includes/footer.php'; ?>

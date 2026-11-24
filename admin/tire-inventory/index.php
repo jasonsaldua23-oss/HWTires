@@ -1775,6 +1775,10 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                                 <td colspan="9" class="inventory-table-empty"><?php echo esc_html($records_empty_message); ?></td>
                             </tr>
                         <?php else: ?>
+                            <?php
+                            $show_fifo_batches = function_exists('app_is_fifo_active') && app_is_fifo_active()
+                                && function_exists('app_table_exists') && app_table_exists('inventory_batches') && app_table_exists('inventory_batch_allocations');
+                            ?>
                             <?php foreach ($inventory as $item): ?>
                                 <?php
                                 $item_status = strtolower(trim((string) ($item['status'] ?? 'active')));
@@ -1850,6 +1854,21 @@ $redirect_url = '/hwtires/admin/tire-inventory/' . ($active_filter_url === './' 
                                     <td style="text-align: center;">
                                         <div style="display: inline-flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: wrap;">
                                         <?php if (!$is_archived): ?>
+                                            <?php if ($show_fifo_batches): ?>
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-success js-view-fifo-batches"
+                                                        data-item-id="<?php echo (int) $item['id']; ?>"
+                                                        data-item-name="<?php echo esc_attr(app_display_item_name($item['item_name'], $category)); ?>"
+                                                        data-brand="<?php echo esc_attr($item['brand'] ?: 'Unbranded'); ?>"
+                                                        data-size="<?php echo esc_attr($item['size'] ?: ''); ?>"
+                                                        data-category="<?php echo esc_attr($category); ?>"
+                                                        data-branch-id="<?php echo $branch_id; ?>"
+                                                        data-branch-name="<?php echo esc_attr($branch_label); ?>"
+                                                        data-current-qty="<?php echo (int) $item['quantity']; ?>"
+                                                        title="View FIFO Batches & Allocation History">
+                                                    <i class="fas fa-layer-group me-1"></i> FIFO Batches
+                                                </button>
+                                            <?php endif; ?>
                                             <button type="button"
                                                     class="btn btn-sm btn-outline-primary js-adjust-stock-btn"
                                                     data-item-id="<?php echo (int) $item['id']; ?>"
@@ -4263,4 +4282,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<?php if (!empty($show_fifo_batches)): ?>
+<?php include __DIR__ . '/../../includes/fifo-batch-modal.php'; ?>
+<?php endif; ?>
 <?php require_once '../../includes/footer.php'; ?>

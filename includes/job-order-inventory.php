@@ -192,6 +192,10 @@ if (!function_exists('job_order_resolve_received_transfer_inventory_item')) {
 
 if (!function_exists('job_order_apply_inventory_line_consumption')) {
     function job_order_apply_inventory_line_consumption(PDO $pdo, array $job, array $line, $created_by = null) {
+        if (!$pdo->inTransaction()) {
+            throw new Exception('A database transaction must be active before calling job_order_apply_inventory_line_consumption()');
+        }
+
         $job_order_id = (int) ($job['id'] ?? 0);
         if ($job_order_id <= 0) {
             throw new Exception('Invalid job order for inventory usage');
@@ -210,17 +214,11 @@ if (!function_exists('job_order_apply_inventory_line_consumption')) {
             if (is_array($inventory_item) && !empty($inventory_item['already_consumed_by_transfer'])) {
                 return ['applied' => false, 'count' => 0, 'message' => 'Transferred item was already deducted from donor inventory'];
             }
-        } elseif ($source === 'other_branch') {
-            $inventory_item = job_order_resolve_received_transfer_inventory_item($pdo, $job, $line);
-            if (is_array($inventory_item) && !empty($inventory_item['already_consumed_by_transfer'])) {
-                return ['applied' => false, 'count' => 0, 'message' => 'Transferred item was already deducted from donor inventory'];
-            }
         } elseif ($can_use_linked_inventory) {
             $inventory_item = job_order_resolve_inventory_item($pdo, $line, $job_branch_id);
-        }
-
-        if (empty($inventory_item) && $source !== 'other_branch') {
-            $inventory_item = job_order_resolve_local_inventory_item_by_name($pdo, $line, $job_branch_id);
+            if (empty($inventory_item)) {
+                $inventory_item = job_order_resolve_local_inventory_item_by_name($pdo, $line, $job_branch_id);
+            }
         }
 
         if (empty($inventory_item)) {
@@ -230,33 +228,13 @@ if (!function_exists('job_order_apply_inventory_line_consumption')) {
             return ['applied' => false, 'count' => 0, 'message' => $message];
         }
 
-        $quantity = max(1, (int) ($line['quantity'] ?? 1));
-        $quotation_item_id = (int) ($line['id'] ?? 0);
         $inventory_item_id = (int) ($inventory_item['id'] ?? 0);
-
-        $deducted_params = [$inventory_item_id, $job_order_id];
-        $item_reference_clause = '';
-        if ($quotation_item_id > 0) {
-            $item_reference_clause = " OR (reference_type = 'job_order_item' AND reference_id = ?)";
-            $deducted_params[] = $quotation_item_id;
+        if ($inventory_item_id <= 0) {
+            return ['applied' => false, 'count' => 0, 'message' => 'Invalid inventory item ID'];
         }
 
-        $deducted_stmt = $pdo->prepare("
-            SELECT COUNT(*)
-            FROM inventory_transactions
-            WHERE LOWER(REPLACE(transaction_type, ' ', '_')) = 'stock_out'
-              AND item_id = ?
-              AND (
-                  (reference_type = 'job_order' AND reference_id = ?)
-                  $item_reference_clause
-              )
-        ");
-        $deducted_stmt->execute($deducted_params);
-        if ((int) $deducted_stmt->fetchColumn() > 0) {
-            return ['applied' => false, 'count' => 0, 'message' => 'Inventory already deducted for this task'];
-        }
-
-        $select_cols = ['id', 'item_name', 'quantity'];
+        // Lock inventory item row FOR UPDATE before running duplicate check or reading quantity
+        $select_cols = ['id', 'branch_id', 'item_name', 'quantity', 'status'];
         $w_cols = ['has_warranty', 'warranty_duration', 'warranty_unit', 'warranty_coverage', 'warranty_conditions'];
         foreach ($w_cols as $wc) {
             if (app_column_exists('inventory_items', $wc)) {
@@ -271,15 +249,127 @@ if (!function_exists('job_order_apply_inventory_line_consumption')) {
             throw new Exception('Inventory item no longer exists: ' . ($line['item_name'] ?? 'Item'));
         }
 
-        if ((int) $locked_item['quantity'] < $quantity) {
-            throw new Exception('Insufficient stock for ' . $locked_item['item_name'] . '. Current: ' . (int) $locked_item['quantity']);
+        if (($locked_item['status'] ?? '') !== 'active') {
+            throw new Exception('Inventory item is no longer active: ' . ($locked_item['item_name'] ?? 'Item'));
         }
 
-        $update_stmt = $pdo->prepare("UPDATE inventory_items SET quantity = quantity - ? WHERE id = ?");
-        $update_stmt->execute([$quantity, (int) $locked_item['id']]);
+        $quotation_item_id = (int) ($line['id'] ?? 0);
+
+        // Perform duplicate deduction check while holding the row lock
+        // A locking read (FOR UPDATE) guarantees current-read visibility under MySQL/InnoDB REPEATABLE READ
+        $deducted_params = [$inventory_item_id, $job_order_id];
+        $item_reference_clause = '';
+        if ($quotation_item_id > 0) {
+            $item_reference_clause = " OR (reference_type = 'job_order_item' AND reference_id = ?)";
+            $deducted_params[] = $quotation_item_id;
+        }
+
+        $deducted_stmt = $pdo->prepare("
+            SELECT id
+            FROM inventory_transactions
+            WHERE LOWER(REPLACE(transaction_type, ' ', '_')) = 'stock_out'
+              AND item_id = ?
+              AND (
+                  (reference_type = 'job_order' AND reference_id = ?)
+                  $item_reference_clause
+              )
+            LIMIT 1
+            FOR UPDATE
+        ");
+        $deducted_stmt->execute($deducted_params);
+        if ($deducted_stmt->fetchColumn()) {
+            return ['applied' => false, 'count' => 0, 'message' => 'Inventory already deducted for this task'];
+        }
+
+        // Validate requested quantity strictly against truncation, fractions, negatives, and non-numeric input
+        $raw_qty = $line['quantity'] ?? null;
+        if ($raw_qty === null || is_array($raw_qty) || is_object($raw_qty) || is_bool($raw_qty)) {
+            throw new Exception('Invalid quantity specification for ' . ($locked_item['item_name'] ?? 'item'));
+        }
+
+        if (is_float($raw_qty)) {
+            throw new Exception('Fractional quantities are not permitted for ' . ($locked_item['item_name'] ?? 'item'));
+        }
+
+        $qty_str = trim((string) $raw_qty);
+        if ($qty_str === '' || !preg_match('/^\d+$/', $qty_str)) {
+            throw new Exception('Quantity must be a positive whole number for ' . ($locked_item['item_name'] ?? 'item'));
+        }
+
+        $normalized_qty_str = ltrim($qty_str, '0');
+        if ($normalized_qty_str === '') {
+            throw new Exception('Requested deduction quantity must be positive for ' . ($locked_item['item_name'] ?? 'item'));
+        }
+
+        $max_signed_int = 2147483647;
+        $max_signed_int_str = '2147483647';
+        if (strlen($normalized_qty_str) > 10 || (strlen($normalized_qty_str) === 10 && $normalized_qty_str > $max_signed_int_str)) {
+            throw new Exception("Requested deduction quantity exceeds maximum allowable integer limit ({$max_signed_int})");
+        }
+
+        $quantity = (int) $normalized_qty_str;
+        if ($quantity <= 0 || (string) $quantity !== $normalized_qty_str) {
+            throw new Exception('Invalid quantity conversion for ' . ($locked_item['item_name'] ?? 'item'));
+        }
+
+        // Validate current aggregate quantity on locked item
+        if (!array_key_exists('quantity', $locked_item) || $locked_item['quantity'] === null) {
+            throw new Exception("Inventory item #{$inventory_item_id} has NULL or missing quantity in inventory_items");
+        }
+
+        if (!is_numeric($locked_item['quantity'])) {
+            throw new Exception("Inventory item #{$inventory_item_id} has non-numeric quantity in database");
+        }
+
+        $raw_old_quantity = (string) $locked_item['quantity'];
+        if (!preg_match('/^-?\d+$/', $raw_old_quantity)) {
+            throw new Exception("Inventory item #{$inventory_item_id} has malformed quantity in database: '{$raw_old_quantity}'");
+        }
+
+        $old_quantity = (int) $locked_item['quantity'];
+        if ($old_quantity < 0) {
+            throw new Exception("Inventory item #{$inventory_item_id} has invalid negative quantity ({$old_quantity})");
+        }
+
+        if ($old_quantity > $max_signed_int) {
+            throw new Exception("Inventory item #{$inventory_item_id} exceeds maximum allowable integer limit ({$max_signed_int})");
+        }
+
+        if ($old_quantity < $quantity) {
+            throw new Exception('Insufficient stock for ' . $locked_item['item_name'] . '. Current: ' . $old_quantity);
+        }
+
+        $new_quantity = $old_quantity - $quantity;
+        if ($new_quantity < 0) {
+            throw new Exception("Stock deduction would result in negative quantity ({$new_quantity}) for " . $locked_item['item_name']);
+        }
+
+        $item_branch_id = (int) ($locked_item['branch_id'] ?? 0);
+        $is_fifo_active = function_exists('app_is_fifo_active') && app_is_fifo_active();
+
+        // When FIFO is active, perform pre-issuance parity reconciliation and batch verification
+        if ($is_fifo_active) {
+            require_once __DIR__ . '/fifo-inventory.php';
+
+            if ($item_branch_id <= 0) {
+                throw new Exception("Inventory item #{$inventory_item_id} has invalid branch association");
+            }
+
+            $pre_recon = fifo_reconcile_item_stock($pdo, $inventory_item_id, $item_branch_id);
+            if (!$pre_recon['is_reconciled']) {
+                throw new Exception('Pre-job-order FIFO parity reconciliation failed: ' . implode('; ', $pre_recon['reconciliation_errors']));
+            }
+
+            fifo_verify_pre_issuance($pdo, $inventory_item_id, $item_branch_id, $quantity);
+        }
+
+        // Deduct aggregate inventory stock using exact validated quantity
+        $update_stmt = $pdo->prepare("UPDATE inventory_items SET quantity = ? WHERE id = ?");
+        $update_stmt->execute([$new_quantity, (int) $locked_item['id']]);
 
         $reference_type = $quotation_item_id > 0 ? 'job_order_item' : 'job_order';
         $reference_id = $quotation_item_id > 0 ? $quotation_item_id : $job_order_id;
+        $transaction_notes = 'Stock used for job order task: ' . ($job['job_number'] ?? ('JO #' . $job_order_id));
 
         $transaction_columns = [
             'item_id',
@@ -296,7 +386,7 @@ if (!function_exists('job_order_apply_inventory_line_consumption')) {
             $quantity,
             $reference_type,
             $reference_id,
-            'Stock used for job order task: ' . ($job['job_number'] ?? ('JO #' . $job_order_id)),
+            $transaction_notes,
             $created_by,
         ];
 
@@ -375,6 +465,29 @@ if (!function_exists('job_order_apply_inventory_line_consumption')) {
             VALUES (" . implode(', ', array_fill(0, count($transaction_columns), '?')) . ")
         ");
         $transaction_stmt->execute($transaction_values);
+
+        $transaction_id = (int) $pdo->lastInsertId();
+        if ($transaction_id <= 0) {
+            throw new Exception('Failed to record job order inventory transaction');
+        }
+
+        // When FIFO is active, allocate stock from eligible batches in FIFO order
+        if ($is_fifo_active) {
+            fifo_allocate_for_transaction(
+                $pdo,
+                $transaction_id,
+                $inventory_item_id,
+                $item_branch_id,
+                $quantity,
+                $transaction_notes
+            );
+
+            // Verify post-issuance parity
+            $post_recon = fifo_reconcile_item_stock($pdo, $inventory_item_id, $item_branch_id);
+            if (!$post_recon['is_reconciled']) {
+                throw new Exception('Post-job-order FIFO parity reconciliation failed: ' . implode('; ', $post_recon['reconciliation_errors']));
+            }
+        }
 
         log_audit('inventory_items', 'job_order_stock_out', (int) $locked_item['id'], null, [
             'job_order_id' => $job_order_id,

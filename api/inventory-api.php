@@ -249,6 +249,7 @@ if (!function_exists('inventory_api_log_transaction')) {
             VALUES ($placeholders)
         ");
         $stmt->execute($values);
+        return (int) $pdo->lastInsertId();
     }
 }
 
@@ -394,6 +395,254 @@ if (!function_exists('inventory_api_notify_branch_transfer')) {
     }
 }
 
+if (!function_exists('inventory_api_is_fifo_active')) {
+    /**
+     * Narrowly scoped check for Revision 3 FIFO activation in inventory workflows.
+     * Delegates directly to the canonical app_is_fifo_active() in includes/config.php.
+     *
+     * @return bool
+     */
+    function inventory_api_is_fifo_active(): bool {
+        return app_is_fifo_active();
+    }
+}
+
+// ============================================================================
+// READ-ONLY FIFO BATCH HISTORY ACTION
+// ============================================================================
+if ($action === 'get_fifo_batch_history') {
+    try {
+        if (!function_exists('app_is_fifo_active') || !app_is_fifo_active()) {
+            inventory_api_finish(false, 'FIFO inventory is not active in this environment.', 403);
+        }
+
+        if (!function_exists('app_table_exists') || !app_table_exists('inventory_batches') || !app_table_exists('inventory_batch_allocations')) {
+            inventory_api_finish(false, 'FIFO inventory schema is not available.', 400);
+        }
+
+        $item_id = intval($_GET['item_id'] ?? $_POST['item_id'] ?? 0);
+        if ($item_id <= 0) {
+            inventory_api_finish(false, 'Invalid inventory item ID.', 400);
+        }
+
+        $stmt = $pdo->prepare("
+            SELECT i.id, i.item_name, i.category, i.brand, i.size, i.sku, i.quantity, i.reorder_level, i.unit_price, i.branch_id, i.status,
+                   b.name AS branch_name
+            FROM inventory_items i
+            LEFT JOIN branches b ON i.branch_id = b.id
+            WHERE i.id = ?
+        ");
+        $stmt->execute([$item_id]);
+        $item = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$item) {
+            inventory_api_finish(false, 'Inventory item not found.', 404);
+        }
+
+        if (!has_branch_access((int) $item['branch_id'])) {
+            inventory_api_finish(false, 'Unauthorized: You do not have permission to view inventory for this branch.', 403);
+        }
+
+        $batch_stmt = $pdo->prepare("
+            SELECT
+                id,
+                item_id,
+                branch_id,
+                batch_code,
+                source_type,
+                source_id,
+                source_sequence,
+                source_ref,
+                initial_quantity,
+                remaining_quantity,
+                received_at,
+                converted_at,
+                is_legacy,
+                status,
+                created_at,
+                updated_at
+            FROM inventory_batches
+            WHERE item_id = ?
+              AND branch_id = ?
+            ORDER BY
+                is_legacy DESC,
+                received_at ASC,
+                id ASC
+        ");
+        $batch_stmt->execute([$item_id, (int) $item['branch_id']]);
+        $raw_batches = $batch_stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        $alloc_sum_stmt = $pdo->prepare("
+            SELECT
+                batch_id,
+                COALESCE(SUM(CASE WHEN alloc_type = 'issuance' THEN allocated_quantity ELSE 0 END), 0) AS total_issued,
+                COALESCE(SUM(CASE WHEN alloc_type = 'reversal' THEN allocated_quantity ELSE 0 END), 0) AS total_reversed
+            FROM inventory_batch_allocations
+            WHERE item_id = ?
+              AND branch_id = ?
+            GROUP BY batch_id
+        ");
+        $alloc_sum_stmt->execute([$item_id, (int) $item['branch_id']]);
+        $alloc_sums = [];
+        foreach ($alloc_sum_stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $alloc_sums[(int) $row['batch_id']] = [
+                'total_issued' => (int) $row['total_issued'],
+                'total_reversed' => (int) $row['total_reversed'],
+                'net_issued' => (int) $row['total_issued'] - (int) $row['total_reversed'],
+            ];
+        }
+
+        $batches = [];
+        $total_batch_remaining = 0;
+        $total_batch_initial = 0;
+        $total_batch_issued = 0;
+        $active_priority_index = 0;
+
+        foreach ($raw_batches as $b) {
+            $bid = (int) $b['id'];
+            $initial = (int) $b['initial_quantity'];
+            $remaining = (int) $b['remaining_quantity'];
+            $b_status = (string) $b['status'];
+            $is_legacy = (int) $b['is_legacy'] === 1;
+
+            $issued = isset($alloc_sums[$bid]) ? $alloc_sums[$bid]['net_issued'] : ($initial - $remaining);
+
+            $total_batch_initial += $initial;
+            $total_batch_remaining += ($b_status === 'active' ? $remaining : 0);
+            $total_batch_issued += $issued;
+
+            if ($b_status === 'active' && $remaining > 0) {
+                $active_priority_index++;
+                $priority_label = "Priority #{$active_priority_index}" . ($active_priority_index === 1 ? ' (First Out Queue)' : ' (Next in Queue)');
+                $priority_class = ($active_priority_index === 1 ? 'priority-first-out' : 'priority-next');
+            } elseif ($remaining <= 0 || $b_status === 'exhausted') {
+                $priority_label = 'Exhausted (Depleted)';
+                $priority_class = 'priority-depleted';
+            } else {
+                $priority_label = ucfirst($b_status);
+                $priority_class = 'priority-inactive';
+            }
+
+            $source_labels = [
+                'legacy_opening' => 'Opening Balance',
+                'manual_stock_in' => 'Supplier Delivery',
+                'incoming_stock' => 'Incoming Shipment',
+                'transfer_receipt' => 'Inter-Branch Transfer',
+                'adjustment_positive' => 'Stock Adjustment (+)',
+            ];
+            $source_label = $source_labels[$b['source_type']] ?? ucwords(str_replace('_', ' ', (string) $b['source_type']));
+
+            $received_date_display = 'Date unavailable';
+            if ($is_legacy && empty($b['received_at'])) {
+                $received_date_display = 'Opening Balance';
+            } elseif (!empty($b['received_at'])) {
+                $received_date_display = date('M d, Y h:i A', strtotime((string) $b['received_at']));
+            }
+
+            $batches[] = [
+                'id' => $bid,
+                'batch_code' => $b['batch_code'],
+                'source_type' => $b['source_type'],
+                'source_label' => $source_label,
+                'source_ref' => $b['source_ref'] ?: 'N/A',
+                'initial_quantity' => $initial,
+                'issued_quantity' => $issued,
+                'remaining_quantity' => $remaining,
+                'received_at' => $b['received_at'],
+                'received_date_display' => $received_date_display,
+                'is_legacy' => $is_legacy,
+                'status' => $b_status,
+                'priority_label' => $priority_label,
+                'priority_class' => $priority_class,
+                'is_current_first_out' => ($active_priority_index === 1 && $b_status === 'active' && $remaining > 0),
+                'created_at' => $b['created_at'],
+            ];
+        }
+
+        $alloc_stmt = $pdo->prepare("
+            SELECT
+                a.id AS allocation_id,
+                a.transaction_id,
+                a.batch_id,
+                b.batch_code,
+                b.is_legacy,
+                a.alloc_type,
+                a.allocated_quantity,
+                a.reversal_of_id,
+                a.allocated_at,
+                a.notes AS alloc_notes,
+                t.transaction_type,
+                t.reference_type,
+                t.reference_id,
+                t.notes AS transaction_notes,
+                t.created_at AS transaction_date,
+                u.name AS created_by_name
+            FROM inventory_batch_allocations a
+            JOIN inventory_batches b ON a.batch_id = b.id
+            LEFT JOIN inventory_transactions t ON a.transaction_id = t.id
+            LEFT JOIN users u ON t.created_by = u.id
+            WHERE a.item_id = ?
+              AND a.branch_id = ?
+            ORDER BY a.allocated_at DESC, a.id DESC
+        ");
+        $alloc_stmt->execute([$item_id, (int) $item['branch_id']]);
+        $allocations = [];
+        foreach ($alloc_stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $allocations[] = [
+                'allocation_id' => (int) $row['allocation_id'],
+                'transaction_id' => (int) $row['transaction_id'],
+                'batch_id' => (int) $row['batch_id'],
+                'batch_code' => $row['batch_code'],
+                'is_legacy' => (int) $row['is_legacy'] === 1,
+                'alloc_type' => $row['alloc_type'],
+                'allocated_quantity' => (int) $row['allocated_quantity'],
+                'reversal_of_id' => (int) $row['reversal_of_id'],
+                'is_reversal' => ((int) $row['reversal_of_id'] > 0 || $row['alloc_type'] === 'reversal'),
+                'allocated_at' => date('M d, Y h:i A', strtotime((string) $row['allocated_at'])),
+                'transaction_type' => $row['transaction_type'] ?: 'stock_out',
+                'reference_type' => $row['reference_type'] ?: 'N/A',
+                'reference_id' => $row['reference_id'] ?: 'N/A',
+                'transaction_notes' => $row['transaction_notes'] ?: ($row['alloc_notes'] ?: '-'),
+                'created_by_name' => $row['created_by_name'] ?: 'System',
+            ];
+        }
+
+        $item_qty = (int) $item['quantity'];
+        $reconciliation = [
+            'item_quantity' => $item_qty,
+            'total_batch_remaining' => $total_batch_remaining,
+            'total_batch_initial' => $total_batch_initial,
+            'total_batch_issued' => $total_batch_issued,
+            'is_balanced' => ($item_qty === $total_batch_remaining),
+            'batch_count' => count($batches),
+            'active_batch_count' => $active_priority_index,
+            'allocation_count' => count($allocations),
+        ];
+
+        inventory_api_finish(true, 'FIFO batch history loaded successfully.', 200, [
+            'item' => [
+                'id' => (int) $item['id'],
+                'item_name' => $item['item_name'],
+                'brand' => $item['brand'] ?: 'Unbranded',
+                'size' => $item['size'] ?: '-',
+                'category' => $item['category'],
+                'sku' => $item['sku'] ?: '-',
+                'quantity' => $item_qty,
+                'reorder_level' => (int) $item['reorder_level'],
+                'branch_id' => (int) $item['branch_id'],
+                'branch_name' => $item['branch_name'] ?: "Branch #{$item['branch_id']}",
+                'branch_code' => "B-{$item['branch_id']}",
+            ],
+            'batches' => $batches,
+            'allocations' => $allocations,
+            'reconciliation' => $reconciliation,
+        ]);
+    } catch (Exception $e) {
+        error_log('Get FIFO batch history error: ' . $e->getMessage());
+        inventory_api_finish(false, $e->getMessage(), 500);
+    }
+}
+
 // Handle Stock In
 if ($action === 'stock_in') {
     try {
@@ -406,6 +655,10 @@ if ($action === 'stock_in') {
         }
 
         $item_id = intval($_POST['inventory_id'] ?? $_POST['item_id'] ?? 0);
+        if ($item_id <= 0) {
+            throw new Exception('Invalid inventory item');
+        }
+
         $quantity = inventory_api_clean_int($_POST['quantity'] ?? 0, 'Quantity', 1, 100000);
         $source_type = inventory_api_clean_text($_POST['source_type'] ?? 'supplier_delivery', 'Supply Source', 50, true);
         $valid_source_types = ['supplier_delivery', 'tangub_warehouse', 'sancarlos_warehouse', 'other', 'branch_transfer', 'adjustment'];
@@ -428,14 +681,6 @@ if ($action === 'stock_in') {
 
         $reference_number = inventory_api_clean_text($_POST['reference_number'] ?? '', 'Reference number', 100, true);
         $custom_notes = inventory_api_clean_text($_POST['notes'] ?? '', 'Notes', 500, false);
-
-        if ($item_id <= 0) {
-            throw new Exception('Invalid inventory item');
-        }
-
-        $item = inventory_api_get_item($item_id);
-        $old_quantity = (int) $item['quantity'];
-        $new_quantity = $old_quantity + $quantity;
 
         $note_parts = [];
         if ($source_type === 'tangub_warehouse') {
@@ -468,6 +713,61 @@ if ($action === 'stock_in') {
 
         $final_notes = !empty($note_parts) ? implode(' | ', $note_parts) : 'Manual stock in from Front Desk Inventory';
 
+        // ---------------------------------------------------------------------
+        // Transaction-Safe Stock-In Execution
+        // ---------------------------------------------------------------------
+        $pdo->beginTransaction();
+
+        // Lock item row FOR UPDATE and verify branch accessibility
+        $item_stmt = $pdo->prepare("
+            SELECT i.*, b.has_inventory, b.status AS branch_status, b.name AS branch_name
+            FROM inventory_items i
+            LEFT JOIN branches b ON b.id = i.branch_id
+            WHERE i.id = ? AND i.status = 'active'
+            FOR UPDATE
+        ");
+        $item_stmt->execute([$item_id]);
+        $item = $item_stmt->fetch();
+
+        if (!$item) {
+            throw new Exception('Inventory item not found or is inactive');
+        }
+
+        if ((int) ($item['has_inventory'] ?? 0) !== 1 || ($item['branch_status'] ?? '') !== 'active') {
+            throw new Exception('Inventory is only available for active inventory branches');
+        }
+
+        if (!has_branch_access($item['branch_id'])) {
+            throw new Exception('Unauthorized access');
+        }
+
+        // Validate current quantity and guard against signed 32-bit INT overflow
+        $max_signed_int = 2147483647;
+        if (!array_key_exists('quantity', $item) || $item['quantity'] === null) {
+            throw new Exception("Inventory item #{$item_id} has NULL or missing quantity in inventory_items");
+        }
+        $old_quantity = (int) $item['quantity'];
+        if ($old_quantity < 0) {
+            throw new Exception("Inventory item #{$item_id} has invalid negative quantity ({$old_quantity})");
+        }
+        if ($old_quantity > $max_signed_int - $quantity) {
+            throw new Exception("Stock-in of {$quantity} units would exceed maximum allowable integer limit ({$max_signed_int})");
+        }
+        $new_quantity = $old_quantity + $quantity;
+        $branch_id = (int) $item['branch_id'];
+
+        $is_fifo_active = inventory_api_is_fifo_active();
+
+        // If FIFO is active in the future, perform pre-addition parity check
+        if ($is_fifo_active) {
+            require_once __DIR__ . '/../includes/fifo-inventory.php';
+            $pre_recon = fifo_reconcile_item_stock($pdo, $item_id, $branch_id);
+            if (!$pre_recon['is_reconciled']) {
+                throw new Exception('Pre-stock-in FIFO parity reconciliation failed: ' . implode('; ', $pre_recon['reconciliation_errors']));
+            }
+        }
+
+        // Update aggregate inventory stock
         $update_stmt = $pdo->prepare("UPDATE inventory_items SET quantity = ?, last_restock_date = CURDATE() WHERE id = ?");
         $update_stmt->execute([$new_quantity, $item_id]);
 
@@ -476,22 +776,65 @@ if ($action === 'stock_in') {
             $sup_stmt->execute([$supplier_name, $item_id]);
         }
 
-        inventory_api_log_transaction($item_id, 'stock_in', $quantity, $final_notes, $source_type ?: 'supplier_delivery', null);
+        // Insert inventory transaction record and capture inserted ID
+        $transaction_id = inventory_api_log_transaction(
+            $item_id,
+            'stock_in',
+            $quantity,
+            $final_notes,
+            $source_type ?: 'supplier_delivery',
+            null
+        );
+
+        if (!$transaction_id || $transaction_id <= 0) {
+            $transaction_id = (int) $pdo->lastInsertId();
+        }
+
+        if ($transaction_id <= 0) {
+            throw new Exception('Failed to record stock-in inventory transaction');
+        }
+
+        // If FIFO is active in the future, create batch and perform post-addition parity check
+        if ($is_fifo_active) {
+            fifo_create_batch($pdo, [
+                'item_id' => $item_id,
+                'branch_id' => $branch_id,
+                'source_type' => 'manual_stock_in',
+                'source_id' => $transaction_id,
+                'source_sequence' => 1,
+                'source_ref' => $reference_number !== '' ? $reference_number : null,
+                'initial_quantity' => $quantity,
+                'received_at' => date('Y-m-d H:i:s'),
+            ]);
+
+            $post_recon = fifo_reconcile_item_stock($pdo, $item_id, $branch_id);
+            if (!$post_recon['is_reconciled']) {
+                throw new Exception('Post-stock-in FIFO parity reconciliation failed: ' . implode('; ', $post_recon['reconciliation_errors']));
+            }
+        }
+
+        // Log audit trail within same transaction
         log_audit('inventory_items', 'stock_in', $item_id, ['quantity' => $old_quantity], [
             'quantity' => $new_quantity,
             'added_quantity' => $quantity,
             'item_name' => $item['item_name'] ?? null,
-            'branch_id' => (int) ($item['branch_id'] ?? 0),
+            'branch_id' => $branch_id,
             'source_type' => $source_type,
             'supplier_name' => $supplier_name,
             'reference_number' => $reference_number,
+            'transaction_id' => $transaction_id,
         ]);
+
+        $pdo->commit();
 
         inventory_api_finish(true, 'Stock added successfully (' . $quantity . ' units added)', 200, [
             'id' => $item_id,
             'quantity' => $new_quantity,
         ]);
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         error_log('Stock in error: ' . $e->getMessage());
         inventory_api_finish(false, $e->getMessage(), 400);
     }
@@ -521,8 +864,52 @@ if ($action === 'transfer_stock') {
             throw new Exception('Source and target item must be different');
         }
 
-        $source = inventory_api_get_item($source_id);
-        $target = inventory_api_get_transfer_target($target_id);
+        // ---------------------------------------------------------------------
+        // Transaction-Safe Stock Transfer Execution
+        // Begin transaction BEFORE reading stock quantities to ensure snapshot consistency.
+        // ---------------------------------------------------------------------
+        $pdo->beginTransaction();
+
+        // Lock both inventory item rows in deterministic ascending ID order to prevent deadlocks
+        $first_id = min($source_id, $target_id);
+        $second_id = max($source_id, $target_id);
+
+        $lock_stmt = $pdo->prepare("
+            SELECT i.*, b.has_inventory, b.status AS branch_status, b.name AS branch_name
+            FROM inventory_items i
+            LEFT JOIN branches b ON b.id = i.branch_id
+            WHERE i.id = ? AND i.status = 'active'
+            FOR UPDATE
+        ");
+
+        $lock_stmt->execute([$first_id]);
+        $first_row = $lock_stmt->fetch(PDO::FETCH_ASSOC);
+
+        $lock_stmt->execute([$second_id]);
+        $second_row = $lock_stmt->fetch(PDO::FETCH_ASSOC);
+
+        $source = ($source_id === $first_id) ? $first_row : $second_row;
+        $target = ($target_id === $first_id) ? $first_row : $second_row;
+
+        if (!$source) {
+            throw new Exception('Source inventory item not found or is inactive');
+        }
+
+        if ((int) ($source['has_inventory'] ?? 0) !== 1 || ($source['branch_status'] ?? '') !== 'active') {
+            throw new Exception('Inventory is only available for active inventory branches');
+        }
+
+        if (!has_branch_access($source['branch_id'])) {
+            throw new Exception('Unauthorized access');
+        }
+
+        if (!$target) {
+            throw new Exception('Transfer target item not found or is inactive');
+        }
+
+        if ((int) ($target['has_inventory'] ?? 0) !== 1 || ($target['branch_status'] ?? '') !== 'active') {
+            throw new Exception('Transfers are only available between active inventory branches');
+        }
 
         if ((int) $source['branch_id'] === (int) $target['branch_id']) {
             throw new Exception('Branch transfer requires two different branches');
@@ -532,23 +919,64 @@ if ($action === 'transfer_stock') {
             throw new Exception('Transfer items must match by category and item details');
         }
 
+        // Validate quantities with signed 32-bit INT bounds and reject NULL/negatives
+        $max_signed_int = 2147483647;
+
+        if (!array_key_exists('quantity', $source) || $source['quantity'] === null) {
+            throw new Exception("Source inventory item #{$source_id} has NULL or missing quantity in inventory_items");
+        }
         $source_old_quantity = (int) $source['quantity'];
+        if ($source_old_quantity < 0) {
+            throw new Exception("Source inventory item #{$source_id} has invalid negative quantity ({$source_old_quantity})");
+        }
+
+        if (!array_key_exists('quantity', $target) || $target['quantity'] === null) {
+            throw new Exception("Target inventory item #{$target_id} has NULL or missing quantity in inventory_items");
+        }
         $target_old_quantity = (int) $target['quantity'];
+        if ($target_old_quantity < 0) {
+            throw new Exception("Target inventory item #{$target_id} has invalid negative quantity ({$target_old_quantity})");
+        }
 
         if ($source_old_quantity < $quantity) {
             throw new Exception('Insufficient stock available. Current: ' . $source_old_quantity);
         }
 
+        if ($target_old_quantity > $max_signed_int - $quantity) {
+            throw new Exception("Transfer of {$quantity} units would cause destination stock to exceed maximum allowable integer limit ({$max_signed_int})");
+        }
+
         $source_new_quantity = $source_old_quantity - $quantity;
         $target_new_quantity = $target_old_quantity + $quantity;
 
-        $pdo->beginTransaction();
+        $source_branch_id = (int) $source['branch_id'];
+        $target_branch_id = (int) $target['branch_id'];
 
+        $is_fifo_active = inventory_api_is_fifo_active();
+
+        // If FIFO is active in the future, perform pre-transfer checks
+        if ($is_fifo_active) {
+            require_once __DIR__ . '/../includes/fifo-inventory.php';
+
+            // Validate source aggregate-to-batch parity
+            $source_pre_recon = fifo_reconcile_item_stock($pdo, $source_id, $source_branch_id);
+            if (!$source_pre_recon['is_reconciled']) {
+                throw new Exception('Pre-transfer FIFO parity reconciliation failed for source item: ' . implode('; ', $source_pre_recon['reconciliation_errors']));
+            }
+
+            // Validate destination aggregate-to-batch parity
+            $target_pre_recon = fifo_reconcile_item_stock($pdo, $target_id, $target_branch_id);
+            if (!$target_pre_recon['is_reconciled']) {
+                throw new Exception('Pre-transfer FIFO parity reconciliation failed for target item: ' . implode('; ', $target_pre_recon['reconciliation_errors']));
+            }
+
+            // Verify FIFO batch availability for the source
+            fifo_verify_pre_issuance($pdo, $source_id, $source_branch_id, $quantity);
+        }
+
+        // Deduct source aggregate inventory
         $source_update = $pdo->prepare("UPDATE inventory_items SET quantity = ? WHERE id = ?");
         $source_update->execute([$source_new_quantity, $source_id]);
-
-        $target_update = $pdo->prepare("UPDATE inventory_items SET quantity = ?, last_restock_date = CURDATE() WHERE id = ?");
-        $target_update->execute([$target_new_quantity, $target_id]);
 
         $source_note = $notes !== ''
             ? $notes
@@ -557,8 +985,48 @@ if ($action === 'transfer_stock') {
             ? $notes
             : 'Branch transfer from ' . ($source['branch_name'] ?? 'source branch');
 
-        inventory_api_log_transaction($source_id, 'stock_out', $quantity, $source_note, 'branch_transfer', $target_id);
-        inventory_api_log_transaction($target_id, 'stock_in', $quantity, $target_note, 'branch_transfer', $source_id);
+        // Record source stock_out transaction and capture inserted ID
+        $source_tx_id = inventory_api_log_transaction($source_id, 'stock_out', $quantity, $source_note, 'branch_transfer', $target_id);
+
+        // Allocate source batches using fifo_allocate_for_transaction() if FIFO is active
+        if ($is_fifo_active) {
+            fifo_allocate_for_transaction($pdo, $source_tx_id, $source_id, $source_branch_id, $quantity, $source_note);
+        }
+
+        // Increase destination aggregate inventory
+        $target_update = $pdo->prepare("UPDATE inventory_items SET quantity = ?, last_restock_date = CURDATE() WHERE id = ?");
+        $target_update->execute([$target_new_quantity, $target_id]);
+
+        // Record destination stock_in transaction and capture inserted ID
+        $target_tx_id = inventory_api_log_transaction($target_id, 'stock_in', $quantity, $target_note, 'branch_transfer', $source_id);
+
+        // Create destination FIFO batch using fifo_create_batch() if FIFO is active
+        if ($is_fifo_active) {
+            $receipt_timestamp = date('Y-m-d H:i:s');
+            $source_ref = 'DIR-XFER: Item #' . $source_id . ' -> Item #' . $target_id;
+            fifo_create_batch($pdo, [
+                'item_id' => $target_id,
+                'branch_id' => $target_branch_id,
+                'source_type' => 'transfer_receipt',
+                'source_id' => $target_tx_id,
+                'source_sequence' => 1,
+                'source_ref' => $source_ref,
+                'initial_quantity' => $quantity,
+                'received_at' => $receipt_timestamp,
+                'is_legacy' => 0,
+            ]);
+
+            // Reconcile source and destination aggregate quantities against batch balances
+            $source_post_recon = fifo_reconcile_item_stock($pdo, $source_id, $source_branch_id);
+            if (!$source_post_recon['is_reconciled']) {
+                throw new Exception('Post-transfer FIFO parity reconciliation failed for source item: ' . implode('; ', $source_post_recon['reconciliation_errors']));
+            }
+
+            $target_post_recon = fifo_reconcile_item_stock($pdo, $target_id, $target_branch_id);
+            if (!$target_post_recon['is_reconciled']) {
+                throw new Exception('Post-transfer FIFO parity reconciliation failed for target item: ' . implode('; ', $target_post_recon['reconciliation_errors']));
+            }
+        }
 
         log_audit('inventory_items', 'inventory_transfer', $source_id, [
             'source_quantity' => $source_old_quantity,
@@ -570,8 +1038,8 @@ if ($action === 'transfer_stock') {
             'item_name' => $source['item_name'] ?? null,
             'source_item_id' => $source_id,
             'target_item_id' => $target_id,
-            'from_branch_id' => (int) ($source['branch_id'] ?? 0),
-            'to_branch_id' => (int) ($target['branch_id'] ?? 0),
+            'from_branch_id' => $source_branch_id,
+            'to_branch_id' => $target_branch_id,
         ]);
 
         inventory_api_notify_branch_transfer($source, $target, $quantity);
@@ -582,7 +1050,7 @@ if ($action === 'transfer_stock') {
             'source_quantity' => $source_new_quantity,
             'target_quantity' => $target_new_quantity,
         ]);
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
         }
@@ -612,9 +1080,76 @@ if ($action === 'stock_out') {
             throw new Exception('Invalid inventory item');
         }
 
-        $item = inventory_api_get_item($item_id);
+        // ---------------------------------------------------------------------
+        // Transaction-Safe Stock-Out Execution
+        // ---------------------------------------------------------------------
+        if (!$pdo->inTransaction()) {
+            $pdo->beginTransaction();
+            $started_transaction = true;
+        }
+
+        // Lock item row FOR UPDATE and verify branch accessibility
+        $item_stmt = $pdo->prepare("
+            SELECT i.*, b.has_inventory, b.status AS branch_status, b.name AS branch_name
+            FROM inventory_items i
+            LEFT JOIN branches b ON b.id = i.branch_id
+            WHERE i.id = ? AND i.status = 'active'
+            FOR UPDATE
+        ");
+        $item_stmt->execute([$item_id]);
+        $item = $item_stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$item) {
+            throw new Exception('Inventory item not found');
+        }
+
+        if ((int) ($item['has_inventory'] ?? 0) !== 1 || ($item['branch_status'] ?? '') !== 'active') {
+            throw new Exception('Inventory is only available for active inventory branches');
+        }
+
+        if (!has_branch_access($item['branch_id'])) {
+            throw new Exception('Unauthorized access');
+        }
+
+        $branch_id = (int) ($item['branch_id'] ?? 0);
+        if ($branch_id <= 0) {
+            throw new Exception("Inventory item #{$item_id} has invalid branch association");
+        }
+
+        // Validate current quantity and guard against signed 32-bit INT boundaries
+        $max_signed_int = 2147483647;
+        if (!array_key_exists('quantity', $item) || $item['quantity'] === null) {
+            throw new Exception("Inventory item #{$item_id} has NULL or missing quantity in inventory_items");
+        }
+
+        if (!is_numeric($item['quantity'])) {
+            throw new Exception("Inventory item #{$item_id} has non-numeric quantity in database");
+        }
+
+        $raw_old_quantity = (string) $item['quantity'];
+        if (!preg_match('/^-?\d+$/', $raw_old_quantity)) {
+            throw new Exception("Inventory item #{$item_id} has malformed quantity in database: '{$raw_old_quantity}'");
+        }
+
         $old_quantity = (int) $item['quantity'];
-        $tag_data = inventory_api_resolve_stock_out_tag((int) ($item['branch_id'] ?? 0));
+        if ($old_quantity < 0) {
+            throw new Exception("Inventory item #{$item_id} has invalid negative quantity ({$old_quantity})");
+        }
+
+        if ($old_quantity > $max_signed_int) {
+            throw new Exception("Inventory item #{$item_id} exceeds maximum allowable integer limit ({$max_signed_int})");
+        }
+
+        if ($old_quantity < $quantity) {
+            throw new Exception('Insufficient stock available. Current: ' . $old_quantity);
+        }
+
+        $new_quantity = $old_quantity - $quantity;
+        if ($new_quantity < 0) {
+            throw new Exception("Stock deduction would result in negative quantity ({$new_quantity})");
+        }
+
+        $tag_data = inventory_api_resolve_stock_out_tag($branch_id);
 
         $reason_type = trim((string) ($_POST['reason_type'] ?? ''));
         $reason_labels = [
@@ -629,19 +1164,6 @@ if ($action === 'stock_out') {
             throw new Exception('Direct Sale / Walk-In stock out requires selecting an active registered customer. Please register the customer first if they are not yet in the system.');
         }
 
-        if ($old_quantity < $quantity) {
-            throw new Exception('Insufficient stock available. Current: ' . $old_quantity);
-        }
-
-        if (!$pdo->inTransaction()) {
-            $pdo->beginTransaction();
-            $started_transaction = true;
-        }
-
-        $new_quantity = $old_quantity - $quantity;
-        $update_stmt = $pdo->prepare("UPDATE inventory_items SET quantity = ? WHERE id = ?");
-        $update_stmt->execute([$new_quantity, $item_id]);
-
         $note_parts = [];
         if ($reason_label !== '') {
             $note_parts[] = 'Reason: ' . $reason_label;
@@ -650,6 +1172,24 @@ if ($action === 'stock_out') {
             $note_parts[] = 'Remarks: ' . $notes;
         }
         $final_notes = !empty($note_parts) ? implode(' | ', $note_parts) : ($notes ?: 'Manual stock out from Front Desk Inventory');
+
+        $is_fifo_active = inventory_api_is_fifo_active();
+
+        // When FIFO is active, validate pre-issuance parity and candidate batch availability
+        if ($is_fifo_active) {
+            require_once __DIR__ . '/../includes/fifo-inventory.php';
+
+            $pre_recon = fifo_reconcile_item_stock($pdo, $item_id, $branch_id);
+            if (!$pre_recon['is_reconciled']) {
+                throw new Exception('Pre-stock-out FIFO parity reconciliation failed: ' . implode('; ', $pre_recon['reconciliation_errors']));
+            }
+
+            fifo_verify_pre_issuance($pdo, $item_id, $branch_id, $quantity);
+        }
+
+        // Deduct aggregate inventory stock
+        $update_stmt = $pdo->prepare("UPDATE inventory_items SET quantity = ? WHERE id = ?");
+        $update_stmt->execute([$new_quantity, $item_id]);
 
         // HWTIRES Revision 4: Customer warranty snapshot for direct sales
         $warranty_data = [];
@@ -706,10 +1246,46 @@ if ($action === 'stock_out') {
             }
         }
 
-        inventory_api_log_transaction($item_id, 'stock_out', $quantity, $final_notes, $reason_type ?: null, null, $tag_data, $warranty_data);
+        // Record stock_out inventory transaction and capture inserted ID
+        $transaction_id = inventory_api_log_transaction(
+            $item_id,
+            'stock_out',
+            $quantity,
+            $final_notes,
+            $reason_type ?: null,
+            null,
+            $tag_data,
+            $warranty_data
+        );
+
+        if (!$transaction_id || $transaction_id <= 0) {
+            $transaction_id = (int) $pdo->lastInsertId();
+        }
+
+        if ($transaction_id <= 0) {
+            throw new Exception('Failed to record stock-out inventory transaction');
+        }
+
+        // When FIFO is active, allocate stock from eligible batches in FIFO order
+        if ($is_fifo_active) {
+            fifo_allocate_for_transaction(
+                $pdo,
+                $transaction_id,
+                $item_id,
+                $branch_id,
+                $quantity,
+                $final_notes
+            );
+
+            // Verify post-issuance parity
+            $post_recon = fifo_reconcile_item_stock($pdo, $item_id, $branch_id);
+            if (!$post_recon['is_reconciled']) {
+                throw new Exception('Post-stock-out FIFO parity reconciliation failed: ' . implode('; ', $post_recon['reconciliation_errors']));
+            }
+        }
 
         if (!empty($tag_data['customer_id'])) {
-            app_touch_customer_branch_record((int) $tag_data['customer_id'], (int) ($item['branch_id'] ?? 0), $user['id'] ?? null);
+            app_touch_customer_branch_record((int) $tag_data['customer_id'], $branch_id, $user['id'] ?? null);
         }
 
         if ($started_transaction && $pdo->inTransaction()) {
@@ -724,7 +1300,7 @@ if ($action === 'stock_out') {
         ]);
 
         inventory_api_finish(true, 'Stock removed successfully', 200, ['quantity' => $new_quantity]);
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         if ($started_transaction && $pdo->inTransaction()) {
             $pdo->rollBack();
         }
@@ -791,6 +1367,9 @@ if ($action === 'adjust_stock') {
         }
 
         $item_branch_id = (int) ($item['branch_id'] ?? 0);
+        if ($item_branch_id <= 0) {
+            throw new Exception("Inventory item #{$item_id} has invalid branch association");
+        }
 
         // Branch Isolation: Admin can adjust any branch, Front Desk can only adjust own branch
         if ($user_role === 'front-desk') {
@@ -802,8 +1381,35 @@ if ($action === 'adjust_stock') {
             throw new Exception('Unauthorized branch access');
         }
 
+        // Validate aggregate quantity from locked database row
+        $max_signed_int = 2147483647;
+        if (!array_key_exists('quantity', $item) || $item['quantity'] === null) {
+            throw new Exception("Inventory item #{$item_id} has NULL or missing quantity in inventory_items");
+        }
+
+        if (!is_numeric($item['quantity'])) {
+            throw new Exception("Inventory item #{$item_id} has non-numeric quantity in database");
+        }
+
+        $raw_old_quantity = (string) $item['quantity'];
+        if (!preg_match('/^-?\d+$/', $raw_old_quantity)) {
+            throw new Exception("Inventory item #{$item_id} has malformed quantity in database: '{$raw_old_quantity}'");
+        }
+
         $old_quantity = (int) $item['quantity'];
+        if ($old_quantity < 0) {
+            throw new Exception("Inventory item #{$item_id} has invalid negative quantity ({$old_quantity})");
+        }
+
+        if ($old_quantity > $max_signed_int) {
+            throw new Exception("Inventory item #{$item_id} exceeds maximum allowable integer limit ({$max_signed_int})");
+        }
+
         $new_quantity = (int) $physical_quantity;
+        if ($new_quantity < 0 || $new_quantity > $max_signed_int) {
+            throw new Exception("Target physical quantity exceeds allowable integer limit ({$max_signed_int})");
+        }
+
         $difference = $new_quantity - $old_quantity;
 
         if ($difference === 0) {
@@ -813,12 +1419,109 @@ if ($action === 'adjust_stock') {
 
         $diff_formatted = ($difference > 0 ? '+' : '') . $difference;
         $final_notes = "Stock correction: {$old_quantity} → {$new_quantity} (Difference: {$diff_formatted}). Reason: {$category_label} | Remarks: {$remarks}";
-        $ref_type = $difference > 0 ? 'inventory_recount_up' : 'inventory_recount_down';
 
-        $update_stmt = $pdo->prepare("UPDATE inventory_items SET quantity = ?, updated_at = NOW() WHERE id = ?");
-        $update_stmt->execute([$new_quantity, $item_id]);
+        $is_fifo_active = inventory_api_is_fifo_active();
 
-        inventory_api_log_transaction($item_id, 'adjustment', abs($difference), $final_notes, $ref_type, null);
+        // When FIFO is active, perform pre-adjustment parity reconciliation
+        if ($is_fifo_active) {
+            require_once __DIR__ . '/../includes/fifo-inventory.php';
+
+            $pre_recon = fifo_reconcile_item_stock($pdo, $item_id, $item_branch_id);
+            if (!$pre_recon['is_reconciled']) {
+                throw new Exception('Pre-adjustment FIFO parity reconciliation failed: ' . implode('; ', $pre_recon['reconciliation_errors']));
+            }
+        }
+
+        if ($difference > 0) {
+            // Positive adjustment (recount up)
+            $ref_type = 'inventory_recount_up';
+            $adjustment_qty = $difference;
+
+            $update_stmt = $pdo->prepare("UPDATE inventory_items SET quantity = ?, updated_at = NOW() WHERE id = ?");
+            $update_stmt->execute([$new_quantity, $item_id]);
+
+            $transaction_id = inventory_api_log_transaction(
+                $item_id,
+                'adjustment',
+                $adjustment_qty,
+                $final_notes,
+                $ref_type,
+                null
+            );
+
+            if (!$transaction_id || $transaction_id <= 0) {
+                $transaction_id = (int) $pdo->lastInsertId();
+            }
+
+            if ($transaction_id <= 0) {
+                throw new Exception('Failed to record stock adjustment inventory transaction');
+            }
+
+            if ($is_fifo_active) {
+                fifo_create_batch($pdo, [
+                    'item_id' => $item_id,
+                    'branch_id' => $item_branch_id,
+                    'source_type' => 'adjustment_positive',
+                    'source_id' => $transaction_id,
+                    'source_sequence' => 1,
+                    'source_ref' => $reason_category,
+                    'initial_quantity' => $adjustment_qty,
+                    'received_at' => date('Y-m-d H:i:s'),
+                ]);
+            }
+        } else {
+            // Negative adjustment (recount down)
+            $ref_type = 'inventory_recount_down';
+            $reduction_quantity = abs($difference);
+
+            if ($is_fifo_active) {
+                fifo_verify_pre_issuance(
+                    $pdo,
+                    $item_id,
+                    $item_branch_id,
+                    $reduction_quantity
+                );
+            }
+
+            $update_stmt = $pdo->prepare("UPDATE inventory_items SET quantity = ?, updated_at = NOW() WHERE id = ?");
+            $update_stmt->execute([$new_quantity, $item_id]);
+
+            $transaction_id = inventory_api_log_transaction(
+                $item_id,
+                'adjustment',
+                $reduction_quantity,
+                $final_notes,
+                $ref_type,
+                null
+            );
+
+            if (!$transaction_id || $transaction_id <= 0) {
+                $transaction_id = (int) $pdo->lastInsertId();
+            }
+
+            if ($transaction_id <= 0) {
+                throw new Exception('Failed to record stock adjustment inventory transaction');
+            }
+
+            if ($is_fifo_active) {
+                fifo_allocate_for_transaction(
+                    $pdo,
+                    $transaction_id,
+                    $item_id,
+                    $item_branch_id,
+                    $reduction_quantity,
+                    $final_notes
+                );
+            }
+        }
+
+        // When FIFO is active, verify post-adjustment parity
+        if ($is_fifo_active) {
+            $post_recon = fifo_reconcile_item_stock($pdo, $item_id, $item_branch_id);
+            if (!$post_recon['is_reconciled']) {
+                throw new Exception('Post-adjustment FIFO parity reconciliation failed: ' . implode('; ', $post_recon['reconciliation_errors']));
+            }
+        }
 
         log_audit('inventory_items', 'stock_adjustment', $item_id, [
             'quantity' => $old_quantity,
@@ -840,7 +1543,7 @@ if ($action === 'adjust_stock') {
             'new_quantity' => $new_quantity,
             'difference' => $difference,
         ]);
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
         }
@@ -1379,7 +2082,7 @@ if ($action === 'receive_incoming_stock') {
         $pdo->beginTransaction();
 
         $stmt = $pdo->prepare("
-            SELECT inc.*, i.item_name, i.category, i.branch_id AS item_branch_id, i.quantity AS current_item_qty
+            SELECT inc.*, i.item_name, i.category, i.status AS item_status, i.branch_id AS item_branch_id, i.quantity AS current_item_qty
             FROM inventory_incoming_stock inc
             INNER JOIN inventory_items i ON i.id = inc.item_id
             WHERE inc.id = ?
@@ -1410,18 +2113,46 @@ if ($action === 'receive_incoming_stock') {
         }
 
         $item_id = (int) $incoming['item_id'];
+
+        // Validate inventory item active status
+        if (($incoming['item_status'] ?? '') !== 'active') {
+            throw new Exception("Inventory item #{$item_id} is not active (status: '{$incoming['item_status']}')");
+        }
+
+        // Validate current quantity, reject NULL or negative, guard against signed 32-bit INT overflow
+        $max_signed_int = 2147483647;
+        if (!array_key_exists('current_item_qty', $incoming) || $incoming['current_item_qty'] === null) {
+            throw new Exception("Inventory item #{$item_id} has NULL or missing quantity in inventory_items");
+        }
         $old_quantity = (int) $incoming['current_item_qty'];
+        if ($old_quantity < 0) {
+            throw new Exception("Inventory item #{$item_id} has invalid negative quantity ({$old_quantity}) in inventory_items");
+        }
+        if ($old_quantity > $max_signed_int - $actual_quantity) {
+            throw new Exception("Stock receipt of {$actual_quantity} units would exceed maximum allowable integer limit ({$max_signed_int})");
+        }
         $new_quantity = $old_quantity + $actual_quantity;
+
+        $is_fifo_active = inventory_api_is_fifo_active();
+
+        // If FIFO is active in the future, perform pre-receipt parity check
+        if ($is_fifo_active) {
+            require_once __DIR__ . '/../includes/fifo-inventory.php';
+            $pre_recon = fifo_reconcile_item_stock($pdo, $item_id, $incoming_branch_id);
+            if (!$pre_recon['is_reconciled']) {
+                throw new Exception('Pre-receipt FIFO parity reconciliation failed: ' . implode('; ', $pre_recon['reconciliation_errors']));
+            }
+        }
 
         // 1. Update inventory_items quantity and restock date
         $update_item = $pdo->prepare("
             UPDATE inventory_items
-            SET quantity = quantity + ?,
+            SET quantity = ?,
                 last_restock_date = CURDATE(),
                 updated_at = NOW()
             WHERE id = ?
         ");
-        $update_item->execute([$actual_quantity, $item_id]);
+        $update_item->execute([$new_quantity, $item_id]);
 
         // 2. Format transaction notes
         $source_type = $incoming['source_type'] ?? 'supplier_delivery';
@@ -1457,8 +2188,25 @@ if ($action === 'receive_incoming_stock') {
         }
         $final_notes = implode(' | ', $note_parts);
 
-        // 3. Log stock_in transaction
-        inventory_api_log_transaction($item_id, 'stock_in', $actual_quantity, $final_notes, $source_type ?: 'supplier_delivery', $incoming_id);
+        // 3. Log stock_in transaction and capture ID
+        $transaction_id = inventory_api_log_transaction(
+            $item_id,
+            'stock_in',
+            $actual_quantity,
+            $final_notes,
+            $source_type ?: 'supplier_delivery',
+            $incoming_id
+        );
+
+        if (!$transaction_id || $transaction_id <= 0) {
+            $transaction_id = (int) $pdo->lastInsertId();
+        }
+
+        if ($transaction_id <= 0) {
+            throw new Exception('Failed to record stock-in inventory transaction for incoming delivery');
+        }
+
+        $received_at = date('Y-m-d H:i:s');
 
         // 4. Update incoming delivery record
         $update_incoming = $pdo->prepare("
@@ -1466,17 +2214,37 @@ if ($action === 'receive_incoming_stock') {
             SET actual_quantity = ?,
                 status = 'received',
                 received_by = ?,
-                received_at = NOW(),
+                received_at = ?,
                 updated_at = NOW()
             WHERE id = ?
         ");
         $update_incoming->execute([
             $actual_quantity,
             (int) ($user['id'] ?? 0),
+            $received_at,
             $incoming_id
         ]);
 
-        // 5. Admin Discrepancy Notification
+        // 5. If FIFO is active in the future, create batch and perform post-receipt parity check
+        if ($is_fifo_active) {
+            fifo_create_batch($pdo, [
+                'item_id' => $item_id,
+                'branch_id' => $incoming_branch_id,
+                'source_type' => 'incoming_stock',
+                'source_id' => $incoming_id,
+                'source_sequence' => 1,
+                'source_ref' => $reference_number !== '' ? $reference_number : null,
+                'initial_quantity' => $actual_quantity,
+                'received_at' => $received_at,
+            ]);
+
+            $post_recon = fifo_reconcile_item_stock($pdo, $item_id, $incoming_branch_id);
+            if (!$post_recon['is_reconciled']) {
+                throw new Exception('Post-receipt FIFO parity reconciliation failed: ' . implode('; ', $post_recon['reconciliation_errors']));
+            }
+        }
+
+        // 6. Admin Discrepancy Notification
         if ((int) $actual_quantity !== (int) $incoming['expected_quantity']) {
             if (app_table_exists('transfer_notifications')) {
                 $admin_stmt = $pdo->query("SELECT id FROM users WHERE role = 'admin' AND status = 'active'");
@@ -1530,7 +2298,7 @@ if ($action === 'receive_incoming_stock') {
             }
         }
 
-        // 5. Audit logs
+        // 7. Audit logs
         log_audit('inventory_incoming_stock', 'receive', $incoming_id, [
             'status' => 'pending',
             'actual_quantity' => null,
@@ -1548,6 +2316,7 @@ if ($action === 'receive_incoming_stock') {
             'added_quantity' => $actual_quantity,
             'source_type' => $source_type,
             'incoming_stock_id' => $incoming_id,
+            'transaction_id' => $transaction_id,
         ]);
 
         $pdo->commit();
@@ -1559,7 +2328,7 @@ if ($action === 'receive_incoming_stock') {
             'received_quantity' => $actual_quantity,
             'new_quantity' => $new_quantity,
         ]);
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
         }

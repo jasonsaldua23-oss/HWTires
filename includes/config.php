@@ -2085,6 +2085,30 @@ if (!function_exists('app_inventory_transaction_source_display')) {
     }
 }
 
+// ============================================================================
+// FIFO Inventory Management (Panel Revision 3)
+// ============================================================================
+
+if (!function_exists('app_is_fifo_active')) {
+    /**
+     * Canonical, application-wide check for Revision 3 FIFO inventory activation.
+     *
+     * In accordance with FIFO safety protocols, this function MUST return FALSE
+     * unconditionally until all stock-changing workflows have completed integration,
+     * legacy opening balance conversion is executed, and live cutover is authorized.
+     *
+     * Prohibited:
+     * - Do not read environment variables, session, or request parameters.
+     * - Do not read or write database settings.
+     * - Do not load the FIFO helper or execute queries.
+     *
+     * @return bool Always false until explicit cutover authorization
+     */
+    function app_is_fifo_active(): bool {
+        return false;
+    }
+}
+
 if (!function_exists('ensure_job_orders_assigned_technician_name_column')) {
     function ensure_job_orders_assigned_technician_name_column() {
         try {
