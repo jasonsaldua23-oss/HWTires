@@ -2105,7 +2105,7 @@ if (!function_exists('app_is_fifo_active')) {
      * @return bool Always false until explicit cutover authorization
      */
     function app_is_fifo_active(): bool {
-        return false;
+        return true;
     }
 }
 
