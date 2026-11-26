@@ -57,6 +57,56 @@ if (!function_exists('quote_pdf_note_field')) {
     }
 }
 
+if (!function_exists('quote_pdf_line_item_warranty_text')) {
+    function quote_pdf_line_item_warranty_text(array $item, array $inventory_items_by_id, array $issued_by_quote_item): string {
+        if (app_line_item_is_service($item)) {
+            return '';
+        }
+
+        $item_id = (int) ($item['id'] ?? 0);
+        $linked_trans = $issued_by_quote_item[$item_id] ?? null;
+        $inv_meta = app_line_item_meta($item);
+        $inv_id = (int) ($inv_meta['inventory_item_id'] ?? 0);
+        $inv_item = $inv_id > 0 ? ($inventory_items_by_id[$inv_id] ?? []) : ($inventory_items_by_id['name:' . strtolower(trim((string) ($item['item_name'] ?? '')))] ?? []);
+        $cat_w = !empty($inv_item) ? app_catalog_warranty_state($inv_item) : null;
+
+        if ($linked_trans) {
+            $w = app_transaction_warranty_state($linked_trans);
+            if ($w['snapshot_has'] === 1) {
+                if ($w['state'] === 'active' && !empty($w['expiry_date'])) {
+                    return 'Warranty: Active until ' . date('M d, Y', strtotime($w['expiry_date'])) . ' (' . $w['formatted_duration'] . ($w['coverage'] ? ', ' . $w['coverage'] : '') . ')';
+                }
+                if ($w['state'] === 'expired' && !empty($w['expiry_date'])) {
+                    return 'Warranty: Expired on ' . date('M d, Y', strtotime($w['expiry_date'])) . ' (' . $w['formatted_duration'] . ')';
+                }
+                return 'Warranty: ' . $w['formatted_duration'] . ' (Pending Job Order Completion)' . ($w['coverage'] ? ' - ' . $w['coverage'] : '');
+            }
+            if ($w['snapshot_has'] === 0) {
+                return 'Warranty: Sold Without Warranty';
+            }
+            // snapshot_has is null / unrecorded: fall back to catalog estimate if present
+            if ($cat_w && $cat_w['has_warranty'] === 1) {
+                return 'Est. Warranty: ' . $cat_w['formatted_duration'] . ($cat_w['coverage'] ? ' (' . $cat_w['coverage'] . ')' : '');
+            }
+            if ($cat_w && $cat_w['has_warranty'] === 0) {
+                return 'Warranty: No Warranty';
+            }
+            return '';
+        }
+
+        if ($cat_w) {
+            if ($cat_w['has_warranty'] === 1) {
+                return 'Est. Warranty: ' . $cat_w['formatted_duration'] . ($cat_w['coverage'] ? ' (' . $cat_w['coverage'] . ')' : '');
+            }
+            if ($cat_w['has_warranty'] === 0) {
+                return 'Warranty: No Warranty';
+            }
+        }
+
+        return '';
+    }
+}
+
 try {
     $settings = [
         'company_name' => 'Highway Tires',
@@ -148,7 +198,7 @@ try {
     } else {
         foreach ($items as $item) {
             $name_length = strlen((string) ($item['item_name'] ?? ''));
-            $detail_length = strlen(app_line_item_detail_text($item, $inventory_items_by_id, ['include_type' => true]));
+            $detail_length = strlen(app_line_item_detail_text($item, $inventory_items_by_id, ['include_type' => true, 'exclude_warranty' => true]));
             $name_length += $detail_length;
             $receipt_height += 11 + (max(0, (int) ceil($name_length / 30) - 1) * 4);
             if ($detail_length > 0) {
@@ -156,29 +206,7 @@ try {
             }
             $is_service_line = app_line_item_is_service($item);
             if (!$is_service_line) {
-                $item_id = (int) ($item['id'] ?? 0);
-                $linked_trans = $issued_by_quote_item[$item_id] ?? null;
-                $inv_meta = app_line_item_meta($item);
-                $inv_id = (int) ($inv_meta['inventory_item_id'] ?? 0);
-                $inv_item = $inv_id > 0 ? ($inventory_items_by_id[$inv_id] ?? []) : ($inventory_items_by_id['name:' . strtolower(trim((string) ($item['item_name'] ?? '')))] ?? []);
-                $warranty_calc_text = '';
-                if ($linked_trans) {
-                    $w = app_transaction_warranty_state($linked_trans);
-                    if ($w['snapshot_has'] === 1) {
-                        $warranty_calc_text = $w['summary'];
-                    } elseif ($w['snapshot_has'] === 0) {
-                        $warranty_calc_text = 'Sold Without Warranty';
-                    } else {
-                        $warranty_calc_text = 'Warranty Not Recorded';
-                    }
-                } elseif (!empty($inv_item)) {
-                    $cat_w = app_catalog_warranty_state($inv_item);
-                    if ($cat_w['has_warranty'] === 1) {
-                        $warranty_calc_text = 'Est. Warranty: ' . $cat_w['summary'];
-                    } elseif ($cat_w['has_warranty'] === 0) {
-                        $warranty_calc_text = 'Warranty: No Warranty';
-                    }
-                }
+                $warranty_calc_text = quote_pdf_line_item_warranty_text($item, $inventory_items_by_id, $issued_by_quote_item);
                 if ($warranty_calc_text !== '') {
                     $receipt_height += 5 + (max(0, (int) ceil(strlen($warranty_calc_text) / 32) - 1) * 3);
                 }
@@ -228,44 +256,12 @@ try {
             $is_service_line = app_line_item_is_service($item);
             $line_amount = $is_service_line ? 'Included in labor' : quote_pdf_money($line_total);
             $type_label = app_line_item_type_label($item);
-            $detail_text = app_line_item_detail_text($item, $inventory_items_by_id, ['include_type' => true]);
+            $detail_text = app_line_item_detail_text($item, $inventory_items_by_id, ['include_type' => true, 'exclude_warranty' => true]);
             $detail_html = $detail_text !== ''
                 ? '<br><span style="font-weight:normal;color:#64748B;font-size:7px;">' . quote_pdf_text($detail_text) . '</span>'
                 : '';
 
-            $warranty_text = '';
-            if (!$is_service_line) {
-                $item_id = (int) ($item['id'] ?? 0);
-                $linked_trans = $issued_by_quote_item[$item_id] ?? null;
-                $inv_meta = app_line_item_meta($item);
-                $inv_id = (int) ($inv_meta['inventory_item_id'] ?? 0);
-                $inv_item = $inv_id > 0 ? ($inventory_items_by_id[$inv_id] ?? []) : ($inventory_items_by_id['name:' . strtolower(trim((string) ($item['item_name'] ?? '')))] ?? []);
-
-                if ($linked_trans) {
-                    $w = app_transaction_warranty_state($linked_trans);
-                    if ($w['snapshot_has'] === 1) {
-                        if ($w['state'] === 'active') {
-                            $warranty_text = 'Warranty: Active until ' . date('M d, Y', strtotime($w['expiry_date'])) . ' (' . $w['formatted_duration'] . ($w['coverage'] ? ', ' . $w['coverage'] : '') . ')';
-                        } elseif ($w['state'] === 'expired') {
-                            $warranty_text = 'Warranty: Expired on ' . date('M d, Y', strtotime($w['expiry_date'])) . ' (' . $w['formatted_duration'] . ')';
-                        } else {
-                            $warranty_text = 'Warranty: ' . $w['formatted_duration'] . ' (Pending Job Order Completion)' . ($w['coverage'] ? ' - ' . $w['coverage'] : '');
-                        }
-                    } elseif ($w['snapshot_has'] === 0) {
-                        $warranty_text = 'Warranty: Sold Without Warranty';
-                    } else {
-                        $warranty_text = 'Warranty: Not Recorded';
-                    }
-                } elseif (!empty($inv_item)) {
-                    $cat_w = app_catalog_warranty_state($inv_item);
-                    if ($cat_w['has_warranty'] === 1) {
-                        $warranty_text = 'Est. Warranty: ' . $cat_w['formatted_duration'] . ($cat_w['coverage'] ? ' (' . $cat_w['coverage'] . ')' : '');
-                    } elseif ($cat_w['has_warranty'] === 0) {
-                        $warranty_text = 'Warranty: No Warranty';
-                    }
-                }
-            }
-
+            $warranty_text = quote_pdf_line_item_warranty_text($item, $inventory_items_by_id, $issued_by_quote_item);
             $warranty_html = $warranty_text !== ''
                 ? '<br><span style="font-weight:normal;color:#0284C7;font-size:7px;">' . quote_pdf_text($warranty_text) . '</span>'
                 : '';

@@ -337,6 +337,22 @@ $redirect_url = '/hwtires/front-desk/quotations/';
     vertical-align: middle;
     margin-left: 8px;
 }
+.quote-badge-manual {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 6px;
+    color: #475569;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    vertical-align: middle;
+    margin-left: 6px;
+}
 .quote-opt-checkbox {
     display: inline-flex;
     align-items: center;
@@ -356,7 +372,7 @@ $redirect_url = '/hwtires/front-desk/quotations/';
 }
 .quote-line-name {
     display: grid;
-    gap: 10px;
+    gap: 6px;
     margin: 0;
 }
 .quote-line-name-header {
@@ -369,7 +385,7 @@ $redirect_url = '/hwtires/front-desk/quotations/';
 .quote-line-name-header > label {
     margin: 0;
     color: #15233f;
-    font-size: 16px;
+    font-size: 13px;
     font-weight: 800;
     text-transform: uppercase;
     cursor: pointer;
@@ -379,6 +395,423 @@ $redirect_url = '/hwtires/front-desk/quotations/';
     text-align: center;
     font-size: 13px;
     color: #94a3b8;
+    background: #ffffff;
+    border: 1px dashed #cbd5e1;
+    border-radius: 6px;
+}
+
+/* Collapsible Browse Sections */
+.quote-tech-browse-details {
+    margin-top: 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #ffffff;
+    overflow: hidden;
+}
+.quote-tech-browse-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: #f1f5f9;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    transition: background 0.15s ease;
+}
+.quote-tech-browse-summary:hover {
+    background: #e2e8f0;
+}
+.quote-tech-browse-summary::-webkit-details-marker {
+    display: none;
+}
+.quote-tech-browse-summary .quote-chevron {
+    font-size: 10px;
+    color: #64748b;
+    transition: transform 0.2s ease;
+}
+.quote-tech-browse-details[open] .quote-chevron {
+    transform: rotate(180deg);
+}
+.quote-tech-browse-body {
+    padding: 8px;
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+/* Compact Step 2 Selected Line Rows */
+.quote-line-list {
+    display: grid;
+    gap: 10px;
+}
+.quote-line-row {
+    padding: 12px 14px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    gap: 12px;
+    align-items: center;
+    grid-template-columns: minmax(220px, 1.4fr) minmax(90px, 110px) minmax(130px, 160px) minmax(130px, 160px) 40px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    transition: border-color 0.15s ease;
+}
+.quote-line-row:hover {
+    border-color: #cbd5e1;
+}
+.quote-line-row label {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+}
+.quote-line-row label > span,
+.quote-line-total > span,
+.quote-source-row > span {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+.quote-line-row input,
+.quote-line-row select {
+    min-height: 38px;
+    padding: 6px 10px;
+    font-size: 13px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #0f172a;
+    line-height: 1.3;
+}
+.quote-line-row input:focus,
+.quote-line-row select:focus {
+    border-color: #0897b4;
+    box-shadow: 0 0 0 2px rgba(8, 151, 180, 0.15);
+}
+.quote-source-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+}
+.quote-source-row select {
+    min-height: 32px;
+    padding: 4px 8px;
+    font-size: 12px;
+}
+.quote-line-total {
+    display: grid;
+    gap: 4px;
+}
+.quote-line-total strong {
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 6px 12px;
+    font-size: 14px;
+    font-weight: 800;
+    border-radius: 6px;
+    border: 1px solid #c9f5fa;
+    background: #f0fdff;
+    color: #007496;
+}
+.quote-remove-line {
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.quote-remove-line:hover:not(:disabled):not(.is-locked) {
+    background: #fef2f2;
+    border-color: #fca5a5;
+    color: #dc2626;
+}
+.quote-remove-line.is-locked {
+    opacity: 0.65;
+    cursor: not-allowed;
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    color: #94a3b8;
+}
+
+/* Expandable Line Details for Duration & Description */
+.quote-line-expandable-details {
+    grid-column: 1 / -1;
+    margin-top: 4px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+.quote-line-expandable-summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+}
+.quote-line-expandable-summary::-webkit-details-marker {
+    display: none;
+}
+.quote-line-expandable-summary .quote-chevron {
+    margin-left: auto;
+    font-size: 10px;
+    color: #94a3b8;
+    transition: transform 0.2s ease;
+}
+.quote-line-expandable-details[open] .quote-chevron {
+    transform: rotate(180deg);
+}
+.quote-line-expandable-body {
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #475569;
+    line-height: 1.4;
+    border-top: 1px solid #e2e8f0;
+    background: #ffffff;
+}
+.quote-line-expandable-body p {
+    margin: 0 0 4px;
+}
+.quote-line-expandable-body p:last-child {
+    margin: 0;
+}
+.quote-duration-pill,
+.quote-stock-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 4px;
+    background: #e0f2fe;
+    color: #0369a1;
+}
+.quote-stock-pill {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+/* Compact Step 2 Picker Options */
+.quote-picker-option {
+    min-height: 48px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    gap: 8px;
+}
+.quote-picker-option-main strong {
+    font-size: 13px;
+    line-height: 1.25;
+}
+.quote-picker-option-main small,
+.quote-picker-option-side em {
+    font-size: 11px;
+}
+.quote-picker-option-side b {
+    font-size: 13px;
+}
+
+/* Step 2 Collapsible Catalog Accordions */
+.quote-catalog-collapse {
+    margin-top: 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    overflow: hidden;
+}
+.quote-catalog-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: #f8fafc;
+    color: #1e293b;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    border-bottom: 1px solid transparent;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+.quote-catalog-toggle-btn:hover {
+    background: #f1f5f9;
+}
+.quote-catalog-collapse[open] .quote-catalog-toggle-btn {
+    background: #f1f5f9;
+    border-bottom-color: #e2e8f0;
+}
+.quote-catalog-toggle-btn::-webkit-details-marker {
+    display: none;
+}
+.quote-catalog-toggle-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #0897b4;
+}
+.quote-catalog-toggle-btn .quote-chevron {
+    font-size: 11px;
+    transition: transform 0.2s ease;
+}
+.quote-catalog-collapse[open] .quote-chevron {
+    transform: rotate(180deg);
+}
+.quote-catalog-collapse-body {
+    padding: 16px;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Responsive 3-column desktop layout for expanded picker lists (prevents 4-6 column squishing) */
+.quote-picker-list {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+    max-height: 340px !important;
+    padding: 12px !important;
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    overflow-y: auto !important;
+}
+.quote-picker-list-large {
+    max-height: 400px !important;
+}
+
+/* Ensure service names, badges, stock, and prices do not overlap or become clipped */
+.quote-picker-option {
+    display: grid !important;
+    grid-template-columns: 20px minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 12px !important;
+    min-height: 52px !important;
+    padding: 8px 12px !important;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 6px !important;
+    box-sizing: border-box !important;
+    transition: all 0.15s ease !important;
+}
+.quote-picker-option:hover {
+    border-color: #cbd5e1 !important;
+    background: #f8fafc !important;
+}
+.quote-picker-option:has(input:checked) {
+    background: #f0fdff !important;
+    border-color: #67e8f9 !important;
+}
+.quote-picker-option-main {
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 3px !important;
+}
+.quote-picker-title {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+}
+.quote-picker-option-main strong {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    line-height: 1.3 !important;
+    word-break: break-word !important;
+}
+.quote-picker-option-main small {
+    font-size: 11px !important;
+    color: #64748b !important;
+    line-height: 1.25 !important;
+}
+.quote-picker-option-side {
+    text-align: right !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    min-width: 85px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-end !important;
+    gap: 2px !important;
+}
+.quote-picker-option-side b {
+    font-size: 14px !important;
+    font-weight: 800 !important;
+    color: #007496 !important;
+}
+.quote-picker-option-side em {
+    font-size: 11px !important;
+    color: #64748b !important;
+    font-style: normal !important;
+}
+
+/* Responsive adjustments: 3 cols desktop, 2 cols medium/tablet, 1 col mobile */
+@media (max-width: 1280px) {
+    .quote-picker-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+}
+@media (max-width: 960px) {
+    .quote-line-row {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    .quote-line-name {
+        grid-column: 1 / -1;
+    }
+    .quote-line-total {
+        grid-column: span 1;
+    }
+    .quote-remove-line {
+        grid-column: span 1;
+        justify-self: end;
+    }
+}
+@media (max-width: 768px) {
+    .quote-picker-list {
+        grid-template-columns: 1fr !important;
+    }
+    .quote-picker-option {
+        grid-template-columns: 22px minmax(0, 1fr) !important;
+    }
+    .quote-picker-option-side {
+        grid-column: 2 !important;
+        justify-self: start !important;
+        align-items: flex-start !important;
+    }
+}
+@media (max-width: 600px) {
+    .quote-line-row {
+        grid-template-columns: 1fr;
+    }
+    .quote-remove-line {
+        justify-self: start;
+    }
 }
 </style>
 
@@ -541,25 +974,53 @@ $redirect_url = '/hwtires/front-desk/quotations/';
                     <div class="quote-tech-block">
                         <label class="quote-tech-heading">
                             <span><i class="fas fa-tools" style="color: #b91c1c;"></i> Required Services <em>(Technician Confirmed)</em></span>
-                            <small>Checked services are strictly required and automatically included in Selected Services.</small>
+                            <small>Finding-based suggested repairs. Check repairs to include as Required in Step 2.</small>
                         </label>
                         <div class="quote-picker-input-row quote-tech-search">
                             <i class="fas fa-search"></i>
-                            <input type="search" id="requiredServicesSearch" placeholder="Search catalog services to mark as required..." autocomplete="off">
+                            <input type="search" id="requiredServicesSearch" placeholder="Filter suggested repairs..." autocomplete="off">
                         </div>
-                        <div class="quote-tech-list" id="requiredServicesList" aria-label="Required services list"></div>
+                        <div class="quote-tech-list" id="requiredServicesList" aria-label="Suggested required services list"></div>
+
+                        <details class="quote-tech-browse-details" id="browseOtherServicesDetails">
+                            <summary class="quote-tech-browse-summary">
+                                <span><i class="fas fa-list-ul me-1"></i> Browse Other Services (<span id="otherServicesCount">0</span>)</span>
+                                <i class="fas fa-chevron-down quote-chevron"></i>
+                            </summary>
+                            <div class="quote-tech-browse-body">
+                                <div class="quote-picker-input-row quote-tech-search" style="margin-bottom: 8px;">
+                                    <i class="fas fa-search"></i>
+                                    <input type="search" id="otherServicesSearch" placeholder="Search full catalog to mark required..." autocomplete="off">
+                                </div>
+                                <div class="quote-tech-list" id="otherServicesList" style="max-height: 200px;" aria-label="Other catalog services list"></div>
+                            </div>
+                        </details>
                     </div>
 
                     <div class="quote-tech-block">
                         <label class="quote-tech-heading">
                             <span><i class="fas fa-box" style="color: #0369a1;"></i> Recommended Parts &amp; Items <em>(Optional SKU Selection)</em></span>
-                            <small>Specific branch in-stock parts recommended. Pre-selected in Step 2; customer may decline.</small>
+                            <small>Finding-based branch parts. Pre-selected in Step 2; customer may decline.</small>
                         </label>
                         <div class="quote-picker-input-row quote-tech-search">
                             <i class="fas fa-search"></i>
-                            <input type="search" id="recommendedItemsSearch" placeholder="Search branch in-stock parts to recommend..." autocomplete="off">
+                            <input type="search" id="recommendedItemsSearch" placeholder="Filter suggested parts..." autocomplete="off">
                         </div>
-                        <div class="quote-tech-list" id="recommendedItemsList" aria-label="Recommended items list"></div>
+                        <div class="quote-tech-list" id="recommendedItemsList" aria-label="Suggested recommended items list"></div>
+
+                        <details class="quote-tech-browse-details" id="browseBranchStockDetails">
+                            <summary class="quote-tech-browse-summary">
+                                <span><i class="fas fa-boxes me-1"></i> Browse All Branch Stock (<span id="allBranchStockCount">0</span>)</span>
+                                <i class="fas fa-chevron-down quote-chevron"></i>
+                            </summary>
+                            <div class="quote-tech-browse-body">
+                                <div class="quote-picker-input-row quote-tech-search" style="margin-bottom: 8px;">
+                                    <i class="fas fa-search"></i>
+                                    <input type="search" id="allBranchStockSearch" placeholder="Search all branch in-stock parts..." autocomplete="off">
+                                </div>
+                                <div class="quote-tech-list" id="allBranchStockList" style="max-height: 200px;" aria-label="All branch stock list"></div>
+                            </div>
+                        </details>
                     </div>
                 </div>
             </div>
@@ -580,17 +1041,25 @@ $redirect_url = '/hwtires/front-desk/quotations/';
                     <span>Add Typed Service</span>
                 </button>
             </div>
-            <div class="quote-picker">
-                <label class="quote-picker-search">
-                    <span>Search or type service</span>
-                    <div class="quote-picker-input-row">
-                        <i class="fas fa-search"></i>
-                        <input type="search" id="servicePickerSearch" maxlength="100" data-text-format="first-letter" placeholder="Search services, or type a custom service..." autocomplete="off" data-no-autocomplete="true">
-                    </div>
-                </label>
-                <div class="quote-picker-list" id="servicePickerList" aria-label="Available services"></div>
-            </div>
             <div class="quote-line-list" id="serviceRows"></div>
+            <details class="quote-catalog-collapse" id="browseAllServicesCollapse">
+                <summary class="quote-catalog-toggle-btn">
+                    <span><i class="fas fa-layer-group me-2"></i>Browse All Services</span>
+                    <span class="quote-catalog-toggle-state"><span class="toggle-text">Show Catalog</span> <i class="fas fa-chevron-down quote-chevron"></i></span>
+                </summary>
+                <div class="quote-catalog-collapse-body">
+                    <div class="quote-picker">
+                        <label class="quote-picker-search">
+                            <span>Search or type service</span>
+                            <div class="quote-picker-input-row">
+                                <i class="fas fa-search"></i>
+                                <input type="search" id="servicePickerSearch" maxlength="100" data-text-format="first-letter" placeholder="Search services, or type a custom service..." autocomplete="off" data-no-autocomplete="true">
+                            </div>
+                        </label>
+                        <div class="quote-picker-list" id="servicePickerList" aria-label="Available services"></div>
+                    </div>
+                </div>
+            </details>
         </section>
 
         <section class="quote-card quote-step-two is-locked">
@@ -601,24 +1070,32 @@ $redirect_url = '/hwtires/front-desk/quotations/';
                     <span>Add Typed Item</span>
                 </button>
             </div>
-            <div class="quote-tabs" aria-label="Item categories">
-                <?php foreach ($item_tabs as $tab): ?>
-                    <button type="button" class="<?php echo $tab === 'All' ? 'active' : ''; ?>" data-category="<?php echo esc_attr($tab); ?>">
-                        <?php echo esc_html($tab); ?>
-                    </button>
-                <?php endforeach; ?>
-            </div>
-            <div class="quote-picker">
-                <label class="quote-picker-search">
-                    <span>Search or type item</span>
-                    <div class="quote-picker-input-row">
-                        <i class="fas fa-search"></i>
-                        <input type="search" id="itemPickerSearch" maxlength="100" data-text-format="first-letter" placeholder="Search inventory, or type a custom item..." autocomplete="off" data-no-autocomplete="true">
-                    </div>
-                </label>
-                <div class="quote-picker-list quote-picker-list-large" id="itemPickerList" aria-label="Available parts and items"></div>
-            </div>
             <div class="quote-line-list" id="itemRows"></div>
+            <details class="quote-catalog-collapse" id="browseAllPartsCollapse">
+                <summary class="quote-catalog-toggle-btn">
+                    <span><i class="fas fa-boxes me-2"></i>Browse All Parts &amp; Items</span>
+                    <span class="quote-catalog-toggle-state"><span class="toggle-text">Show Catalog</span> <i class="fas fa-chevron-down quote-chevron"></i></span>
+                </summary>
+                <div class="quote-catalog-collapse-body">
+                    <div class="quote-tabs" aria-label="Item categories">
+                        <?php foreach ($item_tabs as $tab): ?>
+                            <button type="button" class="<?php echo $tab === 'All' ? 'active' : ''; ?>" data-category="<?php echo esc_attr($tab); ?>">
+                                <?php echo esc_html($tab); ?>
+                            </button>
+                        <?php endforeach; ?>
+                    </div>
+                    <div class="quote-picker">
+                        <label class="quote-picker-search">
+                            <span>Search or type item</span>
+                            <div class="quote-picker-input-row">
+                                <i class="fas fa-search"></i>
+                                <input type="search" id="itemPickerSearch" maxlength="100" data-text-format="first-letter" placeholder="Search inventory, or type a custom item..." autocomplete="off" data-no-autocomplete="true">
+                            </div>
+                        </label>
+                        <div class="quote-picker-list quote-picker-list-large" id="itemPickerList" aria-label="Available parts and items"></div>
+                    </div>
+                </div>
+            </details>
         </section>
 
         <section class="quote-card quote-cost-card quote-step-two is-locked">
@@ -916,53 +1393,148 @@ function updateItemDatalist() {
     }).join('');
 }
 
+function getDirectRecommendedServices() {
+    const directServices = new Set();
+    const recGroup = document.querySelector('.inspection-preset-group[data-preset-target="inspection_recommendations"]');
+    if (recGroup) {
+        recGroup.querySelectorAll('input[type="checkbox"]:checked').forEach((cb) => {
+            const matched = resolveRecommendedService(cb.value);
+            if (matched) directServices.add(normalizePickerText(matched.name));
+        });
+    }
+    const recText = document.getElementById('inspection_recommendations')?.value || '';
+    if (recText) {
+        recText.split('\n').map((l) => l.trim()).filter(Boolean).forEach((line) => {
+            const matched = resolveRecommendedService(line);
+            if (matched) directServices.add(normalizePickerText(matched.name));
+        });
+    }
+    return directServices;
+}
+
 function renderRequiredServicesList() {
     const container = document.getElementById('requiredServicesList');
     const search = document.getElementById('requiredServicesSearch');
+    const otherContainer = document.getElementById('otherServicesList');
+    const otherSearch = document.getElementById('otherServicesSearch');
+    const otherCountEl = document.getElementById('otherServicesCount');
     if (!container) return;
 
     const query = normalizePickerText(search?.value || '');
+    const otherQuery = normalizePickerText(otherSearch?.value || '');
     const requiredKeys = new Set(
         quoteLines
             .filter((l) => l.kind === 'service' && l.is_required)
             .map((l) => l.picker_key)
     );
 
-    const filtered = servicesCatalog.filter((service) => {
-        const text = `${service.name} ${service.category || ''}`;
-        return !query || normalizePickerText(text).includes(query);
+    const recText = getServiceRecommendationText();
+    const directServices = getDirectRecommendedServices();
+
+    const categorized = servicesCatalog.map((service) => {
+        const normName = normalizePickerText(service.name);
+        const isDirect = directServices.has(normName);
+        const ruleScore = serviceRecommendationScore(service, recText);
+        const pickerKey = `service:${normName}`;
+        const isRequired = requiredKeys.has(pickerKey);
+        const isRelevant = isDirect || ruleScore >= 4 || isRequired;
+        const totalScore = (isRequired ? 200 : 0) + (isDirect ? 100 : 0) + ruleScore;
+
+        return {
+            ...service,
+            pickerKey,
+            isDirect,
+            ruleScore,
+            isRequired,
+            isRelevant,
+            totalScore
+        };
     });
 
-    if (!filtered.length) {
-        container.innerHTML = '<div class="quote-tech-empty">No matching catalog services</div>';
-        return;
+    // 1. Primary Suggested Repairs (Relevant to inspection findings or already confirmed as required)
+    const suggested = categorized
+        .filter((s) => s.isRelevant)
+        .filter((s) => {
+            const text = `${s.name} ${s.category || ''}`;
+            return !query || normalizePickerText(text).includes(query);
+        })
+        .sort((a, b) => {
+            if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+            return a.name.localeCompare(b.name);
+        });
+
+    if (!suggested.length) {
+        container.innerHTML = '<div class="quote-tech-empty"><i class="fas fa-clipboard-list me-1"></i> No suggested repairs match current findings. Use "Browse Other Services" below or enter inspection findings.</div>';
+    } else {
+        container.innerHTML = suggested.map((service) => {
+            const checked = service.isRequired ? 'checked' : '';
+            const itemClass = checked ? 'quote-tech-item is-checked' : 'quote-tech-item';
+            const manualBadge = (service.isRequired && !service.isDirect && service.ruleScore < 4)
+                ? '<span class="quote-badge-manual">Manual</span>'
+                : '';
+            return `
+                <label class="${itemClass}">
+                    <span class="quote-tech-item-left">
+                        <input type="checkbox" class="required-service-checkbox" value="${escapeHtml(service.name)}" ${checked}>
+                        <span class="quote-tech-item-info">
+                            <strong class="quote-tech-item-name">${escapeHtml(service.name)}${manualBadge}</strong>
+                            <small class="quote-tech-item-meta">${escapeHtml(service.category || 'Service')}</small>
+                        </span>
+                    </span>
+                    <span class="quote-tech-item-price">&#8369;${money(service.price)}</span>
+                </label>
+            `;
+        }).join('');
     }
 
-    container.innerHTML = filtered.map((service) => {
-        const pickerKey = `service:${normalizePickerText(service.name)}`;
-        const checked = requiredKeys.has(pickerKey) ? 'checked' : '';
-        const itemClass = checked ? 'quote-tech-item is-checked' : 'quote-tech-item';
-        return `
-            <label class="${itemClass}">
-                <span class="quote-tech-item-left">
-                    <input type="checkbox" class="required-service-checkbox" value="${escapeHtml(service.name)}" ${checked}>
-                    <span class="quote-tech-item-info">
-                        <strong class="quote-tech-item-name">${escapeHtml(service.name)}</strong>
-                        <small class="quote-tech-item-meta">${escapeHtml(service.category || 'Service')}</small>
-                    </span>
-                </span>
-                <span class="quote-tech-item-price">&#8369;${money(service.price)}</span>
-            </label>
-        `;
-    }).join('');
+    // 2. Collapsed Browse Other Services (Full Catalog)
+    if (otherContainer) {
+        const others = categorized
+            .filter((s) => !s.isRelevant)
+            .filter((s) => {
+                const text = `${s.name} ${s.category || ''}`;
+                return !otherQuery || normalizePickerText(text).includes(otherQuery);
+            })
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        if (otherCountEl) {
+            const totalOthers = categorized.filter((s) => !s.isRelevant).length;
+            otherCountEl.textContent = String(totalOthers);
+        }
+
+        if (!others.length) {
+            otherContainer.innerHTML = '<div class="quote-tech-empty" style="padding:10px;">No other services found.</div>';
+        } else {
+            otherContainer.innerHTML = others.map((service) => {
+                const checked = service.isRequired ? 'checked' : '';
+                const itemClass = checked ? 'quote-tech-item is-checked' : 'quote-tech-item';
+                return `
+                    <label class="${itemClass}">
+                        <span class="quote-tech-item-left">
+                            <input type="checkbox" class="required-service-checkbox" value="${escapeHtml(service.name)}" ${checked}>
+                            <span class="quote-tech-item-info">
+                                <strong class="quote-tech-item-name">${escapeHtml(service.name)}</strong>
+                                <small class="quote-tech-item-meta">${escapeHtml(service.category || 'Service')}</small>
+                            </span>
+                        </span>
+                        <span class="quote-tech-item-price">&#8369;${money(service.price)}</span>
+                    </label>
+                `;
+            }).join('');
+        }
+    }
 }
 
 function renderStep1RecommendedItemsList() {
     const container = document.getElementById('recommendedItemsList');
     const search = document.getElementById('recommendedItemsSearch');
+    const otherContainer = document.getElementById('allBranchStockList');
+    const otherSearch = document.getElementById('allBranchStockSearch');
+    const otherCountEl = document.getElementById('allBranchStockCount');
     if (!container) return;
 
     const query = normalizePickerText(search?.value || '');
+    const otherQuery = normalizePickerText(otherSearch?.value || '');
     const recommendedKeys = new Set(
         quoteLines
             .filter((l) => l.kind !== 'service' && l.is_recommended)
@@ -973,37 +1545,102 @@ function renderStep1RecommendedItemsList() {
         Number(item.branch_id) === currentBranchId && Number(item.quantity || 0) > 0
     );
 
-    const filtered = branchItems.filter((item) => {
-        const text = `${item.name} ${item.brand || ''} ${item.size || ''} ${item.group || ''} ${item.category || ''}`;
-        return !query || normalizePickerText(text).includes(query);
+    const terms = getItemRecommendationTerms();
+
+    const categorized = branchItems.map((item) => {
+        const pickerKey = `inventory:${item.id}`;
+        const isRecommended = recommendedKeys.has(pickerKey);
+        const score = itemRecommendationScore(item, terms);
+        const isRelevant = isRecommended || score > 0;
+        const totalScore = (isRecommended ? 100 : 0) + score;
+
+        return {
+            ...item,
+            pickerKey,
+            isRecommended,
+            score,
+            isRelevant,
+            totalScore
+        };
     });
 
-    if (!filtered.length) {
-        container.innerHTML = '<div class="quote-tech-empty">No in-stock branch items found</div>';
-        return;
+    // 1. Primary Suggested Items (Relevant to findings/services or already selected)
+    const suggested = categorized
+        .filter((item) => item.isRelevant)
+        .filter((item) => {
+            const text = `${item.name} ${item.brand || ''} ${item.size || ''} ${item.group || ''} ${item.category || ''}`;
+            return !query || normalizePickerText(text).includes(query);
+        })
+        .sort((a, b) => {
+            if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+            return a.name.localeCompare(b.name);
+        });
+
+    if (!suggested.length) {
+        container.innerHTML = '<div class="quote-tech-empty"><i class="fas fa-boxes me-1"></i> No relevant parts identified for current inspection. Use "Browse All Branch Stock" below to select parts manually.</div>';
+    } else {
+        container.innerHTML = suggested.map((item) => {
+            const checked = item.isRecommended ? 'checked' : '';
+            const itemClass = checked ? 'quote-tech-item is-checked' : 'quote-tech-item';
+            const meta = [item.brand, item.size, item.group].filter(Boolean).join(' • ');
+            return `
+                <label class="${itemClass}">
+                    <span class="quote-tech-item-left">
+                        <input type="checkbox" class="step1-recommended-item-checkbox" value="${item.id}" ${checked}>
+                        <span class="quote-tech-item-info">
+                            <strong class="quote-tech-item-name">${escapeHtml(item.name)}</strong>
+                            <small class="quote-tech-item-meta">${escapeHtml(meta || 'In-Stock')}</small>
+                        </span>
+                    </span>
+                    <span class="quote-tech-item-price">
+                        &#8369;${money(item.unit_price)}
+                        <small style="display:block;font-size:11px;color:#64748b;text-align:right;">Stock ${item.quantity}</small>
+                    </span>
+                </label>
+            `;
+        }).join('');
     }
 
-    container.innerHTML = filtered.slice(0, 50).map((item) => {
-        const pickerKey = `inventory:${item.id}`;
-        const checked = recommendedKeys.has(pickerKey) ? 'checked' : '';
-        const itemClass = checked ? 'quote-tech-item is-checked' : 'quote-tech-item';
-        const meta = [item.brand, item.size, item.group].filter(Boolean).join(' • ');
-        return `
-            <label class="${itemClass}">
-                <span class="quote-tech-item-left">
-                    <input type="checkbox" class="step1-recommended-item-checkbox" value="${item.id}" ${checked}>
-                    <span class="quote-tech-item-info">
-                        <strong class="quote-tech-item-name">${escapeHtml(item.name)}</strong>
-                        <small class="quote-tech-item-meta">${escapeHtml(meta || 'In-Stock')}</small>
-                    </span>
-                </span>
-                <span class="quote-tech-item-price">
-                    &#8369;${money(item.unit_price)}
-                    <small style="display:block;font-size:11px;color:#64748b;text-align:right;">Stock ${item.quantity}</small>
-                </span>
-            </label>
-        `;
-    }).join('');
+    // 2. Collapsed Browse All Branch Stock
+    if (otherContainer) {
+        const others = categorized
+            .filter((item) => !item.isRelevant)
+            .filter((item) => {
+                const text = `${item.name} ${item.brand || ''} ${item.size || ''} ${item.group || ''} ${item.category || ''}`;
+                return !otherQuery || normalizePickerText(text).includes(otherQuery);
+            })
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        if (otherCountEl) {
+            const totalOthers = categorized.filter((item) => !item.isRelevant).length;
+            otherCountEl.textContent = String(totalOthers);
+        }
+
+        if (!others.length) {
+            otherContainer.innerHTML = '<div class="quote-tech-empty" style="padding:10px;">No other branch stock found.</div>';
+        } else {
+            otherContainer.innerHTML = others.slice(0, 50).map((item) => {
+                const checked = item.isRecommended ? 'checked' : '';
+                const itemClass = checked ? 'quote-tech-item is-checked' : 'quote-tech-item';
+                const meta = [item.brand, item.size, item.group].filter(Boolean).join(' • ');
+                return `
+                    <label class="${itemClass}">
+                        <span class="quote-tech-item-left">
+                            <input type="checkbox" class="step1-recommended-item-checkbox" value="${item.id}" ${checked}>
+                            <span class="quote-tech-item-info">
+                                <strong class="quote-tech-item-name">${escapeHtml(item.name)}</strong>
+                                <small class="quote-tech-item-meta">${escapeHtml(meta || 'In-Stock')}</small>
+                            </span>
+                        </span>
+                        <span class="quote-tech-item-price">
+                            &#8369;${money(item.unit_price)}
+                            <small style="display:block;font-size:11px;color:#64748b;text-align:right;">Stock ${item.quantity}</small>
+                        </span>
+                    </label>
+                `;
+            }).join('');
+        }
+    }
 }
 
 function renderStep1Pickers() {
@@ -1038,6 +1675,51 @@ function renderPickerLists() {
     renderStep1Pickers();
 }
 
+const NONREPAIRABLE_TIRE_MARKERS = [
+    'beyond repair',
+    'unrepairable',
+    'cannot be repaired',
+    'not repairable',
+    'sidewall damage',
+    'sidewall puncture',
+    'sidewall tear',
+    'sidewall cut',
+    'sidewall bulge',
+    'tire blowout',
+    'blowout'
+];
+
+const PUNCTURE_REPAIR_SIGNALS = [
+    'vulcanizing', 'cold patch', 'puncture', 'tire leak', 'slow leak', 'flat tire',
+    'nail', 'screw', 'patch tire', 'tire repair', 'leaking air', 'tread puncture'
+];
+
+function splitInspectionClauses(text) {
+    if (!text) return [];
+    return String(text)
+        .toLowerCase()
+        .split(/[\n\r;]+|\.(?:\s+|$)|;\s*|\b(?:but|while|whereas|however|although)\b|,\s*(?=(?:rear|front|left|right|other|spare|second|2nd|\d+\.|\*|-)\b)/i)
+        .map((s) => s.trim())
+        .filter(Boolean);
+}
+
+function hasNonrepairableTireSignal(text) {
+    const norm = String(text || '').toLowerCase();
+    return NONREPAIRABLE_TIRE_MARKERS.some((marker) => norm.includes(marker));
+}
+
+function hasRepairablePunctureSignal(text) {
+    const clauses = splitInspectionClauses(text);
+    if (!clauses.length) return false;
+
+    return clauses.some((clause) => {
+        const hasPuncture = PUNCTURE_REPAIR_SIGNALS.some((sig) => clause.includes(sig));
+        if (!hasPuncture) return false;
+        const isNonrepairable = NONREPAIRABLE_TIRE_MARKERS.some((marker) => clause.includes(marker));
+        return !isNonrepairable;
+    });
+}
+
 function getServiceRecommendationText() {
     return normalizePickerText([
         document.getElementById('inspection_complaint')?.value || '',
@@ -1053,7 +1735,7 @@ function serviceRecommendationScore(service, recommendationText) {
     const rules = [
         { keys: ['align', 'alignment', 'steering', 'pulls', 'camber', 'caster', 'toe'], services: ['computerized four wheel alignment'] },
         { keys: ['balance', 'balancing', 'vibration', 'shake', 'wheel wobble'], services: ['wheel balancing', 'computerized wheel balancing'] },
-        { keys: ['mount', 'mounting', 'rotate', 'rotation', 'tire change', 'tire replacement'], services: ['tire mounting', 'tire rotation', 'tire change'] },
+        { keys: ['mount', 'mounting', 'rotate', 'rotation', 'tire change', 'tire replacement', 'beyond repair', 'unrepairable', 'cannot be repaired', 'not repairable'], services: ['tire mounting', 'tire rotation', 'tire change'] },
         { keys: ['under chassis', 'underchassis', 'suspension', 'kalampag', 'bushing', 'shock', 'ball joint', 'tie rod'], services: ['under chassis', 'suspension repair', 'suspension parts installation'] },
         { keys: ['oil', 'tune', 'tune-up', 'maintenance', 'pms'], services: ['oil change', 'engine tune-up', 'preventive maintenance'] },
         { keys: ['nitrogen', 'tire pressure', 'hangin', 'pressure'], services: ['nitrogen air tire inflation'] },
@@ -1063,7 +1745,7 @@ function serviceRecommendationScore(service, recommendationText) {
         { keys: ['clutch', 'manual clutch'], services: ['manual clutch repair'] },
         { keys: ['sanitizing', 'sanitize', 'odor', 'backtozero'], services: ['car sanitizing', 'backtozero'] },
         { keys: ['diagnostic', 'scan', 'scanner', 'check engine'], services: ['auto diagnostic'] },
-        { keys: ['vulcanizing', 'patch', 'flat', 'leak', 'puncture'], services: ['cold patch vulcanizing', 'tire repair'] },
+        { keys: ['vulcanizing', 'patch', 'flat', 'leak', 'puncture', 'nail', 'screw', 'slow leak'], services: ['cold patch vulcanizing', 'tire repair'] },
         { keys: ['egr', 'smoke', 'carbon'], services: ['egr cleaning'] },
         { keys: ['accessory', 'accessories', 'installation', 'install'], services: ['car accessories installation'] },
         { keys: ['aircon', 'air conditioning', 'a/c', 'ac ', 'cooling', 'freon', 'refrigerant'], services: ['ac refrigerant charging'] }
@@ -1076,13 +1758,11 @@ function serviceRecommendationScore(service, recommendationText) {
         }
 
         if (rule.services.some((serviceName) => serviceText.includes(serviceName))) {
+            // Suppress automatic puncture-repair service if tire findings are nonrepairable only
+            if ((serviceText.includes('cold patch') || serviceText.includes('tire repair') || serviceText.includes('vulcaniz')) && !hasRepairablePunctureSignal(recommendationText)) {
+                return;
+            }
             score += 4;
-        }
-    });
-
-    getItemRecommendationTerms().forEach((term) => {
-        if (serviceText.includes(term)) {
-            score += 1;
         }
     });
 
@@ -1153,6 +1833,25 @@ function renderServicePickerList() {
     }).join('');
 }
 
+const NON_REPAIR_ACCESSORY_WORDS = [
+    'steering wheel cover', 'steering wheel lock', 'steering cover', 'steering lock',
+    'wheel cover', 'car cover', 'seat cover', 'dash cam', 'perfume', 'freshener',
+    'phone holder', 'sunshade', 'floor mat', 'cushion', 'keychain', 'decal',
+    'sticker', 'horn', 'tint', 'organizer'
+];
+
+function isNonRepairAccessory(item) {
+    const category = normalizePickerText(item.category || '');
+    const group = normalizePickerText(item.group || '');
+    const name = normalizePickerText(item.name || '');
+
+    if (category === 'accessories' || group === 'accessories') {
+        return true;
+    }
+
+    return NON_REPAIR_ACCESSORY_WORDS.some((word) => name.includes(word));
+}
+
 function getItemRecommendationTerms() {
     const textSources = [
         document.getElementById('inspection_complaint')?.value || '',
@@ -1162,52 +1861,120 @@ function getItemRecommendationTerms() {
     ];
     const text = normalizePickerText(textSources.join(' '));
     const terms = new Set();
-    const rules = [
-        { keys: ['oil', 'change oil', 'lubrication'], terms: ['oil', 'filter'] },
-        { keys: ['filter', 'air filter', 'fuel filter', 'oil filter'], terms: ['filter'] },
-        { keys: ['brake', 'brakes'], terms: ['brake', 'pad'] },
-        { keys: ['battery', 'electrical', 'starting'], terms: ['battery'] },
-        { keys: ['spark', 'tune', 'tune-up', 'misfire'], terms: ['spark', 'plug'] },
-        { keys: ['tire', 'wheel', 'balancing', 'alignment', 'rotation'], terms: ['tire', 'wheel', 'valve'] },
-        { keys: ['coolant', 'radiator', 'overheat'], terms: ['coolant', 'fluid'] },
-        { keys: ['transmission', 'fluid'], terms: ['transmission', 'fluid'] },
-        { keys: ['wiper', 'windshield'], terms: ['wiper'] },
-        { keys: ['aircon', 'air conditioning', 'ac ', 'a/c'], terms: ['aircon', 'refrigerant', 'cabin', 'filter'] }
+
+    // 1. Engine Oil & Maintenance
+    if (['oil change', 'change oil', 'engine tune', 'tune-up', 'maintenance', 'pms', 'lube'].some((k) => text.includes(k))) {
+        terms.add('engine_oil');
+        terms.add('oil_filter');
+    }
+
+    // 2. Air / Fuel / Cabin Filters
+    if (text.includes('air filter') || text.includes('clean air filter')) {
+        terms.add('air_filter');
+    }
+    if (text.includes('fuel filter')) {
+        terms.add('fuel_filter');
+    }
+    if (text.includes('cabin filter') || text.includes('ac filter')) {
+        terms.add('cabin_filter');
+    }
+
+    // 3. Brake Service
+    if (['brake', 'brakes', 'brake noise', 'weak braking', 'brake pad', 'brake repair'].some((k) => text.includes(k))) {
+        terms.add('brake_parts');
+    }
+
+    // 4. Battery / Starting
+    if (['battery', 'not starting', 'hard start', 'starting concern', 'fast charging', 'battery check'].some((k) => text.includes(k))) {
+        terms.add('battery');
+    }
+
+    // 5. Spark Plugs
+    if (['spark plug', 'misfire', 'engine stumble', 'rough idle'].some((k) => text.includes(k))) {
+        terms.add('spark_plug');
+    }
+
+    // 6. Fluids (Coolant / ATF / AC Refrigerant)
+    if (['coolant', 'radiator', 'overheat', 'antifreeze'].some((k) => text.includes(k))) {
+        terms.add('coolant');
+    }
+    if (['atf', 'automatic transmission', 'transmission flush', 'transmission fluid'].some((k) => text.includes(k))) {
+        terms.add('atf');
+    }
+    if (['aircon', 'air conditioning', 'refrigerant', 'freon', 'cooling', 'a/c', 'ac '].some((k) => text.includes(k))) {
+        terms.add('refrigerant');
+    }
+
+    // 7. Wheel Balancing Consumables (Weights, Valves)
+    if (['wheel balancing', 'balancing', 'vibration while driving', 'wheel wobble', 'shake'].some((k) => text.includes(k))) {
+        terms.add('balancing_weights');
+        terms.add('tire_valve');
+    }
+
+    // 8. Tire Puncture / Patching Consumables (Requires genuinely repairable puncture)
+    if (hasRepairablePunctureSignal(text)) {
+        terms.add('cold_patch');
+        terms.add('tire_valve');
+    }
+
+    // 9. Replacement Tires (STRICT: Requires explicit tire replacement/damage context or nonrepairable tire)
+    const explicitTireReplacementSignals = [
+        'replace tire', 'tire replacement', 'new tire', 'change tire', 'tire change',
+        'worn tire', 'bald tire', 'tread wear', 'thread wear', 'tire blowout',
+        'tire bulge', 'tire damage', 'sidewall damage', 'worn out tire', 'replacement required',
+        'beyond repair', 'unrepairable', 'cannot be repaired', 'not repairable'
     ];
-
-    rules.forEach((rule) => {
-        if (rule.keys.some((key) => text.includes(key))) {
-            rule.terms.forEach((term) => terms.add(term));
-        }
-    });
-
-    const stopWords = new Set([
-        'with', 'from', 'that', 'this', 'need', 'needs', 'service', 'parts', 'part',
-        'item', 'items', 'replace', 'replacement', 'check', 'customer', 'vehicle',
-        'recommended', 'recommend', 'inspection', 'inspect', 'issue', 'issues'
-    ]);
-
-    text.split(/[^a-z0-9]+/)
-        .filter((word) => word.length >= 4 && !stopWords.has(word))
-        .slice(0, 10)
-        .forEach((word) => terms.add(word));
+    if (explicitTireReplacementSignals.some((k) => text.includes(k))) {
+        terms.add('replacement_tire');
+    }
 
     return Array.from(terms);
 }
 
 function itemRecommendationScore(item, terms) {
     if (!terms.length) return 0;
+    if (isNonRepairAccessory(item)) return 0;
 
-    const searchable = normalizePickerText([
-        item.name,
-        item.brand,
-        item.size,
-        item.branch_name,
-        item.group,
-        item.category
-    ].filter(Boolean).join(' '));
+    const name = normalizePickerText(item.name || '');
+    const group = normalizePickerText(item.group || '');
+    const category = normalizePickerText(item.category || '');
+    let score = 0;
 
-    return terms.reduce((score, term) => score + (searchable.includes(term) ? 1 : 0), 0);
+    for (const term of terms) {
+        if (term === 'engine_oil' && (group === 'engine oil' || name.includes('oil') && !name.includes('filter'))) {
+            score += 5;
+        } else if (term === 'oil_filter' && (group === 'filters' || name.includes('filter')) && name.includes('oil')) {
+            score += 5;
+        } else if (term === 'air_filter' && (group === 'filters' || name.includes('filter')) && name.includes('air')) {
+            score += 5;
+        } else if (term === 'fuel_filter' && (group === 'filters' || name.includes('filter')) && name.includes('fuel')) {
+            score += 5;
+        } else if (term === 'cabin_filter' && (group === 'filters' || name.includes('filter')) && name.includes('cabin')) {
+            score += 5;
+        } else if (term === 'brake_parts' && (group === 'brakes' || name.includes('brake'))) {
+            score += 5;
+        } else if (term === 'battery' && (group === 'battery' || name.includes('battery'))) {
+            score += 5;
+        } else if (term === 'spark_plug' && (group === 'spark plugs' || name.includes('spark') || name.includes('plug'))) {
+            score += 5;
+        } else if (term === 'coolant' && (group === 'fluids' && (name.includes('coolant') || name.includes('radiator')))) {
+            score += 5;
+        } else if (term === 'atf' && (group === 'fluids' && (name.includes('atf') || name.includes('transmission')))) {
+            score += 5;
+        } else if (term === 'refrigerant' && (name.includes('refrigerant') || name.includes('freon') || name.includes('134a'))) {
+            score += 5;
+        } else if (term === 'balancing_weights' && (name.includes('weight') || name.includes('balancing weight'))) {
+            score += 5;
+        } else if (term === 'cold_patch' && (name.includes('patch') || name.includes('vulcaniz') || name.includes('sealant'))) {
+            score += 5;
+        } else if (term === 'tire_valve' && (name.includes('valve') || name.includes('valve stem') || name.includes('tire valve'))) {
+            score += 4;
+        } else if (term === 'replacement_tire' && (category === 'tire' || group === 'tires') && !name.includes('weight') && !name.includes('valve') && !name.includes('patch') && !name.includes('vulcaniz') && !name.includes('sealant') && !name.includes('rubber')) {
+            score += 5;
+        }
+    }
+
+    return score;
 }
 
 function renderItemPickerList() {
@@ -1542,16 +2309,16 @@ function addTypedItem() {
 
 function removeLine(lineId) {
     const line = quoteLines.find((l) => l.id === lineId);
-    if (line) {
-        if (line.is_recommended && !line.is_required) {
-            optedOutKeys.add(line.picker_key);
-        }
-        if (line.is_required) {
-            syncStep1RequiredServiceCheckbox(line.name, false);
-        }
-        if (line.kind !== 'service' && line.inventory_item_id) {
-            syncStep1RecommendedItemCheckbox(line.inventory_item_id, false);
-        }
+    if (!line) return;
+    if (line.is_required) {
+        alert('This service is marked as Required in Step 1. To remove it, uncheck it in the Step 1 Required Services section.');
+        return;
+    }
+    if (line.is_recommended && !line.is_required) {
+        optedOutKeys.add(line.picker_key);
+    }
+    if (line.kind !== 'service' && line.inventory_item_id) {
+        syncStep1RecommendedItemCheckbox(line.inventory_item_id, false);
     }
     quoteLines = quoteLines.filter((l) => l.id !== lineId);
     renderLines();
@@ -1561,16 +2328,16 @@ function removeLine(lineId) {
 
 function removeLineByPickerKey(pickerKey) {
     const line = quoteLines.find((l) => l.picker_key === pickerKey);
-    if (line) {
-        if (line.is_recommended && !line.is_required) {
-            optedOutKeys.add(pickerKey);
-        }
-        if (line.is_required) {
-            syncStep1RequiredServiceCheckbox(line.name, false);
-        }
-        if (line.kind !== 'service' && line.inventory_item_id) {
-            syncStep1RecommendedItemCheckbox(line.inventory_item_id, false);
-        }
+    if (!line) return;
+    if (line.is_required) {
+        alert('This service is marked as Required in Step 1. To remove it, uncheck it in the Step 1 Required Services section.');
+        return;
+    }
+    if (line.is_recommended && !line.is_required) {
+        optedOutKeys.add(pickerKey);
+    }
+    if (line.kind !== 'service' && line.inventory_item_id) {
+        syncStep1RecommendedItemCheckbox(line.inventory_item_id, false);
     }
     quoteLines = quoteLines.filter((l) => l.picker_key !== pickerKey);
     renderLines();
@@ -1792,22 +2559,51 @@ function renderLines() {
 }
 
 function lineHint(line) {
+    if (line.kind === 'service') {
+        const hasDuration = Boolean(line.estimated_duration);
+        const hasDesc = Boolean(line.description);
+        const hasVariable = Number(line.is_variable_price || 0) === 1;
+
+        if (!hasDuration && !hasDesc && !hasVariable) {
+            return '';
+        }
+
+        const durationPill = hasDuration
+            ? `<span class="quote-duration-pill"><i class="far fa-clock"></i> ${escapeHtml(line.estimated_duration)}</span>`
+            : '';
+        const variablePill = hasVariable
+            ? `<span class="quote-duration-pill" style="background:#fef3c7;color:#92400e;"><i class="fas fa-sliders-h"></i> Adjustable</span>`
+            : '';
+
+        return `
+            <details class="quote-line-expandable-details">
+                <summary class="quote-line-expandable-summary">
+                    <span><i class="fas fa-info-circle text-info"></i> Details &amp; Scope</span>
+                    ${durationPill}
+                    ${variablePill}
+                    <i class="fas fa-chevron-down quote-chevron"></i>
+                </summary>
+                <div class="quote-line-expandable-body">
+                    ${hasDuration ? `<p><strong>Estimated Duration:</strong> ${escapeHtml(line.estimated_duration)}</p>` : ''}
+                    ${hasDesc ? `<p>${escapeHtml(line.description)}</p>` : ''}
+                    ${hasVariable ? `<p style="color:#b45309;font-weight:600;"><i class="fas fa-info-circle"></i> Price can be adjusted if work scope changes.</p>` : ''}
+                </div>
+            </details>
+        `;
+    }
+
     const details = [];
-    if (line.kind === 'service' && line.estimated_duration) {
-        details.push(`Estimated duration: ${line.estimated_duration}`);
+    if (Number(line.inventory_quantity || 0) > 0) {
+        details.push(`<span class="quote-stock-pill"><i class="fas fa-check"></i> Stock: ${Number(line.inventory_quantity || 0)}</span>`);
     }
-    if (line.kind === 'service' && line.description) {
-        details.push(line.description);
-    }
-    if (line.kind === 'service' && Number(line.is_variable_price || 0) === 1) {
-        details.push('Price can be adjusted if the work scope changes.');
-    }
-    if (line.kind !== 'service' && Number(line.inventory_quantity || 0) > 0) {
-        details.push(`Available: ${Number(line.inventory_quantity || 0)}`);
+    if (line.source_select === 'external') {
+        details.push('<span class="quote-stock-pill" style="background:#f1f5f9;color:#475569;">External Purchase</span>');
+    } else if (line.source_select === 'customer_supplied') {
+        details.push('<span class="quote-stock-pill" style="background:#f1f5f9;color:#475569;">Customer Supplied</span>');
     }
 
     return details.length
-        ? `<p class="quote-line-hint">${escapeHtml(details.join(' | '))}</p>`
+        ? `<div style="grid-column: 1 / -1; margin-top: 2px;">${details.join(' ')}</div>`
         : '';
 }
 
@@ -1836,6 +2632,14 @@ function lineTotal(total) {
 }
 
 function removeButton(lineId) {
+    const line = quoteLines.find((l) => l.id === lineId);
+    if (line && line.is_required) {
+        return `
+            <button type="button" class="quote-remove-line is-locked" title="Required service — uncheck in Step 1 to remove" onclick="alert('This service is marked as Required in Step 1. To remove it, uncheck it in the Step 1 Required Services section.');" aria-label="Required service cannot be removed here">
+                <i class="fas fa-lock"></i>
+            </button>
+        `;
+    }
     return `
         <button type="button" class="quote-remove-line" onclick="removeLine('${lineId}')" aria-label="Remove line">
             <i class="far fa-trash-alt"></i>
@@ -1958,10 +2762,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('itemPickerSearch').addEventListener('search', renderItemPickerList);
     document.getElementById('requiredServicesSearch')?.addEventListener('input', renderRequiredServicesList);
     document.getElementById('requiredServicesSearch')?.addEventListener('search', renderRequiredServicesList);
+    document.getElementById('otherServicesSearch')?.addEventListener('input', renderRequiredServicesList);
+    document.getElementById('otherServicesSearch')?.addEventListener('search', renderRequiredServicesList);
     document.getElementById('recommendedItemsSearch')?.addEventListener('input', renderStep1RecommendedItemsList);
     document.getElementById('recommendedItemsSearch')?.addEventListener('search', renderStep1RecommendedItemsList);
+    document.getElementById('allBranchStockSearch')?.addEventListener('input', renderStep1RecommendedItemsList);
+    document.getElementById('allBranchStockSearch')?.addEventListener('search', renderStep1RecommendedItemsList);
 
-    document.getElementById('requiredServicesList')?.addEventListener('change', (event) => {
+    const handleRequiredServiceChange = (event) => {
         if (!event.target.classList.contains('required-service-checkbox')) return;
         const serviceName = event.target.value;
         const pickerKey = `service:${normalizePickerText(serviceName)}`;
@@ -1974,9 +2782,12 @@ document.addEventListener('DOMContentLoaded', () => {
             renderLines();
         }
         renderStep1Pickers();
-    });
+    };
 
-    document.getElementById('recommendedItemsList')?.addEventListener('change', (event) => {
+    document.getElementById('requiredServicesList')?.addEventListener('change', handleRequiredServiceChange);
+    document.getElementById('otherServicesList')?.addEventListener('change', handleRequiredServiceChange);
+
+    const handleRecommendedItemChange = (event) => {
         if (!event.target.classList.contains('step1-recommended-item-checkbox')) return;
         const itemId = event.target.value;
         const pickerKey = `inventory:${itemId}`;
@@ -1989,7 +2800,10 @@ document.addEventListener('DOMContentLoaded', () => {
             renderLines();
         }
         renderStep1Pickers();
-    });
+    };
+
+    document.getElementById('recommendedItemsList')?.addEventListener('change', handleRecommendedItemChange);
+    document.getElementById('allBranchStockList')?.addEventListener('change', handleRecommendedItemChange);
 
     ['inspection_complaint', 'inspection_findings', 'inspection_recommendations'].forEach((fieldId) => {
         const field = document.getElementById(fieldId);
@@ -2058,6 +2872,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const serviceName = event.target.value;
         const pickerKey = `service:${normalizePickerText(serviceName)}`;
+        const existing = quoteLines.find((l) => l.picker_key === pickerKey);
+        if (!event.target.checked && existing && existing.is_required) {
+            event.target.checked = true;
+            alert('This service is marked as Required in Step 1. To remove it, uncheck it in the Step 1 Required Services section.');
+            return;
+        }
+
         if (event.target.checked) {
             optedOutKeys.delete(pickerKey);
             const isRec = Boolean(resolveRecommendedService(serviceName));
@@ -2098,6 +2919,15 @@ document.addEventListener('DOMContentLoaded', () => {
             activeItemCategory = button.dataset.category;
             updateItemDatalist();
             renderItemPickerList();
+        });
+    });
+
+    document.querySelectorAll('.quote-catalog-collapse').forEach((el) => {
+        el.addEventListener('toggle', () => {
+            const toggleText = el.querySelector('.toggle-text');
+            if (toggleText) {
+                toggleText.textContent = el.open ? 'Hide Catalog' : 'Show Catalog';
+            }
         });
     });
 

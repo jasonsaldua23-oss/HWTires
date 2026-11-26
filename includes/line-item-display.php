@@ -192,7 +192,8 @@ if (!function_exists('app_line_item_product_details')) {
             $details[] = ['label' => 'Note', 'value' => $line_note];
         }
 
-        if (!app_line_item_is_service($item) && !empty($inventory_item)) {
+        $exclude_warranty = (bool) ($options['exclude_warranty'] ?? false);
+        if (!$exclude_warranty && !app_line_item_is_service($item) && !empty($inventory_item)) {
             $cat_w = app_catalog_warranty_state($inventory_item);
             if ($cat_w['state'] === 'applicable') {
                 $details[] = [
